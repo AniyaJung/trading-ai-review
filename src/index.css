@@ -1,0 +1,47 @@
+:root {
+  --surface: #ece7dc;
+  --panel: #fffdf7;
+  --line: #d8d2c5;
+  --ink: #232323;
+  --ink-soft: #4f4d49;
+  --ink-invert: #f5f3ec;
+  --muted: #746f66;
+
+  color: var(--ink);
+  background: var(--surface);
+  font-family:
+    "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--surface);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #2d5148;
+  outline-offset: 2px;
+}
