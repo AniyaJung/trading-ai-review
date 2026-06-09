@@ -205,7 +205,7 @@ Frontend build and domain tests can run with npm.
 Full Tauri desktop build requires Rust/Cargo to be installed.
 ```
 
-- [ ] **Step 4: Verify status**
+- [x] **Step 4: Verify status**
 
 Run:
 
