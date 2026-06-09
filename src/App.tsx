@@ -63,6 +63,7 @@ const currentTrade = calculateClosedFuturesTrade({
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
+  const desktopRuntime = window.desktopApi?.runtime ?? "browser-preview";
 
   const activeView = useMemo(
     () => navigationItems.find((item) => item.id === currentView),
@@ -102,7 +103,7 @@ function App() {
           <ShieldCheck aria-hidden="true" size={18} />
           <div>
             <strong>本地优先</strong>
-            <span>SQLite 与截图保存在本机</span>
+            <span>{desktopRuntime} / SQLite 与截图保存在本机</span>
           </div>
         </div>
       </aside>

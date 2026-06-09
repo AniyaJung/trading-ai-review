@@ -11,9 +11,8 @@ node_modules
 .npm-cache
 dist
 dist-ssr
+dist-electron
 *.local
-src-tauri/target
-src-tauri/gen/schemas
 
 # Editor directories and files
 .vscode/*

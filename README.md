@@ -6,7 +6,7 @@
 
 M1 has started:
 
-- Tauri v2 + React + TypeScript + Vite scaffold.
+- Electron + React + TypeScript + Vite scaffold.
 - Desktop workbench shell with simple app-state navigation.
 - Futures PnL/R multiple calculation core with Vitest coverage.
 - Design spec and M1 implementation plan are stored under `docs/superpowers`.
@@ -21,10 +21,16 @@ Install dependencies:
 npm install --cache .npm-cache
 ```
 
-Run frontend:
+Run Electron desktop app:
 
 ```bash
 npm run dev
+```
+
+Run browser-only renderer preview:
+
+```bash
+npm run web:dev
 ```
 
 Run tests:
@@ -33,18 +39,12 @@ Run tests:
 npm run test -- --run
 ```
 
-Build frontend:
+Build renderer and Electron main/preload:
 
 ```bash
 npm run build
 ```
 
-Run Tauri after Rust/Cargo is installed:
-
-```bash
-npm run tauri dev
-```
-
 ## Toolchain Note
 
-This machine currently has Node/npm available, but `rustc` and `cargo` were not found during M1 setup. Frontend tests and Vite build can run now. Full Tauri desktop build requires installing Rust first.
+This project now uses Electron, so the MVP desktop shell runs on the Node/npm toolchain. Rust/Cargo is not required.

@@ -4,9 +4,9 @@
 
 **Goal:** Build the first runnable foundation for the AI trading review desktop app: project scaffold, navigation shell, local-first domain models, futures PnL calculations, and initial documentation inside the repo.
 
-**Architecture:** Use a Tauri v2 + React + TypeScript + Vite application. Keep domain logic in focused TypeScript modules that are testable without the desktop runtime, while reserving SQLite/filesystem work for the Tauri backend once Rust is installed.
+**Architecture:** Use an Electron + React + TypeScript + Vite application. Keep domain logic in focused TypeScript modules that are testable without the desktop runtime, and expose local desktop capabilities through a narrow preload bridge into the Electron main process.
 
-**Tech Stack:** Tauri v2, React, TypeScript, Vite, Vitest, CSS modules/plain CSS for the initial desktop workbench UI.
+**Tech Stack:** Electron, React, TypeScript, Vite, Vitest, CSS modules/plain CSS for the initial desktop workbench UI.
 
 ---
 
@@ -20,9 +20,10 @@
 - Create: `tsconfig.node.json`
 - Create: `src/main.tsx`
 - Create: `src/vite-env.d.ts`
-- Create: `src-tauri/tauri.conf.json`
-- Create: `src-tauri/Cargo.toml`
-- Create: `src-tauri/src/main.rs`
+- Create: `electron/main.ts`
+- Create: `electron/preload.ts`
+- Create: `electron/windowOptions.ts`
+- Create: `tsconfig.electron.json`
 
 - [x] **Step 1: Scaffold the React + TypeScript frontend**
 
@@ -34,19 +35,19 @@ npm create vite@latest . -- --template react-ts
 
 Expected: Vite creates a React TypeScript project in the repository root.
 
-- [x] **Step 2: Add Tauri project metadata**
+- [x] **Step 2: Add Electron project metadata**
 
 Run:
 
 ```bash
-npm install --save-dev @tauri-apps/cli
+npm install --save-dev electron concurrently wait-on cross-env
 ```
 
-Expected: `@tauri-apps/cli` is added to dev dependencies.
+Expected: Electron development dependencies are added.
 
-- [x] **Step 3: Create minimal Tauri config**
+- [x] **Step 3: Create minimal Electron shell**
 
-Create `src-tauri/tauri.conf.json` with app identity, frontend dev/build commands, and bundle metadata.
+Create `electron/main.ts`, `electron/preload.ts`, and `electron/windowOptions.ts` with `contextIsolation: true`, `nodeIntegration: false`, and a narrow `desktopApi` preload bridge.
 
 - [x] **Step 4: Verify frontend scaffold**
 
@@ -193,7 +194,7 @@ Expected: repository initialized in `/Users/juyu/IdeaProjects/trading-ai-review`
 
 - [x] **Step 2: Add ignore rules**
 
-Ignore `node_modules`, build output, Tauri target output, macOS files, and local environment files.
+Ignore `node_modules`, build output, Electron output, macOS files, and local environment files.
 
 - [x] **Step 3: Document current development status**
 
@@ -202,7 +203,7 @@ Ignore `node_modules`, build output, Tauri target output, macOS files, and local
 ```text
 M1 has started.
 Frontend build and domain tests can run with npm.
-Full Tauri desktop build requires Rust/Cargo to be installed.
+Electron desktop shell runs on the Node/npm toolchain; Rust/Cargo is not required.
 ```
 
 - [x] **Step 4: Verify status**

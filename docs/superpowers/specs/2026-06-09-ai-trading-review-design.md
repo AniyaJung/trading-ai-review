@@ -66,8 +66,10 @@ MVP 中，一笔 `trade` 表示一次完整交易计划：从同一个入场逻�
 第一版采用本地优先桌面应用架构：
 
 ```text
-Tauri 桌面应用
-  React + TypeScript UI
+Electron 桌面应用
+  React + TypeScript Renderer
+  Preload 安全桥
+  Electron Main Process
   简单 App State 控制页面切换
   本地 SQLite 数据库
   本地图片目录
@@ -77,7 +79,7 @@ Tauri 桌面应用
 
 推荐技术栈：
 
-- 桌面壳：Tauri v2。
+- 桌面壳：Electron。
 - UI：React + TypeScript。
 - 构建工具：Vite。
 - 样式：Tailwind CSS 或类似的轻量本地 UI 方案。
@@ -85,6 +87,13 @@ Tauri 桌面应用
 - 图片：存放在本地应用数据目录，数据库只保存路径和元数据。
 - AI：远程多模态模型 API。
 - 图表：ECharts。
+
+Electron 进程边界：
+
+- Renderer 只负责 UI、表单状态、图表和用户交互。
+- Preload 使用 `contextBridge` 暴露有限 API，禁止 Renderer 直接访问 Node.js 能力。
+- Main Process 负责 SQLite、文件系统、图片目录、备份恢复、系统安全存储和外部链接打开。
+- 默认启用 `contextIsolation`，关闭 `nodeIntegration`。
 
 第一版不引入专门的 Web 路由库或 Web 数据缓存框架。页面切换用简单状态即可：
 
@@ -706,7 +715,7 @@ MVP 接收已经标注好的截图。后续可增加：
 
 ### M1：桌面骨架和本地数据
 
-- 初始化 Tauri、React、TypeScript、Vite。
+- 初始化 Electron、React、TypeScript、Vite。
 - 基础应用壳。
 - 简单页面状态。
 - SQLite 连接。
