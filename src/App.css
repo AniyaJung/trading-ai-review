@@ -175,6 +175,11 @@
   font-weight: 700;
 }
 
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .secondary-button {
   padding: 0 13px;
   color: var(--ink);
@@ -298,6 +303,10 @@
   padding: 16px;
 }
 
+.trade-form-grid {
+  padding-bottom: 10px;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -306,10 +315,11 @@ label {
   font-weight: 700;
 }
 
-input {
+input,
+select,
+textarea {
   width: 100%;
   min-width: 0;
-  height: 36px;
   box-sizing: border-box;
   padding: 0 10px;
   color: var(--ink);
@@ -317,6 +327,23 @@ input {
   border: 1px solid var(--line);
   border-radius: 6px;
   font: inherit;
+}
+
+input,
+select {
+  height: 36px;
+}
+
+textarea {
+  min-height: 64px;
+  padding: 9px 10px;
+  resize: vertical;
+}
+
+.notes-grid {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
 }
 
 .metric-strip {
@@ -345,6 +372,20 @@ input {
 .metric-strip strong {
   color: #0e6849;
   font-size: 19px;
+}
+
+.form-status {
+  padding: 12px 16px;
+  color: var(--muted);
+  background: #fbfaf6;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  font-size: 13px;
+}
+
+.form-status.error {
+  color: #7f2d22;
+  background: #f7dfd5;
 }
 
 .review-score {
@@ -492,6 +533,7 @@ input {
   }
 
   .form-grid,
+  .notes-grid,
   .metric-strip {
     grid-template-columns: 1fr;
   }

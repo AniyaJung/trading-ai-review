@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
-
-type TradeDirection = "long" | "short";
+import { calculateClosedFuturesTrade } from "../../shared/trading/futuresMath.js";
+import type { TradeDirection } from "../../shared/trading/types.js";
 
 export type CreateClosedTradeInput = {
   symbol: string;
@@ -57,6 +57,7 @@ export function createClosedTrade(
   db: DatabaseSync,
   input: CreateClosedTradeInput,
 ): TradeSummary {
+  validateClosedTradeInput(input);
   const instrument = findInstrumentBySymbol(db, input.symbol);
 
   if (!instrument) {
@@ -168,6 +169,63 @@ export function createClosedTrade(
   }
 }
 
+function validateClosedTradeInput(input: CreateClosedTradeInput) {
+  if (input.direction !== "long" && input.direction !== "short") {
+    throw new Error("Direction must be long or short.");
+  }
+
+  assertPositiveFiniteNumber(input.entryPrice, "Entry price");
+  assertPositiveFiniteNumber(input.exitPrice, "Exit price");
+  assertPositiveFiniteNumber(input.stopLossPrice, "Stop loss price");
+  assertFiniteNumber(input.feesTotal, "Fees total");
+
+  if (input.takeProfitPrice != null) {
+    assertPositiveFiniteNumber(input.takeProfitPrice, "Take profit price");
+  }
+
+  if (!Number.isInteger(input.quantity) || input.quantity <= 0) {
+    throw new Error("Quantity must be a positive whole number.");
+  }
+
+  if (input.feesTotal < 0) {
+    throw new Error("Fees total cannot be negative.");
+  }
+
+  if (Number.isNaN(Date.parse(input.openedAt))) {
+    throw new Error("Opened time must be a valid ISO timestamp.");
+  }
+
+  if (Number.isNaN(Date.parse(input.closedAt))) {
+    throw new Error("Closed time must be a valid ISO timestamp.");
+  }
+
+  if (Date.parse(input.closedAt) < Date.parse(input.openedAt)) {
+    throw new Error("Closed time must be after opened time.");
+  }
+
+  if (input.direction === "long" && input.stopLossPrice >= input.entryPrice) {
+    throw new Error("Long trades require stop loss below entry price.");
+  }
+
+  if (input.direction === "short" && input.stopLossPrice <= input.entryPrice) {
+    throw new Error("Short trades require stop loss above entry price.");
+  }
+}
+
+function assertFiniteNumber(value: number, label: string) {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number.`);
+  }
+}
+
+function assertPositiveFiniteNumber(value: number, label: string) {
+  assertFiniteNumber(value, label);
+
+  if (value <= 0) {
+    throw new Error(`${label} must be greater than 0.`);
+  }
+}
+
 export function listTrades(db: DatabaseSync): TradeSummary[] {
   return db
     .prepare(
@@ -239,36 +297,4 @@ function findInstrumentBySymbol(
        where symbol = ?`,
     )
     .get(symbol) as InstrumentRow | undefined;
-}
-
-function calculateClosedFuturesTrade(input: {
-  direction: TradeDirection;
-  entryPrice: number;
-  exitPrice: number;
-  stopLossPrice: number;
-  quantity: number;
-  pointValue: number;
-  feesTotal: number;
-}) {
-  const pointPnl =
-    input.direction === "long"
-      ? input.exitPrice - input.entryPrice
-      : input.entryPrice - input.exitPrice;
-  const grossPnl = pointPnl * input.pointValue * input.quantity;
-  const netPnl = grossPnl - input.feesTotal;
-  const riskAmount =
-    Math.abs(input.entryPrice - input.stopLossPrice) *
-    input.pointValue *
-    input.quantity;
-
-  return {
-    grossPnl: roundForStorage(grossPnl),
-    netPnl: roundForStorage(netPnl),
-    riskAmount: roundForStorage(riskAmount),
-    rMultiple: riskAmount > 0 ? roundForStorage(netPnl / riskAmount) : null,
-  };
-}
-
-function roundForStorage(value: number) {
-  return Number(value.toFixed(6));
 }

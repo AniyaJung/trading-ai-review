@@ -13,7 +13,44 @@ import {
 } from "lucide-react";
 import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
-import { calculateClosedFuturesTrade } from "./domain/trading/futuresMath";
+import { calculateClosedFuturesTrade } from "../shared/trading/futuresMath";
+
+type TradeFormState = {
+  symbol: "ES" | "MES" | "NQ" | "MNQ";
+  direction: TradeDirection;
+  openedAt: string;
+  closedAt: string;
+  entryPrice: string;
+  exitPrice: string;
+  quantity: string;
+  stopLossPrice: string;
+  takeProfitPrice: string;
+  feesTotal: string;
+  entryReason: string;
+  exitReason: string;
+};
+
+const pointValueBySymbol: Record<TradeFormState["symbol"], number> = {
+  ES: 50,
+  MES: 5,
+  NQ: 20,
+  MNQ: 2,
+};
+
+const initialTradeForm: TradeFormState = {
+  symbol: "ES",
+  direction: "long",
+  openedAt: "2026-06-08T14:41",
+  closedAt: "2026-06-08T15:20",
+  entryPrice: "5300",
+  exitPrice: "5304.5",
+  quantity: "2",
+  stopLossPrice: "5298",
+  takeProfitPrice: "5306",
+  feesTotal: "5",
+  entryReason: "Opening range pullback",
+  exitReason: "Scaled out at target area",
+};
 
 const sampleTrades: TradeSummary[] = [
   {
@@ -72,19 +109,15 @@ const sampleTrades: TradeSummary[] = [
   },
 ];
 
-const currentTrade = calculateClosedFuturesTrade({
-  direction: "long",
-  entryPrice: 5300,
-  exitPrice: 5304.5,
-  stopLossPrice: 5298,
-  quantity: 2,
-  pointValue: 50,
-  feesTotal: 5,
-});
-
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
   const [trades, setTrades] = useState<TradeSummary[]>(sampleTrades);
+  const [tradeForm, setTradeForm] = useState<TradeFormState>(initialTradeForm);
+  const [formMessage, setFormMessage] = useState<string>(
+    "录入已平仓交易后会立即写入本地 SQLite。",
+  );
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSavingTrade, setIsSavingTrade] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
@@ -118,27 +151,46 @@ function App() {
     };
   }, []);
 
-  const handleCreateSampleTrade = async () => {
+  const formPreview = useMemo(() => {
+    try {
+      return calculateClosedFuturesTrade({
+        direction: tradeForm.direction,
+        entryPrice: Number(tradeForm.entryPrice),
+        exitPrice: Number(tradeForm.exitPrice),
+        stopLossPrice: Number(tradeForm.stopLossPrice),
+        quantity: Number(tradeForm.quantity),
+        pointValue: pointValueBySymbol[tradeForm.symbol],
+        feesTotal: Number(tradeForm.feesTotal),
+      });
+    } catch {
+      return null;
+    }
+  }, [tradeForm]);
+
+  const updateTradeForm = (field: keyof TradeFormState, value: string) => {
+    setTradeForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleCreateClosedTrade = async () => {
+    setFormError(null);
+
     if (!window.desktopApi) {
+      setFormMessage("浏览器预览不会写入数据库；Electron 运行时会保存。");
       setTrades(sampleTrades);
       return;
     }
 
-    await window.desktopApi.trades.createClosed({
-      symbol: "ES",
-      direction: "long",
-      openedAt: "2026-06-08T14:41:00.000Z",
-      closedAt: "2026-06-08T15:20:00.000Z",
-      entryPrice: 5300,
-      exitPrice: 5304.5,
-      quantity: 2,
-      stopLossPrice: 5298,
-      takeProfitPrice: 5306,
-      feesTotal: 5,
-      entryReason: "Opening range pullback",
-      exitReason: "Scaled out at target area",
-    });
-    setTrades(await window.desktopApi.trades.list());
+    setIsSavingTrade(true);
+    try {
+      const input = buildCreateClosedTradeInput(tradeForm);
+      await window.desktopApi.trades.createClosed(input);
+      setTrades(await window.desktopApi.trades.list());
+      setFormMessage("交易已保存，并自动生成 entry/exit 成交明细。");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSavingTrade(false);
+    }
   };
 
   const activeView = useMemo(
@@ -199,10 +251,11 @@ function App() {
             <button
               type="button"
               className="primary-button"
-              onClick={handleCreateSampleTrade}
+              onClick={handleCreateClosedTrade}
+              disabled={isSavingTrade}
             >
               <Plus aria-hidden="true" size={18} />
-              新增已平仓交易
+              {isSavingTrade ? "保存中" : "保存已平仓交易"}
             </button>
           </div>
         </header>
@@ -252,46 +305,159 @@ function App() {
               <Clock3 aria-hidden="true" size={18} />
             </div>
 
-            <div className="form-grid">
+            <div className="form-grid trade-form-grid">
               <label>
                 品种
-                <input value="ES" readOnly />
+                <select
+                  value={tradeForm.symbol}
+                  onChange={(event) =>
+                    updateTradeForm(
+                      "symbol",
+                      event.currentTarget.value as TradeFormState["symbol"],
+                    )
+                  }
+                >
+                  <option value="ES">ES</option>
+                  <option value="MES">MES</option>
+                  <option value="NQ">NQ</option>
+                  <option value="MNQ">MNQ</option>
+                </select>
               </label>
               <label>
                 方向
-                <input value="long" readOnly />
+                <select
+                  value={tradeForm.direction}
+                  onChange={(event) =>
+                    updateTradeForm(
+                      "direction",
+                      event.currentTarget.value as TradeDirection,
+                    )
+                  }
+                >
+                  <option value="long">long</option>
+                  <option value="short">short</option>
+                </select>
+              </label>
+              <label>
+                开仓时间
+                <input
+                  type="datetime-local"
+                  value={tradeForm.openedAt}
+                  onChange={(event) =>
+                    updateTradeForm("openedAt", event.currentTarget.value)
+                  }
+                />
+              </label>
+              <label>
+                平仓时间
+                <input
+                  type="datetime-local"
+                  value={tradeForm.closedAt}
+                  onChange={(event) =>
+                    updateTradeForm("closedAt", event.currentTarget.value)
+                  }
+                />
               </label>
               <label>
                 入场点位
-                <input value="5300.00" readOnly />
+                <input
+                  inputMode="decimal"
+                  value={tradeForm.entryPrice}
+                  onChange={(event) =>
+                    updateTradeForm("entryPrice", event.currentTarget.value)
+                  }
+                />
               </label>
               <label>
                 出场点位
-                <input value="5304.50" readOnly />
+                <input
+                  inputMode="decimal"
+                  value={tradeForm.exitPrice}
+                  onChange={(event) =>
+                    updateTradeForm("exitPrice", event.currentTarget.value)
+                  }
+                />
               </label>
               <label>
                 止损点位
-                <input value="5298.00" readOnly />
+                <input
+                  inputMode="decimal"
+                  value={tradeForm.stopLossPrice}
+                  onChange={(event) =>
+                    updateTradeForm("stopLossPrice", event.currentTarget.value)
+                  }
+                />
               </label>
               <label>
                 合约数
-                <input value="2" readOnly />
+                <input
+                  inputMode="decimal"
+                  value={tradeForm.quantity}
+                  onChange={(event) =>
+                    updateTradeForm("quantity", event.currentTarget.value)
+                  }
+                />
+              </label>
+              <label>
+                止盈点位
+                <input
+                  inputMode="decimal"
+                  value={tradeForm.takeProfitPrice}
+                  onChange={(event) =>
+                    updateTradeForm("takeProfitPrice", event.currentTarget.value)
+                  }
+                />
+              </label>
+              <label>
+                手续费
+                <input
+                  inputMode="decimal"
+                  value={tradeForm.feesTotal}
+                  onChange={(event) =>
+                    updateTradeForm("feesTotal", event.currentTarget.value)
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="notes-grid">
+              <label>
+                入场理由
+                <textarea
+                  value={tradeForm.entryReason}
+                  onChange={(event) =>
+                    updateTradeForm("entryReason", event.currentTarget.value)
+                  }
+                />
+              </label>
+              <label>
+                出场理由
+                <textarea
+                  value={tradeForm.exitReason}
+                  onChange={(event) =>
+                    updateTradeForm("exitReason", event.currentTarget.value)
+                  }
+                />
               </label>
             </div>
 
             <div className="metric-strip">
               <div>
                 <span>净盈亏</span>
-                <strong>${currentTrade.netPnl}</strong>
+                <strong>${formPreview?.netPnl ?? "-"}</strong>
               </div>
               <div>
                 <span>R 倍数</span>
-                <strong>{currentTrade.rMultiple}R</strong>
+                <strong>{formPreview?.rMultiple ?? "-"}R</strong>
               </div>
               <div>
                 <span>计划风险</span>
-                <strong>${currentTrade.riskAmount}</strong>
+                <strong>${formPreview?.riskAmount ?? "-"}</strong>
               </div>
+            </div>
+
+            <div className={formError ? "form-status error" : "form-status"}>
+              {formError ?? formMessage}
             </div>
           </section>
 
@@ -349,6 +515,26 @@ function formatTradeTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function buildCreateClosedTradeInput(
+  form: TradeFormState,
+): CreateClosedTradeInput {
+  return {
+    symbol: form.symbol,
+    direction: form.direction,
+    openedAt: new Date(form.openedAt).toISOString(),
+    closedAt: new Date(form.closedAt).toISOString(),
+    entryPrice: Number(form.entryPrice),
+    exitPrice: Number(form.exitPrice),
+    quantity: Number(form.quantity),
+    stopLossPrice: Number(form.stopLossPrice),
+    takeProfitPrice:
+      form.takeProfitPrice.trim() === "" ? null : Number(form.takeProfitPrice),
+    feesTotal: Number(form.feesTotal),
+    entryReason: form.entryReason,
+    exitReason: form.exitReason,
+  };
 }
 
 export default App;

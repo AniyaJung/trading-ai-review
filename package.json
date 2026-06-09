@@ -3,11 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"npm run web:dev\" \"wait-on http://127.0.0.1:5173 && npm run electron:dev\"",
     "web:dev": "vite --host 127.0.0.1",
-    "electron:dev": "tsc -p tsconfig.electron.json && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron dist-electron/main.js",
+    "electron:dev": "tsc -p tsconfig.electron.json && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron dist-electron/electron/main.js",
     "test": "vitest",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

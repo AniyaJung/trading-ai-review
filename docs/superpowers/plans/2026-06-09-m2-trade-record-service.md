@@ -80,9 +80,9 @@ window.desktopApi.trades.createClosed(input)
 
 Electron runtime loads real SQLite trades. Browser preview keeps sample data.
 
-- [x] **Step 2: Wire the primary action to create a sample closed trade**
+- [x] **Step 2: Wire the primary action to create a real closed trade from form inputs**
 
-The first UI action uses the same desktop API that the final form will use.
+The trade fact panel collects symbol, direction, timestamps, prices, quantity, fees, and notes, then uses the same desktop API that future detail screens will use.
 
 ### Task 4: Verification
 

@@ -9,12 +9,12 @@
     "skipLibCheck": true,
     "strict": true,
     "outDir": "dist-electron",
-    "rootDir": "electron",
+    "rootDir": ".",
     "sourceMap": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["electron/**/*.ts"],
-  "exclude": ["electron/**/*.test.ts"]
+  "include": ["electron/**/*.ts", "shared/**/*.ts"],
+  "exclude": ["electron/**/*.test.ts", "shared/**/*.test.ts"]
 }

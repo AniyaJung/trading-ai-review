@@ -9,7 +9,9 @@ M1 has started:
 - Electron + React + TypeScript + Vite scaffold.
 - Desktop workbench shell with simple app-state navigation.
 - Futures PnL/R multiple calculation core with Vitest coverage.
+- Shared futures calculation module used by both renderer and Electron main process.
 - Local SQLite database initialization in the Electron main process.
+- Closed-trade entry form writes real trades to local SQLite through the preload API.
 - Initial instrument presets: ES, MES, NQ, MNQ.
 - Design spec and M1 implementation plan are stored under `docs/superpowers`.
 

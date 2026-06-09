@@ -1,14 +1,15 @@
 import { app, BrowserWindow, shell } from "electron";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { ensureAppDataDirectories, resolveAppDataPaths } from "./data/appData.js";
 import { initializeAppDatabase } from "./data/database.js";
 import { registerDatabaseIpc } from "./ipc/databaseIpc.js";
+import { resolveRuntimePaths } from "./runtimePaths.js";
 import { registerTradeIpc } from "./ipc/tradeIpc.js";
 import { buildMainWindowOptions } from "./windowOptions.js";
 
-const electronDistDir = path.dirname(fileURLToPath(import.meta.url));
-const rendererDistDir = path.join(electronDistDir, "../dist");
+const { electronDistDir, rendererDistDir } = resolveRuntimePaths(
+  import.meta.url,
+);
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
 app.setName("AI Trading Review");

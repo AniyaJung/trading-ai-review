@@ -62,9 +62,9 @@ Expected: TypeScript and Vite build succeed.
 ### Task 2: Futures Calculation Core
 
 **Files:**
-- Create: `src/domain/trading/types.ts`
-- Create: `src/domain/trading/futuresMath.ts`
-- Create: `src/domain/trading/futuresMath.test.ts`
+- Create: `shared/trading/types.ts`
+- Create: `shared/trading/futuresMath.ts`
+- Create: `shared/trading/futuresMath.test.ts`
 
 - [x] **Step 1: Write failing tests for long and short futures PnL**
 
@@ -116,7 +116,7 @@ describe("calculateClosedFuturesTrade", () => {
 Run:
 
 ```bash
-npm run test -- src/domain/trading/futuresMath.test.ts --run
+npm run test -- shared/trading/futuresMath.test.ts --run
 ```
 
 Expected: FAIL because the module does not exist yet.
@@ -139,7 +139,7 @@ r_multiple      = net_pnl / risk_amount when risk_amount > 0
 Run:
 
 ```bash
-npm run test -- src/domain/trading/futuresMath.test.ts --run
+npm run test -- shared/trading/futuresMath.test.ts --run
 ```
 
 Expected: Both futures calculation tests pass.
