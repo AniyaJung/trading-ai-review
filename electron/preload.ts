@@ -11,6 +11,11 @@ const desktopApi = {
       migrationVersion: number;
     }>,
   },
+  trades: {
+    list: () => ipcRenderer.invoke("trades:list"),
+    createClosed: (input: unknown) =>
+      ipcRenderer.invoke("trades:createClosed", input),
+  },
 };
 
 contextBridge.exposeInMainWorld("desktopApi", desktopApi);

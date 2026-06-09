@@ -1,7 +1,7 @@
 import type {
   ClosedFuturesTradeCalculation,
   ClosedFuturesTradeInput,
-} from "./types";
+} from "./types.js";
 
 const roundForStorage = (value: number) => Number(value.toFixed(6));
 

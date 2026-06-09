@@ -15,39 +15,60 @@ import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
 import { calculateClosedFuturesTrade } from "./domain/trading/futuresMath";
 
-const trades = [
+const sampleTrades: TradeSummary[] = [
   {
-    id: "T-0007",
-    time: "2026-06-08 22:41",
+    id: 1,
     symbol: "ES",
+    instrumentName: "E-mini S&P 500",
     direction: "long",
+    status: "closed",
+    openedAt: "2026-06-08T14:41:00.000Z",
+    closedAt: "2026-06-08T15:20:00.000Z",
+    entryPriceAvg: 5300,
+    exitPriceAvg: 5304.5,
     quantity: 2,
-    entry: 5300,
-    exit: 5304.5,
-    rule: "Opening range pullback",
-    status: "needs_review",
+    feesTotal: 5,
+    grossPnl: 450,
+    netPnl: 445,
+    riskAmount: 200,
+    rMultiple: 2.225,
+    aiReviewStatus: "needs_review",
   },
   {
-    id: "T-0006",
-    time: "2026-06-07 23:18",
+    id: 2,
     symbol: "MNQ",
+    instrumentName: "Micro E-mini Nasdaq-100",
     direction: "short",
+    status: "closed",
+    openedAt: "2026-06-07T15:18:00.000Z",
+    closedAt: "2026-06-07T16:02:00.000Z",
+    entryPriceAvg: 19000,
+    exitPriceAvg: 18984,
     quantity: 3,
-    entry: 19000,
-    exit: 18984,
-    rule: "Trend continuation",
-    status: "confirmed",
+    feesTotal: 3.6,
+    grossPnl: 96,
+    netPnl: 92.4,
+    riskAmount: 48,
+    rMultiple: 1.925,
+    aiReviewStatus: "confirmed",
   },
   {
-    id: "T-0005",
-    time: "2026-06-06 21:57",
+    id: 3,
     symbol: "MES",
+    instrumentName: "Micro E-mini S&P 500",
     direction: "long",
+    status: "closed",
+    openedAt: "2026-06-06T13:57:00.000Z",
+    closedAt: "2026-06-06T14:22:00.000Z",
+    entryPriceAvg: 5291.25,
+    exitPriceAvg: 5288.25,
     quantity: 1,
-    entry: 5291.25,
-    exit: 5288.25,
-    rule: "Failed breakout reclaim",
-    status: "corrected",
+    feesTotal: 1.5,
+    grossPnl: -15,
+    netPnl: -16.5,
+    riskAmount: 12.5,
+    rMultiple: -1.32,
+    aiReviewStatus: "corrected",
   },
 ];
 
@@ -63,6 +84,7 @@ const currentTrade = calculateClosedFuturesTrade({
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
+  const [trades, setTrades] = useState<TradeSummary[]>(sampleTrades);
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
@@ -71,18 +93,53 @@ function App() {
   useEffect(() => {
     let cancelled = false;
 
-    window.desktopApi?.database.getStatus().then((status) => {
+    async function loadDesktopState() {
+      if (!window.desktopApi) {
+        return;
+      }
+
+      const [status, desktopTrades] = await Promise.all([
+        window.desktopApi.database.getStatus(),
+        window.desktopApi.trades.list(),
+      ]);
+
       if (!cancelled) {
         setDatabaseStatus(
           `SQLite v${status.migrationVersion} / ${status.instrumentCount} 个品种`,
         );
+        setTrades(desktopTrades);
       }
-    });
+    }
+
+    void loadDesktopState();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const handleCreateSampleTrade = async () => {
+    if (!window.desktopApi) {
+      setTrades(sampleTrades);
+      return;
+    }
+
+    await window.desktopApi.trades.createClosed({
+      symbol: "ES",
+      direction: "long",
+      openedAt: "2026-06-08T14:41:00.000Z",
+      closedAt: "2026-06-08T15:20:00.000Z",
+      entryPrice: 5300,
+      exitPrice: 5304.5,
+      quantity: 2,
+      stopLossPrice: 5298,
+      takeProfitPrice: 5306,
+      feesTotal: 5,
+      entryReason: "Opening range pullback",
+      exitReason: "Scaled out at target area",
+    });
+    setTrades(await window.desktopApi.trades.list());
+  };
 
   const activeView = useMemo(
     () => navigationItems.find((item) => item.id === currentView),
@@ -139,7 +196,11 @@ function App() {
             <button type="button" className="icon-button" title="复制当前交易">
               <Copy aria-hidden="true" size={18} />
             </button>
-            <button type="button" className="primary-button">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleCreateSampleTrade}
+            >
               <Plus aria-hidden="true" size={18} />
               新增已平仓交易
             </button>
@@ -153,7 +214,7 @@ function App() {
                 <p className="eyebrow">Recent closed trades</p>
                 <h3>交易列表</h3>
               </div>
-              <span className="count-pill">3</span>
+              <span className="count-pill">{trades.length}</span>
             </div>
 
             <div className="trade-table">
@@ -161,7 +222,7 @@ function App() {
                 <button key={trade.id} type="button" className="trade-row">
                   <span className="trade-main">
                     <strong>{trade.symbol}</strong>
-                    <small>{trade.time}</small>
+                    <small>{formatTradeTime(trade.openedAt)}</small>
                   </span>
                   <span className="direction">
                     {trade.direction === "long" ? (
@@ -172,9 +233,11 @@ function App() {
                     {trade.direction}
                   </span>
                   <span>{trade.quantity}</span>
-                  <span>{trade.entry}</span>
-                  <span>{trade.exit}</span>
-                  <span className={`status ${trade.status}`}>{trade.status}</span>
+                  <span>{trade.entryPriceAvg}</span>
+                  <span>{trade.exitPriceAvg}</span>
+                  <span className={`status ${trade.aiReviewStatus}`}>
+                    {trade.aiReviewStatus}
+                  </span>
                 </button>
               ))}
             </div>
@@ -277,6 +340,15 @@ function App() {
       </section>
     </main>
   );
+}
+
+function formatTradeTime(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 export default App;
