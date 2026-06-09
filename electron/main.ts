@@ -1,11 +1,16 @@
 import { app, BrowserWindow, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensureAppDataDirectories, resolveAppDataPaths } from "./data/appData.js";
+import { initializeAppDatabase } from "./data/database.js";
+import { registerDatabaseIpc } from "./ipc/databaseIpc.js";
 import { buildMainWindowOptions } from "./windowOptions.js";
 
 const electronDistDir = path.dirname(fileURLToPath(import.meta.url));
 const rendererDistDir = path.join(electronDistDir, "../dist");
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+
+app.setName("AI Trading Review");
 
 async function createMainWindow() {
   const mainWindow = new BrowserWindow(
@@ -30,6 +35,11 @@ async function createMainWindow() {
 }
 
 app.whenReady().then(() => {
+  const appDataPaths = resolveAppDataPaths(app);
+  ensureAppDataDirectories(appDataPaths);
+  const db = initializeAppDatabase(appDataPaths.databasePath);
+  registerDatabaseIpc(db, appDataPaths);
+
   void createMainWindow();
 
   app.on("activate", () => {

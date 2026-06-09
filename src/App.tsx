@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -63,7 +63,26 @@ const currentTrade = calculateClosedFuturesTrade({
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
+  const [databaseStatus, setDatabaseStatus] = useState<string>(
+    "数据库等待桌面运行时",
+  );
   const desktopRuntime = window.desktopApi?.runtime ?? "browser-preview";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    window.desktopApi?.database.getStatus().then((status) => {
+      if (!cancelled) {
+        setDatabaseStatus(
+          `SQLite v${status.migrationVersion} / ${status.instrumentCount} 个品种`,
+        );
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeView = useMemo(
     () => navigationItems.find((item) => item.id === currentView),
@@ -103,7 +122,9 @@ function App() {
           <ShieldCheck aria-hidden="true" size={18} />
           <div>
             <strong>本地优先</strong>
-            <span>{desktopRuntime} / SQLite 与截图保存在本机</span>
+            <span>
+              {desktopRuntime} / {databaseStatus}
+            </span>
           </div>
         </div>
       </aside>

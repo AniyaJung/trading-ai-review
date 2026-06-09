@@ -83,7 +83,7 @@ Electron 桌面应用
 - UI：React + TypeScript。
 - 构建工具：Vite。
 - 样式：Tailwind CSS 或类似的轻量本地 UI 方案。
-- 数据库：SQLite。
+- 数据库：SQLite。当前实现使用 Node/Electron 内置 `node:sqlite`，避免 Electron native module rebuild 问题。
 - 图片：存放在本地应用数据目录，数据库只保存路径和元数据。
 - AI：远程多模态模型 API。
 - 图表：ECharts。
