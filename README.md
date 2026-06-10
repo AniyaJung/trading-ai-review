@@ -4,7 +4,7 @@
 
 ## Current Scope
 
-M1 has started:
+Current implemented scope:
 
 - Electron + React + TypeScript + Vite scaffold.
 - Desktop workbench shell with simple app-state navigation.
@@ -12,10 +12,23 @@ M1 has started:
 - Shared futures calculation module used by both renderer and Electron main process.
 - Local SQLite database initialization in the Electron main process.
 - Closed-trade entry form writes real trades to local SQLite through the preload API.
+- Closed-trade form has client-side Chinese validation and local datetime handling.
+- Trade list reads real SQLite data in Electron and avoids showing sample data before load.
+- Selected trade detail can be loaded from SQLite, including entry/exit executions.
+- Trades can be deleted through the Electron preload API with SQLite cascade cleanup.
+- AI review panel currently shows honest status placeholders; AI generation is not connected yet.
 - Initial instrument presets: ES, MES, NQ, MNQ.
-- Design spec and M1 implementation plan are stored under `docs/superpowers`.
+- Design spec and implementation plans are stored under `docs/superpowers`.
 
 MVP does not support open trades. A trade is one complete trading plan, not a single execution fill.
+
+Not implemented yet:
+
+- Editing existing trades.
+- Trade screenshots/attachments.
+- Entry rule library and rule version binding.
+- AI review generation, confirmation, and correction workflow.
+- Stats, backup/restore, settings, and data reset workflows.
 
 ## Development
 

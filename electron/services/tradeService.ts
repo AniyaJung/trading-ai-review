@@ -45,6 +45,28 @@ export type TradeSummary = {
     | "invalid";
 };
 
+export type TradeExecutionDetail = {
+  id: number;
+  executedAt: string;
+  side: "buy" | "sell";
+  price: number;
+  quantity: number;
+  fee: number;
+  feeCurrency: string | null;
+  executionType: "entry" | "exit" | "add" | "reduce";
+};
+
+export type TradeDetail = TradeSummary & {
+  stopLossPrice: number | null;
+  takeProfitPrice: number | null;
+  backgroundNote: string | null;
+  entryReason: string | null;
+  exitReason: string | null;
+  emotionNote: string | null;
+  lessonNote: string | null;
+  executions: TradeExecutionDetail[];
+};
+
 type InstrumentRow = {
   id: number;
   symbol: string;
@@ -251,6 +273,72 @@ export function listTrades(db: DatabaseSync): TradeSummary[] {
       order by trade.opened_at desc, trade.id desc`,
     )
     .all() as unknown as TradeSummary[];
+}
+
+export function getTradeDetail(
+  db: DatabaseSync,
+  id: number,
+): TradeDetail | undefined {
+  const trade = db
+    .prepare(
+      `select
+        trade.id,
+        instrument.symbol,
+        instrument.name as instrumentName,
+        trade.direction,
+        trade.status,
+        trade.opened_at as openedAt,
+        trade.closed_at as closedAt,
+        trade.entry_price_avg as entryPriceAvg,
+        trade.exit_price_avg as exitPriceAvg,
+        trade.quantity,
+        trade.stop_loss_price as stopLossPrice,
+        trade.take_profit_price as takeProfitPrice,
+        trade.fees_total as feesTotal,
+        trade.gross_pnl as grossPnl,
+        trade.net_pnl as netPnl,
+        trade.risk_amount as riskAmount,
+        trade.r_multiple as rMultiple,
+        trade.background_note as backgroundNote,
+        trade.entry_reason as entryReason,
+        trade.exit_reason as exitReason,
+        trade.emotion_note as emotionNote,
+        trade.lesson_note as lessonNote,
+        trade.ai_review_status as aiReviewStatus
+      from trade
+      join instrument on instrument.id = trade.instrument_id
+      where trade.id = ?`,
+    )
+    .get(id) as Omit<TradeDetail, "executions"> | undefined;
+
+  if (!trade) {
+    return undefined;
+  }
+
+  const executions = db
+    .prepare(
+      `select
+        id,
+        executed_at as executedAt,
+        side,
+        price,
+        quantity,
+        fee,
+        fee_currency as feeCurrency,
+        execution_type as executionType
+      from trade_execution
+      where trade_id = ?
+      order by executed_at asc, id asc`,
+    )
+    .all(id) as unknown as TradeExecutionDetail[];
+
+  return { ...trade, executions };
+}
+
+export function deleteTrade(db: DatabaseSync, id: number): boolean {
+  const result = db.prepare("delete from trade where id = ?").run(id);
+
+  return result.changes > 0;
 }
 
 function getTradeById(db: DatabaseSync, id: number): TradeSummary {

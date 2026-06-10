@@ -85,9 +85,10 @@ docs/superpowers/2026-06-10-next-conversation-context.md
 
 当前分支：`main`
 
-最近提交：
+最近一次人工记录的提交序列：
 
 ```text
+d7fc313 docs: add next conversation handoff
 3ce5d5c feat: add closed trade entry form
 39a07aa feat: add closed trade persistence
 6896f6d feat: add local sqlite foundation
@@ -97,7 +98,7 @@ docs/superpowers/2026-06-10-next-conversation-context.md
 9f2c6fd feat: scaffold desktop trading review app
 ```
 
-截至本文档创建前，工作区是干净的。
+继续开发前应运行 `git status --short --branch` 和 `git log --oneline -8` 确认最新提交与工作区状态。
 
 ## 6. 已完成能力
 
@@ -186,11 +187,15 @@ electron/ipc/databaseIpc.ts
 - `TradeService` 可创建已平仓交易。
 - 创建交易时会自动生成 entry 和 exit 两条 `trade_execution` 明细。
 - `TradeService` 可按 `opened_at desc, id desc` 列出交易。
+- `TradeService` 可读取单笔交易详情，包括止损、止盈、笔记字段和 entry/exit 成交明细。
+- `TradeService` 可删除交易，并依赖 SQLite 外键级联删除成交明细。
 - IPC 暴露：
 
 ```text
 window.desktopApi.trades.list()
+window.desktopApi.trades.get(id)
 window.desktopApi.trades.createClosed(input)
+window.desktopApi.trades.delete(id)
 ```
 
 服务层当前校验：
@@ -221,6 +226,8 @@ src/vite-env.d.ts
 
 - 左侧导航：交易、规则、统计、备份、设置等初始入口。
 - 交易列表：Electron runtime 下读取 SQLite 真实数据；浏览器预览下使用 sample data。
+- Electron runtime 下加载真实数据前不再闪现 sample data。
+- 交易列表支持选中交易；右侧显示选中交易详情。
 - 单笔交易事实表单：
   - 品种
   - 方向
@@ -235,8 +242,12 @@ src/vite-env.d.ts
   - 入场理由
   - 出场理由
 - 表单实时预览净盈亏、R 倍数、计划风险。
+- 表单有客户端中文校验，先拦截无效数字、时间、止损方向等错误。
+- `datetime-local` 会按用户本地时间解析后转 ISO，且会拒绝日期回绕。
 - 点击“保存已平仓交易”可通过 Electron API 写入 SQLite。
-- 保存后重新加载交易列表。
+- 保存后重新加载交易列表，选中新建交易，并重置下一笔表单。
+- 当前支持删除选中交易，删除前会确认；SQLite 明细通过外键级联清理。
+- 右侧 AI 复盘区域目前是基于 `ai_review_status` 的真实状态占位，不再展示静态假分数或假截图结论。
 
 关键文件：
 
@@ -244,6 +255,9 @@ src/vite-env.d.ts
 src/App.tsx
 src/App.css
 src/app/views.ts
+src/app/tradeForm.ts
+src/app/tradeList.ts
+src/app/reviewPanel.ts
 ```
 
 ## 7. 当前验证状态
@@ -254,15 +268,13 @@ src/app/views.ts
 npm run test -- --run
 npm run build
 npm run lint
-npm audit --cache .npm-cache
 ```
 
 结果：
 
-- Vitest：7 files / 18 tests passed。
+- Vitest：10 files / 35 tests passed。
 - Build：passed。
 - Lint：passed。
-- Audit：0 vulnerabilities。
 
 注意：测试和临时 Node 脚本中会出现 `node:sqlite` ExperimentalWarning，这是当前技术选型的已知现象。
 
@@ -308,6 +320,13 @@ latest trade id = 7
 - 增加编辑和删除交易。
 - 增加空状态、错误状态、加载状态。
 - 增加 trade detail 视图，不要把所有功能塞在首页。
+
+当前状态：
+
+- 已完成客户端校验、时间解析、保存后重置、选择交易、详情读取、删除交易、加载/错误/空状态。
+- 尚未完成编辑交易。
+- “复制上一笔”按钮仍是占位入口，尚未接入行为。
+- `src/App.tsx` 已经承载较多状态，继续做编辑或附件前应考虑拆分交易表单、列表和详情面板组件。
 
 ### 9.2 交易日和市场会话日
 

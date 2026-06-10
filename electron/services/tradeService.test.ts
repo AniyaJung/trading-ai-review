@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { initializeAppDatabase } from "../data/database";
 import {
   createClosedTrade,
+  deleteTrade,
+  getTradeDetail,
   listTrades,
   type CreateClosedTradeInput,
 } from "./tradeService";
@@ -260,6 +262,99 @@ describe("listTrades", () => {
         rMultiple: 1.925,
       }),
     ]);
+
+    db.close();
+  });
+});
+
+describe("getTradeDetail", () => {
+  it("returns trade facts, notes, and generated entry/exit executions", () => {
+    const db = createTestDb();
+
+    const created = createClosedTrade(db, {
+      symbol: "ES",
+      direction: "long",
+      openedAt: "2026-06-08T14:41:00.000Z",
+      closedAt: "2026-06-08T15:20:00.000Z",
+      entryPrice: 5300,
+      exitPrice: 5304.5,
+      quantity: 2,
+      stopLossPrice: 5298,
+      takeProfitPrice: 5306,
+      feesTotal: 5,
+      backgroundNote: "Morning trend day",
+      entryReason: "Opening range pullback",
+      exitReason: "Scaled out at target area",
+      emotionNote: "Calm",
+      lessonNote: "Wait for retest",
+    });
+
+    expect(getTradeDetail(db, created.id)).toEqual({
+      ...created,
+      stopLossPrice: 5298,
+      takeProfitPrice: 5306,
+      backgroundNote: "Morning trend day",
+      entryReason: "Opening range pullback",
+      exitReason: "Scaled out at target area",
+      emotionNote: "Calm",
+      lessonNote: "Wait for retest",
+      executions: [
+        {
+          id: 1,
+          executedAt: "2026-06-08T14:41:00.000Z",
+          side: "buy",
+          price: 5300,
+          quantity: 2,
+          fee: 0,
+          feeCurrency: "USD",
+          executionType: "entry",
+        },
+        {
+          id: 2,
+          executedAt: "2026-06-08T15:20:00.000Z",
+          side: "sell",
+          price: 5304.5,
+          quantity: 2,
+          fee: 5,
+          feeCurrency: "USD",
+          executionType: "exit",
+        },
+      ],
+    });
+
+    db.close();
+  });
+
+  it("returns undefined for unknown trades", () => {
+    const db = createTestDb();
+
+    expect(getTradeDetail(db, 999)).toBeUndefined();
+
+    db.close();
+  });
+});
+
+describe("deleteTrade", () => {
+  it("deletes a trade and cascades generated executions", () => {
+    const db = createTestDb();
+    const created = createClosedTrade(db, validClosedTradeInput());
+
+    expect(deleteTrade(db, created.id)).toBe(true);
+    expect(listTrades(db)).toEqual([]);
+    expect(getTradeDetail(db, created.id)).toBeUndefined();
+    expect(
+      db
+        .prepare("select count(*) as count from trade_execution where trade_id = ?")
+        .get(created.id),
+    ).toEqual({ count: 0 });
+
+    db.close();
+  });
+
+  it("returns false when deleting an unknown trade", () => {
+    const db = createTestDb();
+
+    expect(deleteTrade(db, 999)).toBe(false);
 
     db.close();
   });

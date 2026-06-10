@@ -45,6 +45,28 @@ type TradeSummary = {
     | "invalid";
 };
 
+type TradeExecutionDetail = {
+  id: number;
+  executedAt: string;
+  side: "buy" | "sell";
+  price: number;
+  quantity: number;
+  fee: number;
+  feeCurrency: string | null;
+  executionType: "entry" | "exit" | "add" | "reduce";
+};
+
+type TradeDetail = TradeSummary & {
+  stopLossPrice: number | null;
+  takeProfitPrice: number | null;
+  backgroundNote: string | null;
+  entryReason: string | null;
+  exitReason: string | null;
+  emotionNote: string | null;
+  lessonNote: string | null;
+  executions: TradeExecutionDetail[];
+};
+
 type DesktopApi = {
   runtime: "electron";
   platform: string;
@@ -58,6 +80,8 @@ type DesktopApi = {
   };
   trades: {
     list: () => Promise<TradeSummary[]>;
+    get: (id: number) => Promise<TradeDetail | undefined>;
+    delete: (id: number) => Promise<boolean>;
     createClosed: (input: CreateClosedTradeInput) => Promise<TradeSummary>;
   };
 };

@@ -3,54 +3,25 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Camera,
-  CheckCircle2,
   Clock3,
   Copy,
   FileText,
   Plus,
   ShieldCheck,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
-import { calculateClosedFuturesTrade } from "../shared/trading/futuresMath";
-
-type TradeFormState = {
-  symbol: "ES" | "MES" | "NQ" | "MNQ";
-  direction: TradeDirection;
-  openedAt: string;
-  closedAt: string;
-  entryPrice: string;
-  exitPrice: string;
-  quantity: string;
-  stopLossPrice: string;
-  takeProfitPrice: string;
-  feesTotal: string;
-  entryReason: string;
-  exitReason: string;
-};
-
-const pointValueBySymbol: Record<TradeFormState["symbol"], number> = {
-  ES: 50,
-  MES: 5,
-  NQ: 20,
-  MNQ: 2,
-};
-
-const initialTradeForm: TradeFormState = {
-  symbol: "ES",
-  direction: "long",
-  openedAt: "2026-06-08T14:41",
-  closedAt: "2026-06-08T15:20",
-  entryPrice: "5300",
-  exitPrice: "5304.5",
-  quantity: "2",
-  stopLossPrice: "5298",
-  takeProfitPrice: "5306",
-  feesTotal: "5",
-  entryReason: "Opening range pullback",
-  exitReason: "Scaled out at target area",
-};
+import {
+  buildCreateClosedTradeInput,
+  calculateTradeFormPreview,
+  createInitialTradeForm,
+  createTradeFormAfterSave,
+  type TradeFormState,
+} from "./app/tradeForm";
+import { getInitialTrades } from "./app/tradeList";
+import { getReviewPanelState } from "./app/reviewPanel";
 
 const sampleTrades: TradeSummary[] = [
   {
@@ -111,17 +82,36 @@ const sampleTrades: TradeSummary[] = [
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
-  const [trades, setTrades] = useState<TradeSummary[]>(sampleTrades);
-  const [tradeForm, setTradeForm] = useState<TradeFormState>(initialTradeForm);
+  const desktopRuntime = window.desktopApi?.runtime ?? "browser-preview";
+  const [trades, setTrades] = useState<TradeSummary[]>(() =>
+    getInitialTrades(desktopRuntime, sampleTrades),
+  );
+  const [tradeForm, setTradeForm] = useState<TradeFormState>(() =>
+    createInitialTradeForm(),
+  );
   const [formMessage, setFormMessage] = useState<string>(
     "录入已平仓交易后会立即写入本地 SQLite。",
   );
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<string[]>([]);
   const [isSavingTrade, setIsSavingTrade] = useState(false);
+  const [isDeletingTrade, setIsDeletingTrade] = useState(false);
+  const [isLoadingTrades, setIsLoadingTrades] = useState(false);
+  const [tradeLoadError, setTradeLoadError] = useState<string | null>(null);
+  const [selectedTradeId, setSelectedTradeId] = useState<number | null>(null);
+  const [selectedTradeDetailState, setSelectedTradeDetailState] = useState<{
+    tradeId: number;
+    detail: TradeDetail | undefined;
+  }>();
+  const [loadingTradeDetailId, setLoadingTradeDetailId] = useState<number | null>(
+    null,
+  );
+  const [tradeDetailErrorState, setTradeDetailErrorState] = useState<{
+    tradeId: number;
+    error: string;
+  }>();
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
-  const desktopRuntime = window.desktopApi?.runtime ?? "browser-preview";
 
   useEffect(() => {
     let cancelled = false;
@@ -131,16 +121,31 @@ function App() {
         return;
       }
 
-      const [status, desktopTrades] = await Promise.all([
-        window.desktopApi.database.getStatus(),
-        window.desktopApi.trades.list(),
-      ]);
+      setIsLoadingTrades(true);
+      try {
+        const [status, desktopTrades] = await Promise.all([
+          window.desktopApi.database.getStatus(),
+          window.desktopApi.trades.list(),
+        ]);
 
-      if (!cancelled) {
-        setDatabaseStatus(
-          `SQLite v${status.migrationVersion} / ${status.instrumentCount} 个品种`,
-        );
-        setTrades(desktopTrades);
+        if (!cancelled) {
+          setDatabaseStatus(
+            `SQLite v${status.migrationVersion} / ${status.instrumentCount} 个品种`,
+          );
+          setTrades(desktopTrades);
+          setSelectedTradeId((current) => current ?? desktopTrades[0]?.id ?? null);
+          setTradeLoadError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setTradeLoadError(
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingTrades(false);
+        }
       }
     }
 
@@ -152,27 +157,23 @@ function App() {
   }, []);
 
   const formPreview = useMemo(() => {
-    try {
-      return calculateClosedFuturesTrade({
-        direction: tradeForm.direction,
-        entryPrice: Number(tradeForm.entryPrice),
-        exitPrice: Number(tradeForm.exitPrice),
-        stopLossPrice: Number(tradeForm.stopLossPrice),
-        quantity: Number(tradeForm.quantity),
-        pointValue: pointValueBySymbol[tradeForm.symbol],
-        feesTotal: Number(tradeForm.feesTotal),
-      });
-    } catch {
-      return null;
-    }
+    return calculateTradeFormPreview(tradeForm);
   }, [tradeForm]);
 
   const updateTradeForm = (field: keyof TradeFormState, value: string) => {
     setTradeForm((current) => ({ ...current, [field]: value }));
+    setFormErrors([]);
   };
 
   const handleCreateClosedTrade = async () => {
-    setFormError(null);
+    setFormErrors([]);
+    const result = buildCreateClosedTradeInput(tradeForm);
+
+    if (!result.ok) {
+      setFormErrors(result.errors);
+      setFormMessage("请修正交易事实后再保存。");
+      return;
+    }
 
     if (!window.desktopApi) {
       setFormMessage("浏览器预览不会写入数据库；Electron 运行时会保存。");
@@ -182,14 +183,54 @@ function App() {
 
     setIsSavingTrade(true);
     try {
-      const input = buildCreateClosedTradeInput(tradeForm);
-      await window.desktopApi.trades.createClosed(input);
+      const createdTrade = await window.desktopApi.trades.createClosed(
+        result.input,
+      );
       setTrades(await window.desktopApi.trades.list());
+      setSelectedTradeId(createdTrade.id);
+      setTradeForm(createTradeFormAfterSave(tradeForm));
       setFormMessage("交易已保存，并自动生成 entry/exit 成交明细。");
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : String(error));
+      setFormErrors([error instanceof Error ? error.message : String(error)]);
     } finally {
       setIsSavingTrade(false);
+    }
+  };
+
+  const handleDeleteSelectedTrade = async () => {
+    if (!selectedTrade) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `删除 ${selectedTrade.symbol} ${formatTradeTime(
+        selectedTrade.openedAt,
+      )} 这笔交易？成交明细和后续复盘也会一并删除。`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingTrade(true);
+    try {
+      if (window.desktopApi) {
+        await window.desktopApi.trades.delete(selectedTrade.id);
+        const nextTrades = await window.desktopApi.trades.list();
+        setTrades(nextTrades);
+        setSelectedTradeId(nextTrades[0]?.id ?? null);
+      } else {
+        const nextTrades = trades.filter((trade) => trade.id !== selectedTrade.id);
+        setTrades(nextTrades);
+        setSelectedTradeId(nextTrades[0]?.id ?? null);
+      }
+      setSelectedTradeDetailState(undefined);
+      setTradeDetailErrorState(undefined);
+      setFormMessage("交易已删除。");
+    } catch (error) {
+      setFormErrors([error instanceof Error ? error.message : String(error)]);
+    } finally {
+      setIsDeletingTrade(false);
     }
   };
 
@@ -197,6 +238,62 @@ function App() {
     () => navigationItems.find((item) => item.id === currentView),
     [currentView],
   );
+  const selectedTrade =
+    trades.find((trade) => trade.id === selectedTradeId) ?? trades[0];
+  const reviewPanel = getReviewPanelState(selectedTrade);
+  const previewTradeDetail =
+    selectedTrade && !window.desktopApi
+      ? createPreviewTradeDetail(selectedTrade)
+      : undefined;
+  const selectedTradeDetail =
+    previewTradeDetail ??
+    (selectedTradeDetailState?.tradeId === selectedTrade?.id
+      ? selectedTradeDetailState.detail
+      : undefined);
+  const isLoadingTradeDetail = loadingTradeDetailId === selectedTrade?.id;
+  const tradeDetailError =
+    tradeDetailErrorState?.tradeId === selectedTrade?.id
+      ? tradeDetailErrorState.error
+      : null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!selectedTrade || !window.desktopApi) {
+      return;
+    }
+
+    void Promise.resolve()
+      .then(() => {
+        setLoadingTradeDetailId(selectedTrade.id);
+        return window.desktopApi?.trades.get(selectedTrade.id);
+      })
+      .then((detail) => {
+        if (!cancelled) {
+          setSelectedTradeDetailState({ tradeId: selectedTrade.id, detail });
+          setTradeDetailErrorState(undefined);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setTradeDetailErrorState({
+            tradeId: selectedTrade.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingTradeDetailId((current) =>
+            current === selectedTrade.id ? null : current,
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTrade]);
 
   return (
     <main className="app-shell">
@@ -271,28 +368,49 @@ function App() {
             </div>
 
             <div className="trade-table">
-              {trades.map((trade) => (
-                <button key={trade.id} type="button" className="trade-row">
-                  <span className="trade-main">
-                    <strong>{trade.symbol}</strong>
-                    <small>{formatTradeTime(trade.openedAt)}</small>
-                  </span>
-                  <span className="direction">
-                    {trade.direction === "long" ? (
-                      <ArrowUpRight aria-hidden="true" size={16} />
-                    ) : (
-                      <ArrowDownRight aria-hidden="true" size={16} />
-                    )}
-                    {trade.direction}
-                  </span>
-                  <span>{trade.quantity}</span>
-                  <span>{trade.entryPriceAvg}</span>
-                  <span>{trade.exitPriceAvg}</span>
-                  <span className={`status ${trade.aiReviewStatus}`}>
-                    {trade.aiReviewStatus}
-                  </span>
-                </button>
-              ))}
+              {isLoadingTrades ? (
+                <div className="table-state">正在读取本地交易记录...</div>
+              ) : tradeLoadError ? (
+                <div className="table-state error">
+                  读取交易失败：{tradeLoadError}
+                </div>
+              ) : trades.length === 0 ? (
+                <div className="table-state">
+                  暂无交易。保存右侧表单后，这里会显示真实记录。
+                </div>
+              ) : (
+                trades.map((trade) => (
+                  <button
+                    key={trade.id}
+                    type="button"
+                    className={
+                      trade.id === selectedTrade?.id
+                        ? "trade-row selected"
+                        : "trade-row"
+                    }
+                    onClick={() => setSelectedTradeId(trade.id)}
+                  >
+                    <span className="trade-main">
+                      <strong>{trade.symbol}</strong>
+                      <small>{formatTradeTime(trade.openedAt)}</small>
+                    </span>
+                    <span className="direction">
+                      {trade.direction === "long" ? (
+                        <ArrowUpRight aria-hidden="true" size={16} />
+                      ) : (
+                        <ArrowDownRight aria-hidden="true" size={16} />
+                      )}
+                      {trade.direction}
+                    </span>
+                    <span>{trade.quantity}</span>
+                    <span>{trade.entryPriceAvg}</span>
+                    <span>{trade.exitPriceAvg}</span>
+                    <span className={`status ${trade.aiReviewStatus}`}>
+                      {trade.aiReviewStatus}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
           </section>
 
@@ -456,8 +574,20 @@ function App() {
               </div>
             </div>
 
-            <div className={formError ? "form-status error" : "form-status"}>
-              {formError ?? formMessage}
+            <div
+              className={
+                formErrors.length > 0 ? "form-status error" : "form-status"
+              }
+            >
+              {formErrors.length > 0 ? (
+                <ul>
+                  {formErrors.map((error) => (
+                    <li key={error}>{error}</li>
+                  ))}
+                </ul>
+              ) : (
+                formMessage
+              )}
             </div>
           </section>
 
@@ -471,34 +601,109 @@ function App() {
             </div>
 
             <div className="review-score">
-              <span>82</span>
+              <span>{reviewPanel.badge}</span>
               <div>
-                <strong>needs review</strong>
-                <p>等待用户确认后进入统计</p>
+                <strong>{reviewPanel.status}</strong>
+                <p>{reviewPanel.description}</p>
               </div>
             </div>
 
             <ul className="review-list">
-              <li>
-                <CheckCircle2 aria-hidden="true" size={17} />
-                规则一致性证据充分，仍需核对截图时间线。
-              </li>
-              <li>
-                <FileText aria-hidden="true" size={17} />
-                缺少出场理由，统计前需要补全。
-              </li>
-              <li>
-                <Camera aria-hidden="true" size={17} />
-                已关联 2 张交易截图，MVP 接收外部标注图。
-              </li>
+              {reviewPanel.bullets.map((bullet, index) => {
+                const Icon = index === 0 ? FileText : Camera;
+                return (
+                  <li key={bullet}>
+                    <Icon aria-hidden="true" size={17} />
+                    {bullet}
+                  </li>
+                );
+              })}
             </ul>
 
+            <div className="detail-block">
+              <div className="detail-heading">
+                <strong>选中交易详情</strong>
+                <span>{selectedTrade?.symbol ?? "-"}</span>
+              </div>
+              {isLoadingTradeDetail ? (
+                <div className="detail-state">正在读取交易详情...</div>
+              ) : tradeDetailError ? (
+                <div className="detail-state error">
+                  读取详情失败：{tradeDetailError}
+                </div>
+              ) : selectedTradeDetail ? (
+                <>
+                  <div className="detail-grid">
+                    <span>止损</span>
+                    <strong>{formatOptionalNumber(selectedTradeDetail.stopLossPrice)}</strong>
+                    <span>止盈</span>
+                    <strong>
+                      {formatOptionalNumber(selectedTradeDetail.takeProfitPrice)}
+                    </strong>
+                    <span>净盈亏</span>
+                    <strong>{formatCurrency(selectedTradeDetail.netPnl)}</strong>
+                    <span>R 倍数</span>
+                    <strong>{formatOptionalNumber(selectedTradeDetail.rMultiple)}R</strong>
+                  </div>
+
+                  <div className="detail-notes">
+                    <p>
+                      <span>入场理由</span>
+                      {selectedTradeDetail.entryReason || "未填写"}
+                    </p>
+                    <p>
+                      <span>出场理由</span>
+                      {selectedTradeDetail.exitReason || "未填写"}
+                    </p>
+                  </div>
+
+                  <div className="execution-list">
+                    {selectedTradeDetail.executions.map((execution) => (
+                      <div key={execution.id} className="execution-row">
+                        <span>{execution.executionType}</span>
+                        <strong>
+                          {execution.side} {execution.quantity} @ {execution.price}
+                        </strong>
+                        <small>{formatTradeTime(execution.executedAt)}</small>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="detail-state">暂无交易详情。</div>
+              )}
+            </div>
+
             <div className="review-actions">
-              <button type="button" className="secondary-button">
-                重新生成
+              <button
+                type="button"
+                className="danger-button"
+                onClick={handleDeleteSelectedTrade}
+                disabled={!selectedTrade || isDeletingTrade}
+                title="删除选中交易"
+              >
+                <Trash2 aria-hidden="true" size={16} />
+                {isDeletingTrade ? "删除中" : "删除交易"}
               </button>
-              <button type="button" className="primary-button">
-                确认复盘
+              <button
+                type="button"
+                className="secondary-button"
+                disabled
+                title={
+                  reviewPanel.canGenerate ? "生成接口待接入" : "当前状态不能生成"
+                }
+              >
+                生成待接入
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                disabled
+                title={
+                  reviewPanel.canConfirm ? "确认接口待接入" : "当前状态不能确认"
+                }
+              >
+                确认待接入
               </button>
             </div>
           </section>
@@ -506,6 +711,41 @@ function App() {
       </section>
     </main>
   );
+}
+
+function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
+  return {
+    ...trade,
+    stopLossPrice: null,
+    takeProfitPrice: null,
+    backgroundNote: null,
+    entryReason: null,
+    exitReason: null,
+    emotionNote: null,
+    lessonNote: null,
+    executions: [
+      {
+        id: trade.id * 10 + 1,
+        executedAt: trade.openedAt,
+        side: trade.direction === "long" ? "buy" : "sell",
+        price: trade.entryPriceAvg,
+        quantity: trade.quantity,
+        fee: 0,
+        feeCurrency: "USD",
+        executionType: "entry",
+      },
+      {
+        id: trade.id * 10 + 2,
+        executedAt: trade.closedAt,
+        side: trade.direction === "long" ? "sell" : "buy",
+        price: trade.exitPriceAvg,
+        quantity: trade.quantity,
+        fee: trade.feesTotal,
+        feeCurrency: "USD",
+        executionType: "exit",
+      },
+    ],
+  };
 }
 
 function formatTradeTime(value: string) {
@@ -517,24 +757,12 @@ function formatTradeTime(value: string) {
   }).format(new Date(value));
 }
 
-function buildCreateClosedTradeInput(
-  form: TradeFormState,
-): CreateClosedTradeInput {
-  return {
-    symbol: form.symbol,
-    direction: form.direction,
-    openedAt: new Date(form.openedAt).toISOString(),
-    closedAt: new Date(form.closedAt).toISOString(),
-    entryPrice: Number(form.entryPrice),
-    exitPrice: Number(form.exitPrice),
-    quantity: Number(form.quantity),
-    stopLossPrice: Number(form.stopLossPrice),
-    takeProfitPrice:
-      form.takeProfitPrice.trim() === "" ? null : Number(form.takeProfitPrice),
-    feesTotal: Number(form.feesTotal),
-    entryReason: form.entryReason,
-    exitReason: form.exitReason,
-  };
+function formatCurrency(value: number) {
+  return `$${value}`;
+}
+
+function formatOptionalNumber(value: number | null) {
+  return value ?? "-";
 }
 
 export default App;

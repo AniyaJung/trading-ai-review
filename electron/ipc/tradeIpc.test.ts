@@ -50,6 +50,26 @@ describe("createTradeIpcHandlers", () => {
       }),
     );
     expect(handlers.list()).toHaveLength(1);
+    expect(handlers.get(created.id)).toEqual(
+      expect.objectContaining({
+        id: 1,
+        symbol: "ES",
+        stopLossPrice: 5298,
+        executions: [
+          expect.objectContaining({
+            side: "buy",
+            executionType: "entry",
+          }),
+          expect.objectContaining({
+            side: "sell",
+            executionType: "exit",
+          }),
+        ],
+      }),
+    );
+    expect(handlers.delete(created.id)).toBe(true);
+    expect(handlers.get(created.id)).toBeUndefined();
+    expect(handlers.list()).toEqual([]);
 
     db.close();
   });
