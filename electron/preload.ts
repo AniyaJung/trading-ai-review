@@ -20,6 +20,15 @@ const desktopApi = {
     createClosed: (input: unknown) =>
       ipcRenderer.invoke("trades:createClosed", input),
   },
+  attachments: {
+    listByTrade: (tradeId: number) =>
+      ipcRenderer.invoke("attachments:listByTrade", tradeId),
+    attachExistingFile: (input: unknown) =>
+      ipcRenderer.invoke("attachments:attachExistingFile", input),
+    chooseAndAttach: (input: unknown) =>
+      ipcRenderer.invoke("attachments:chooseAndAttach", input),
+    delete: (id: number) => ipcRenderer.invoke("attachments:delete", id),
+  },
 };
 
 contextBridge.exposeInMainWorld("desktopApi", desktopApi);

@@ -16,7 +16,8 @@ Current implemented scope:
 - Trade list reads real SQLite data in Electron and avoids showing sample data before load.
 - Selected trade detail can be loaded from SQLite, including entry/exit executions.
 - Existing closed trades can be edited; updating recalculates PnL/R and rebuilds entry/exit executions.
-- Trades can be deleted through the Electron preload API with SQLite cascade cleanup.
+- Trades can be deleted through the Electron preload API with SQLite cascade cleanup and attachment file cleanup.
+- Trade screenshots can be selected through the Electron preload API, copied into the app attachments directory, listed, and deleted.
 - AI review panel currently shows honest status placeholders; AI generation is not connected yet.
 - Initial instrument presets: ES, MES, NQ, MNQ.
 - Design spec and implementation plans are stored under `docs/superpowers`.
@@ -25,7 +26,7 @@ MVP does not support open trades. A trade is one complete trading plan, not a si
 
 Not implemented yet:
 
-- Trade screenshots/attachments.
+- Inline screenshot image preview and AI image ingestion.
 - Entry rule library and rule version binding.
 - AI review generation, confirmation, and correction workflow.
 - Stats, backup/restore, settings, and data reset workflows.

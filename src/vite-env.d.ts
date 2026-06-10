@@ -67,6 +67,33 @@ type TradeDetail = TradeSummary & {
   executions: TradeExecutionDetail[];
 };
 
+type AttachmentImageType =
+  | "before_entry"
+  | "entry"
+  | "holding"
+  | "exit"
+  | "review_marked";
+
+type TradeAttachment = {
+  id: number;
+  tradeId: number;
+  imageType: AttachmentImageType;
+  filePath: string;
+  caption: string | null;
+  sortOrder: number;
+  createdAt: string;
+};
+
+type AttachExistingFileInput = {
+  tradeId: number;
+  sourceFilePath: string;
+  imageType: AttachmentImageType;
+  caption?: string | null;
+  sortOrder?: number;
+};
+
+type ChooseAndAttachInput = Omit<AttachExistingFileInput, "sourceFilePath">;
+
 type DesktopApi = {
   runtime: "electron";
   platform: string;
@@ -87,6 +114,16 @@ type DesktopApi = {
     ) => Promise<TradeSummary | undefined>;
     delete: (id: number) => Promise<boolean>;
     createClosed: (input: CreateClosedTradeInput) => Promise<TradeSummary>;
+  };
+  attachments: {
+    listByTrade: (tradeId: number) => Promise<TradeAttachment[]>;
+    attachExistingFile: (
+      input: AttachExistingFileInput,
+    ) => Promise<TradeAttachment>;
+    chooseAndAttach: (
+      input: ChooseAndAttachInput,
+    ) => Promise<TradeAttachment | undefined>;
+    delete: (id: number) => Promise<boolean>;
   };
 };
 

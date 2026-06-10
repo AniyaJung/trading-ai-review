@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
 import { calculateClosedFuturesTrade } from "../../shared/trading/futuresMath.js";
 import type { TradeDirection } from "../../shared/trading/types.js";
 
@@ -336,7 +337,18 @@ export function getTradeDetail(
 }
 
 export function deleteTrade(db: DatabaseSync, id: number): boolean {
+  const attachmentRows = db
+    .prepare("select file_path as filePath from trade_attachment where trade_id = ?")
+    .all(id) as unknown as Array<{ filePath: string }>;
   const result = db.prepare("delete from trade where id = ?").run(id);
+
+  if (result.changes > 0) {
+    for (const attachment of attachmentRows) {
+      if (fs.existsSync(attachment.filePath)) {
+        fs.rmSync(attachment.filePath, { force: true });
+      }
+    }
+  }
 
   return result.changes > 0;
 }

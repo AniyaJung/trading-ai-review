@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from "electron";
 import path from "node:path";
 import { ensureAppDataDirectories, resolveAppDataPaths } from "./data/appData.js";
 import { initializeAppDatabase } from "./data/database.js";
+import { registerAttachmentIpc } from "./ipc/attachmentIpc.js";
 import { registerDatabaseIpc } from "./ipc/databaseIpc.js";
 import { resolveRuntimePaths } from "./runtimePaths.js";
 import { registerTradeIpc } from "./ipc/tradeIpc.js";
@@ -42,6 +43,7 @@ app.whenReady().then(() => {
   const db = initializeAppDatabase(appDataPaths.databasePath);
   registerDatabaseIpc(db, appDataPaths);
   registerTradeIpc(db);
+  registerAttachmentIpc(db, appDataPaths.attachmentsDir);
 
   void createMainWindow();
 

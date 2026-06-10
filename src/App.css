@@ -587,6 +587,71 @@ textarea {
   text-align: right;
 }
 
+.attachment-block {
+  display: grid;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.attachment-form {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.4fr);
+  gap: 8px;
+}
+
+.attachment-form input[aria-label="截图备注"],
+.attachment-form button {
+  grid-column: span 1;
+}
+
+.attachment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.attachment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: #fbfaf6;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.attachment-row span {
+  color: #7f2d22;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.attachment-row strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.attachment-row small {
+  display: block;
+  min-width: 0;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.danger-icon {
+  width: 32px;
+  height: 32px;
+  color: #7f2d22;
+  border-color: #efc6b8;
+}
+
 .review-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -682,6 +747,7 @@ textarea {
 
   .form-grid,
   .notes-grid,
+  .attachment-form,
   .metric-strip {
     grid-template-columns: 1fr;
   }

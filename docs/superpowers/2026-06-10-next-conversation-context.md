@@ -328,7 +328,7 @@ latest trade id = 7
 
 - 已完成客户端校验、时间解析、保存后重置、选择交易、详情读取、编辑交易、删除交易、加载/错误/空状态。
 - “复制上一笔”按钮仍是占位入口，尚未接入行为。
-- `src/App.tsx` 已经承载较多状态，继续做编辑或附件前应考虑拆分交易表单、列表和详情面板组件。
+- `src/App.tsx` 已经承载较多状态，继续做入场规则、AI 复盘或截图预览前应考虑拆分交易表单、列表和详情面板组件。
 
 ### 9.2 交易日和市场会话日
 
@@ -357,10 +357,11 @@ session_template
 
 建议任务：
 
-- `AttachmentService`。
-- preload API：选择图片、复制到 app data attachments 目录。
-- `trade_attachment` 写库。
-- UI 支持附件列表、预览、删除。
+- 已完成 `AttachmentService`：复制已有图片到 app data attachments 目录、写入 `trade_attachment`、按交易列出、删除附件并清理文件。
+- 已完成 preload / IPC：支持选择本地图片并 attach，底层仍保留 `attachExistingFile`。
+- 已完成 UI：选中交易详情里可选择截图类型、备注、通过系统文件选择器添加截图、列出附件、删除附件。
+- 已完成交易删除时清理附件文件，避免 SQLite cascade 后留下孤儿图片。
+- 待完成：安全的内联图片预览或受控本地图片协议，让 UI 显示缩略图/大图，而不是只显示本地路径。
 - 暂不做在线画线和标注，MVP 接收用户外部标注后的图片。
 
 ### 9.4 入场规则库

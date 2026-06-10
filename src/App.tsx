@@ -14,6 +14,12 @@ import {
 import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
 import {
+  attachmentImageTypeOptions,
+  getAttachmentPanelState,
+  type AttachmentImageType,
+  type AttachmentSummary,
+} from "./app/attachmentPanel";
+import {
   buildCreateClosedTradeInput,
   calculateTradeFormPreview,
   createInitialTradeForm,
@@ -111,6 +117,27 @@ function App() {
     tradeId: number;
     error: string;
   }>();
+  const [attachmentsByTradeId, setAttachmentsByTradeId] = useState<
+    Record<number, AttachmentSummary[]>
+  >({});
+  const [attachmentDraft, setAttachmentDraft] = useState<{
+    imageType: AttachmentImageType;
+    caption: string;
+  }>({
+    imageType: "entry",
+    caption: "",
+  });
+  const [loadingAttachmentTradeId, setLoadingAttachmentTradeId] = useState<
+    number | null
+  >(null);
+  const [attachmentErrorState, setAttachmentErrorState] = useState<{
+    tradeId: number;
+    error: string;
+  }>();
+  const [isSavingAttachment, setIsSavingAttachment] = useState(false);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(
+    null,
+  );
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
@@ -266,6 +293,11 @@ function App() {
       }
       setSelectedTradeDetailState(undefined);
       setTradeDetailErrorState(undefined);
+      setAttachmentsByTradeId((current) => {
+        const next = { ...current };
+        delete next[selectedTrade.id];
+        return next;
+      });
       setEditingTradeId(null);
       setFormMessage("交易已删除。");
     } catch (error) {
@@ -293,6 +325,103 @@ function App() {
     setFormMessage("已取消编辑。");
   };
 
+  const refreshAttachmentsForTrade = async (tradeId: number) => {
+    if (!window.desktopApi) {
+      return;
+    }
+
+    setLoadingAttachmentTradeId(tradeId);
+    try {
+      const attachments = await window.desktopApi.attachments.listByTrade(tradeId);
+      setAttachmentsByTradeId((current) => ({
+        ...current,
+        [tradeId]: attachments,
+      }));
+      setAttachmentErrorState(undefined);
+    } catch (error) {
+      setAttachmentErrorState({
+        tradeId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setLoadingAttachmentTradeId((current) =>
+        current === tradeId ? null : current,
+      );
+    }
+  };
+
+  const handleChooseAndAttach = async () => {
+    if (!selectedTrade) {
+      return;
+    }
+
+    if (!window.desktopApi) {
+      setAttachmentErrorState({
+        tradeId: selectedTrade.id,
+        error: "浏览器预览不能选择本地文件；请在 Electron 桌面运行时添加截图。",
+      });
+      return;
+    }
+
+    setIsSavingAttachment(true);
+    try {
+      const attachment = await window.desktopApi.attachments.chooseAndAttach({
+        tradeId: selectedTrade.id,
+        imageType: attachmentDraft.imageType,
+        caption: attachmentDraft.caption.trim() || null,
+        sortOrder: attachmentsByTradeId[selectedTrade.id]?.length ?? 0,
+      });
+      if (!attachment) {
+        return;
+      }
+      setAttachmentDraft((current) => ({
+        ...current,
+        caption: "",
+      }));
+      await refreshAttachmentsForTrade(selectedTrade.id);
+    } catch (error) {
+      setAttachmentErrorState({
+        tradeId: selectedTrade.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSavingAttachment(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: number) => {
+    if (!selectedTrade) {
+      return;
+    }
+
+    const confirmed = window.confirm("删除这张交易截图？本地副本也会移除。");
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingAttachmentId(attachmentId);
+    try {
+      if (window.desktopApi) {
+        await window.desktopApi.attachments.delete(attachmentId);
+        await refreshAttachmentsForTrade(selectedTrade.id);
+      } else {
+        setAttachmentsByTradeId((current) => ({
+          ...current,
+          [selectedTrade.id]: (current[selectedTrade.id] ?? []).filter(
+            (attachment) => attachment.id !== attachmentId,
+          ),
+        }));
+      }
+    } catch (error) {
+      setAttachmentErrorState({
+        tradeId: selectedTrade.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
+
   const activeView = useMemo(
     () => navigationItems.find((item) => item.id === currentView),
     [currentView],
@@ -313,6 +442,14 @@ function App() {
   const tradeDetailError =
     tradeDetailErrorState?.tradeId === selectedTrade?.id
       ? tradeDetailErrorState.error
+      : null;
+  const attachmentPanel = getAttachmentPanelState(
+    selectedTrade ? (attachmentsByTradeId[selectedTrade.id] ?? []) : [],
+  );
+  const isLoadingAttachments = loadingAttachmentTradeId === selectedTrade?.id;
+  const attachmentError =
+    attachmentErrorState?.tradeId === selectedTrade?.id
+      ? attachmentErrorState.error
       : null;
 
   useEffect(() => {
@@ -344,6 +481,48 @@ function App() {
       .finally(() => {
         if (!cancelled) {
           setLoadingTradeDetailId((current) =>
+            current === selectedTrade.id ? null : current,
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTrade]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!selectedTrade || !window.desktopApi) {
+      return;
+    }
+
+    void Promise.resolve()
+      .then(() => {
+        setLoadingAttachmentTradeId(selectedTrade.id);
+        return window.desktopApi?.attachments.listByTrade(selectedTrade.id);
+      })
+      .then((attachments) => {
+        if (!cancelled) {
+          setAttachmentsByTradeId((current) => ({
+            ...current,
+            [selectedTrade.id]: attachments ?? [],
+          }));
+          setAttachmentErrorState(undefined);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setAttachmentErrorState({
+            tradeId: selectedTrade.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingAttachmentTradeId((current) =>
             current === selectedTrade.id ? null : current,
           );
         }
@@ -740,6 +919,91 @@ function App() {
                         <small>{formatTradeTime(execution.executedAt)}</small>
                       </div>
                     ))}
+                  </div>
+
+                  <div className="attachment-block">
+                    <div className="detail-heading">
+                      <strong>交易截图</strong>
+                      <span>{attachmentPanel.countLabel}</span>
+                    </div>
+
+                    <form
+                      className="attachment-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void handleChooseAndAttach();
+                      }}
+                    >
+                      <select
+                        aria-label="截图类型"
+                        value={attachmentDraft.imageType}
+                        onChange={(event) =>
+                          setAttachmentDraft((current) => ({
+                            ...current,
+                            imageType: event.currentTarget
+                              .value as AttachmentImageType,
+                          }))
+                        }
+                      >
+                        {attachmentImageTypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        aria-label="截图备注"
+                        placeholder="备注"
+                        value={attachmentDraft.caption}
+                        onChange={(event) =>
+                          setAttachmentDraft((current) => ({
+                            ...current,
+                            caption: event.currentTarget.value,
+                          }))
+                        }
+                      />
+                      <button
+                        type="submit"
+                        className="secondary-button"
+                        disabled={isSavingAttachment || !selectedTrade}
+                      >
+                        <Camera aria-hidden="true" size={16} />
+                        {isSavingAttachment ? "添加中" : "添加截图"}
+                      </button>
+                    </form>
+
+                    {isLoadingAttachments ? (
+                      <div className="detail-state">正在读取截图...</div>
+                    ) : attachmentError ? (
+                      <div className="detail-state error">
+                        截图操作失败：{attachmentError}
+                      </div>
+                    ) : attachmentPanel.items.length === 0 ? (
+                      <div className="detail-state">
+                        {attachmentPanel.emptyText}
+                      </div>
+                    ) : (
+                      <div className="attachment-list">
+                        {attachmentPanel.items.map((attachment) => (
+                          <div key={attachment.id} className="attachment-row">
+                            <div>
+                              <span>{attachment.label}</span>
+                              <strong>{attachment.caption}</strong>
+                              <small>{attachment.filePath}</small>
+                            </div>
+                            <button
+                              type="button"
+                              className="icon-button danger-icon"
+                              title="删除截图"
+                              disabled={deletingAttachmentId === attachment.id}
+                              onClick={() => void handleDeleteAttachment(attachment.id)}
+                            >
+                              <Trash2 aria-hidden="true" size={15} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (

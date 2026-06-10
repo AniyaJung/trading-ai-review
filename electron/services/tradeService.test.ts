@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -346,6 +346,37 @@ describe("deleteTrade", () => {
     expect(
       db
         .prepare("select count(*) as count from trade_execution where trade_id = ?")
+        .get(created.id),
+    ).toEqual({ count: 0 });
+
+    db.close();
+  });
+
+  it("removes copied attachment files when deleting a trade", () => {
+    const db = createTestDb();
+    const created = createClosedTrade(db, validClosedTradeInput());
+    const attachmentsDir = mkdtempSync(
+      path.join(os.tmpdir(), "trading-ai-review-trade-attachments-"),
+    );
+    tempDirs.push(attachmentsDir);
+    const attachmentFilePath = path.join(attachmentsDir, "entry.png");
+    writeFileSync(attachmentFilePath, "fake image bytes");
+    db.prepare(
+      `insert into trade_attachment (
+        trade_id,
+        image_type,
+        file_path,
+        caption,
+        sort_order
+      ) values (?, 'entry', ?, 'Entry', 0)`,
+    ).run(created.id, attachmentFilePath);
+
+    expect(deleteTrade(db, created.id)).toBe(true);
+
+    expect(existsSync(attachmentFilePath)).toBe(false);
+    expect(
+      db
+        .prepare("select count(*) as count from trade_attachment where trade_id = ?")
         .get(created.id),
     ).toEqual({ count: 0 });
 
