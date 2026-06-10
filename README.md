@@ -15,6 +15,7 @@ Current implemented scope:
 - Closed-trade form has client-side Chinese validation and local datetime handling.
 - Trade list reads real SQLite data in Electron and avoids showing sample data before load.
 - Selected trade detail can be loaded from SQLite, including entry/exit executions.
+- Existing closed trades can be edited; updating recalculates PnL/R and rebuilds entry/exit executions.
 - Trades can be deleted through the Electron preload API with SQLite cascade cleanup.
 - AI review panel currently shows honest status placeholders; AI generation is not connected yet.
 - Initial instrument presets: ES, MES, NQ, MNQ.
@@ -24,7 +25,6 @@ MVP does not support open trades. A trade is one complete trading plan, not a si
 
 Not implemented yet:
 
-- Editing existing trades.
 - Trade screenshots/attachments.
 - Entry rule library and rule version binding.
 - AI review generation, confirmation, and correction workflow.

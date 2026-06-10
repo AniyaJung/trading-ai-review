@@ -188,6 +188,7 @@ electron/ipc/databaseIpc.ts
 - 创建交易时会自动生成 entry 和 exit 两条 `trade_execution` 明细。
 - `TradeService` 可按 `opened_at desc, id desc` 列出交易。
 - `TradeService` 可读取单笔交易详情，包括止损、止盈、笔记字段和 entry/exit 成交明细。
+- `TradeService` 可更新已平仓交易，更新时会重新计算 PnL/R 并重建 entry/exit 成交明细。
 - `TradeService` 可删除交易，并依赖 SQLite 外键级联删除成交明细。
 - IPC 暴露：
 
@@ -195,6 +196,7 @@ electron/ipc/databaseIpc.ts
 window.desktopApi.trades.list()
 window.desktopApi.trades.get(id)
 window.desktopApi.trades.createClosed(input)
+window.desktopApi.trades.update(id, input)
 window.desktopApi.trades.delete(id)
 ```
 
@@ -246,6 +248,7 @@ src/vite-env.d.ts
 - `datetime-local` 会按用户本地时间解析后转 ISO，且会拒绝日期回绕。
 - 点击“保存已平仓交易”可通过 Electron API 写入 SQLite。
 - 保存后重新加载交易列表，选中新建交易，并重置下一笔表单。
+- 当前支持从选中交易详情回填表单并编辑已平仓交易；更新后重新计算盈亏和成交明细。
 - 当前支持删除选中交易，删除前会确认；SQLite 明细通过外键级联清理。
 - 右侧 AI 复盘区域目前是基于 `ai_review_status` 的真实状态占位，不再展示静态假分数或假截图结论。
 
@@ -272,7 +275,7 @@ npm run lint
 
 结果：
 
-- Vitest：10 files / 35 tests passed。
+- Vitest：10 files / 38 tests passed。
 - Build：passed。
 - Lint：passed。
 
@@ -323,8 +326,7 @@ latest trade id = 7
 
 当前状态：
 
-- 已完成客户端校验、时间解析、保存后重置、选择交易、详情读取、删除交易、加载/错误/空状态。
-- 尚未完成编辑交易。
+- 已完成客户端校验、时间解析、保存后重置、选择交易、详情读取、编辑交易、删除交易、加载/错误/空状态。
 - “复制上一笔”按钮仍是占位入口，尚未接入行为。
 - `src/App.tsx` 已经承载较多状态，继续做编辑或附件前应考虑拆分交易表单、列表和详情面板组件。
 

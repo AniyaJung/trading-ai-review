@@ -57,6 +57,24 @@ export function createTradeFormAfterSave(
   };
 }
 
+export function createTradeFormFromDetail(detail: TradeDetail): TradeFormState {
+  return {
+    symbol: detail.symbol as TradeFormState["symbol"],
+    direction: detail.direction,
+    openedAt: formatLocalDateTimeInput(new Date(detail.openedAt)),
+    closedAt: formatLocalDateTimeInput(new Date(detail.closedAt)),
+    entryPrice: String(detail.entryPriceAvg),
+    exitPrice: String(detail.exitPriceAvg),
+    quantity: String(detail.quantity),
+    stopLossPrice: detail.stopLossPrice == null ? "" : String(detail.stopLossPrice),
+    takeProfitPrice:
+      detail.takeProfitPrice == null ? "" : String(detail.takeProfitPrice),
+    feesTotal: String(detail.feesTotal),
+    entryReason: detail.entryReason ?? "",
+    exitReason: detail.exitReason ?? "",
+  };
+}
+
 export function calculateTradeFormPreview(
   form: TradeFormState,
 ): ClosedFuturesTradeCalculation | null {

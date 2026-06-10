@@ -8,6 +8,7 @@ import {
   deleteTrade,
   getTradeDetail,
   listTrades,
+  updateClosedTrade,
   type CreateClosedTradeInput,
 } from "./tradeService";
 
@@ -355,6 +356,87 @@ describe("deleteTrade", () => {
     const db = createTestDb();
 
     expect(deleteTrade(db, 999)).toBe(false);
+
+    db.close();
+  });
+});
+
+describe("updateClosedTrade", () => {
+  it("updates trade facts, recalculates PnL, and rebuilds entry/exit executions", () => {
+    const db = createTestDb();
+    const created = createClosedTrade(db, validClosedTradeInput());
+
+    const updated = updateClosedTrade(
+      db,
+      created.id,
+      validClosedTradeInput({
+        symbol: "MNQ",
+        direction: "short",
+        openedAt: "2026-06-09T15:18:00.000Z",
+        closedAt: "2026-06-09T16:02:00.000Z",
+        entryPrice: 19000,
+        exitPrice: 18984,
+        quantity: 3,
+        stopLossPrice: 19008,
+        takeProfitPrice: 18980,
+        feesTotal: 3.6,
+        entryReason: "Failed breakout",
+        exitReason: "Covered near target",
+      }),
+    );
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        id: created.id,
+        symbol: "MNQ",
+        direction: "short",
+        openedAt: "2026-06-09T15:18:00.000Z",
+        closedAt: "2026-06-09T16:02:00.000Z",
+        entryPriceAvg: 19000,
+        exitPriceAvg: 18984,
+        quantity: 3,
+        grossPnl: 96,
+        netPnl: 92.4,
+        riskAmount: 48,
+        rMultiple: 1.925,
+      }),
+    );
+
+    expect(getTradeDetail(db, created.id)).toEqual(
+      expect.objectContaining({
+        symbol: "MNQ",
+        stopLossPrice: 19008,
+        takeProfitPrice: 18980,
+        entryReason: "Failed breakout",
+        exitReason: "Covered near target",
+        executions: [
+          expect.objectContaining({
+            side: "sell",
+            price: 19000,
+            quantity: 3,
+            fee: 0,
+            feeCurrency: "USD",
+            executionType: "entry",
+          }),
+          expect.objectContaining({
+            side: "buy",
+            price: 18984,
+            quantity: 3,
+            fee: 3.6,
+            feeCurrency: "USD",
+            executionType: "exit",
+          }),
+        ],
+      }),
+    );
+
+    db.close();
+  });
+
+  it("returns undefined when updating an unknown trade", () => {
+    const db = createTestDb();
+
+    expect(updateClosedTrade(db, 999, validClosedTradeInput())).toBeUndefined();
 
     db.close();
   });

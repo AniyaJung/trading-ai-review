@@ -81,6 +81,10 @@ type DesktopApi = {
   trades: {
     list: () => Promise<TradeSummary[]>;
     get: (id: number) => Promise<TradeDetail | undefined>;
+    update: (
+      id: number,
+      input: CreateClosedTradeInput,
+    ) => Promise<TradeSummary | undefined>;
     delete: (id: number) => Promise<boolean>;
     createClosed: (input: CreateClosedTradeInput) => Promise<TradeSummary>;
   };

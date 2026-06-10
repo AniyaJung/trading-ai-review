@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCreateClosedTradeInput,
   createInitialTradeForm,
+  createTradeFormFromDetail,
   createTradeFormAfterSave,
   parseLocalDateTimeToIso,
   type TradeFormState,
@@ -70,6 +71,50 @@ describe("trade form helpers", () => {
       feesTotal: "3.6",
       entryReason: "",
       exitReason: "",
+    });
+  });
+
+  it("creates an editable form from a persisted trade detail", () => {
+    const detail: TradeDetail = {
+      id: 1,
+      symbol: "MNQ",
+      instrumentName: "Micro E-mini Nasdaq-100",
+      direction: "short",
+      status: "closed",
+      openedAt: new Date(2026, 8, 5, 9, 7).toISOString(),
+      closedAt: new Date(2026, 8, 5, 9, 37).toISOString(),
+      entryPriceAvg: 19000,
+      exitPriceAvg: 18984,
+      quantity: 3,
+      stopLossPrice: 19008,
+      takeProfitPrice: null,
+      feesTotal: 3.6,
+      grossPnl: 96,
+      netPnl: 92.4,
+      riskAmount: 48,
+      rMultiple: 1.925,
+      backgroundNote: null,
+      entryReason: "Failed breakout",
+      exitReason: "Covered near target",
+      emotionNote: null,
+      lessonNote: null,
+      aiReviewStatus: "not_generated",
+      executions: [],
+    };
+
+    expect(createTradeFormFromDetail(detail)).toEqual({
+      symbol: "MNQ",
+      direction: "short",
+      openedAt: "2026-09-05T09:07",
+      closedAt: "2026-09-05T09:37",
+      entryPrice: "19000",
+      exitPrice: "18984",
+      quantity: "3",
+      stopLossPrice: "19008",
+      takeProfitPrice: "",
+      feesTotal: "3.6",
+      entryReason: "Failed breakout",
+      exitReason: "Covered near target",
     });
   });
 

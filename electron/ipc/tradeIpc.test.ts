@@ -50,18 +50,38 @@ describe("createTradeIpcHandlers", () => {
       }),
     );
     expect(handlers.list()).toHaveLength(1);
+    expect(
+      handlers.update(created.id, {
+        symbol: "MNQ",
+        direction: "short",
+        openedAt: "2026-06-09T15:18:00.000Z",
+        closedAt: "2026-06-09T16:02:00.000Z",
+        entryPrice: 19000,
+        exitPrice: 18984,
+        quantity: 3,
+        stopLossPrice: 19008,
+        feesTotal: 3.6,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        id: 1,
+        symbol: "MNQ",
+        netPnl: 92.4,
+        rMultiple: 1.925,
+      }),
+    );
     expect(handlers.get(created.id)).toEqual(
       expect.objectContaining({
         id: 1,
-        symbol: "ES",
-        stopLossPrice: 5298,
+        symbol: "MNQ",
+        stopLossPrice: 19008,
         executions: [
           expect.objectContaining({
-            side: "buy",
+            side: "sell",
             executionType: "entry",
           }),
           expect.objectContaining({
-            side: "sell",
+            side: "buy",
             executionType: "exit",
           }),
         ],

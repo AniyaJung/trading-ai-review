@@ -341,6 +341,128 @@ export function deleteTrade(db: DatabaseSync, id: number): boolean {
   return result.changes > 0;
 }
 
+export function updateClosedTrade(
+  db: DatabaseSync,
+  id: number,
+  input: CreateClosedTradeInput,
+): TradeSummary | undefined {
+  validateClosedTradeInput(input);
+  const existing = getTradeDetail(db, id);
+
+  if (!existing) {
+    return undefined;
+  }
+
+  const instrument = findInstrumentBySymbol(db, input.symbol);
+
+  if (!instrument) {
+    throw new Error(`Instrument ${input.symbol} is not configured.`);
+  }
+
+  const calculation = calculateClosedFuturesTrade({
+    direction: input.direction,
+    entryPrice: input.entryPrice,
+    exitPrice: input.exitPrice,
+    stopLossPrice: input.stopLossPrice,
+    quantity: input.quantity,
+    pointValue: instrument.point_value,
+    feesTotal: input.feesTotal,
+  });
+
+  db.exec("begin immediate");
+  try {
+    db.prepare(
+      `update trade set
+        instrument_id = ?,
+        direction = ?,
+        opened_at = ?,
+        closed_at = ?,
+        entry_price_avg = ?,
+        exit_price_avg = ?,
+        quantity = ?,
+        stop_loss_price = ?,
+        take_profit_price = ?,
+        fees_total = ?,
+        gross_pnl = ?,
+        net_pnl = ?,
+        risk_amount = ?,
+        r_multiple = ?,
+        background_note = ?,
+        entry_reason = ?,
+        exit_reason = ?,
+        emotion_note = ?,
+        lesson_note = ?,
+        updated_at = datetime('now')
+      where id = ?`,
+    ).run(
+      instrument.id,
+      input.direction,
+      input.openedAt,
+      input.closedAt,
+      input.entryPrice,
+      input.exitPrice,
+      input.quantity,
+      input.stopLossPrice,
+      input.takeProfitPrice ?? null,
+      input.feesTotal,
+      calculation.grossPnl,
+      calculation.netPnl,
+      calculation.riskAmount,
+      calculation.rMultiple,
+      input.backgroundNote ?? null,
+      input.entryReason ?? null,
+      input.exitReason ?? null,
+      input.emotionNote ?? null,
+      input.lessonNote ?? null,
+      id,
+    );
+
+    db.prepare("delete from trade_execution where trade_id = ?").run(id);
+
+    const entrySide = input.direction === "long" ? "buy" : "sell";
+    const exitSide = input.direction === "long" ? "sell" : "buy";
+    const insertExecution = db.prepare(
+      `insert into trade_execution (
+        trade_id,
+        executed_at,
+        side,
+        price,
+        quantity,
+        fee,
+        fee_currency,
+        execution_type
+      ) values (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+
+    insertExecution.run(
+      id,
+      input.openedAt,
+      entrySide,
+      input.entryPrice,
+      input.quantity,
+      0,
+      instrument.currency,
+      "entry",
+    );
+    insertExecution.run(
+      id,
+      input.closedAt,
+      exitSide,
+      input.exitPrice,
+      input.quantity,
+      input.feesTotal,
+      instrument.currency,
+      "exit",
+    );
+
+    db.exec("commit");
+    return getTradeById(db, id);
+  } catch (error) {
+    db.exec("rollback");
+    throw error;
+  }
+}
+
 function getTradeById(db: DatabaseSync, id: number): TradeSummary {
   const trade = db
     .prepare(

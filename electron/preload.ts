@@ -14,6 +14,8 @@ const desktopApi = {
   trades: {
     list: () => ipcRenderer.invoke("trades:list"),
     get: (id: number) => ipcRenderer.invoke("trades:get", id),
+    update: (id: number, input: unknown) =>
+      ipcRenderer.invoke("trades:update", id, input),
     delete: (id: number) => ipcRenderer.invoke("trades:delete", id),
     createClosed: (input: unknown) =>
       ipcRenderer.invoke("trades:createClosed", input),

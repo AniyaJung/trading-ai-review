@@ -17,6 +17,7 @@ import {
   buildCreateClosedTradeInput,
   calculateTradeFormPreview,
   createInitialTradeForm,
+  createTradeFormFromDetail,
   createTradeFormAfterSave,
   type TradeFormState,
 } from "./app/tradeForm";
@@ -95,6 +96,7 @@ function App() {
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [isSavingTrade, setIsSavingTrade] = useState(false);
   const [isDeletingTrade, setIsDeletingTrade] = useState(false);
+  const [editingTradeId, setEditingTradeId] = useState<number | null>(null);
   const [isLoadingTrades, setIsLoadingTrades] = useState(false);
   const [tradeLoadError, setTradeLoadError] = useState<string | null>(null);
   const [selectedTradeId, setSelectedTradeId] = useState<number | null>(null);
@@ -175,6 +177,44 @@ function App() {
       return;
     }
 
+    if (editingTradeId != null) {
+      setIsSavingTrade(true);
+      try {
+        if (window.desktopApi) {
+          const updatedTrade = await window.desktopApi.trades.update(
+            editingTradeId,
+            result.input,
+          );
+
+          if (!updatedTrade) {
+            throw new Error("交易不存在，无法更新。");
+          }
+
+          setTrades(await window.desktopApi.trades.list());
+          setSelectedTradeId(updatedTrade.id);
+          setSelectedTradeDetailState(undefined);
+        } else {
+          const updatedTrades = updatePreviewTradeSummary(
+            trades,
+            editingTradeId,
+            result.input,
+            formPreview,
+          );
+          setTrades(updatedTrades);
+          setSelectedTradeId(editingTradeId);
+        }
+
+        setEditingTradeId(null);
+        setTradeForm(createTradeFormAfterSave(tradeForm));
+        setFormMessage("交易已更新，并重新计算盈亏和成交明细。");
+      } catch (error) {
+        setFormErrors([error instanceof Error ? error.message : String(error)]);
+      } finally {
+        setIsSavingTrade(false);
+      }
+      return;
+    }
+
     if (!window.desktopApi) {
       setFormMessage("浏览器预览不会写入数据库；Electron 运行时会保存。");
       setTrades(sampleTrades);
@@ -226,12 +266,31 @@ function App() {
       }
       setSelectedTradeDetailState(undefined);
       setTradeDetailErrorState(undefined);
+      setEditingTradeId(null);
       setFormMessage("交易已删除。");
     } catch (error) {
       setFormErrors([error instanceof Error ? error.message : String(error)]);
     } finally {
       setIsDeletingTrade(false);
     }
+  };
+
+  const handleEditSelectedTrade = () => {
+    if (!selectedTradeDetail) {
+      return;
+    }
+
+    setEditingTradeId(selectedTradeDetail.id);
+    setTradeForm(createTradeFormFromDetail(selectedTradeDetail));
+    setFormErrors([]);
+    setFormMessage("正在编辑选中交易，保存后会覆盖原记录。");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTradeId(null);
+    setTradeForm(createInitialTradeForm());
+    setFormErrors([]);
+    setFormMessage("已取消编辑。");
   };
 
   const activeView = useMemo(
@@ -352,8 +411,22 @@ function App() {
               disabled={isSavingTrade}
             >
               <Plus aria-hidden="true" size={18} />
-              {isSavingTrade ? "保存中" : "保存已平仓交易"}
+              {isSavingTrade
+                ? "保存中"
+                : editingTradeId == null
+                  ? "保存已平仓交易"
+                  : "更新已平仓交易"}
             </button>
+            {editingTradeId != null ? (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleCancelEdit}
+                disabled={isSavingTrade}
+              >
+                取消编辑
+              </button>
+            ) : null}
           </div>
         </header>
 
@@ -418,7 +491,7 @@ function App() {
             <div className="panel-heading">
               <div>
                 <p className="eyebrow">Closed trade facts</p>
-                <h3>单笔交易事实</h3>
+                <h3>{editingTradeId == null ? "单笔交易事实" : "编辑交易事实"}</h3>
               </div>
               <Clock3 aria-hidden="true" size={18} />
             </div>
@@ -677,6 +750,14 @@ function App() {
             <div className="review-actions">
               <button
                 type="button"
+                className="secondary-button"
+                onClick={handleEditSelectedTrade}
+                disabled={!selectedTradeDetail || isDeletingTrade}
+              >
+                编辑交易
+              </button>
+              <button
+                type="button"
                 className="danger-button"
                 onClick={handleDeleteSelectedTrade}
                 disabled={!selectedTrade || isDeletingTrade}
@@ -746,6 +827,35 @@ function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
       },
     ],
   };
+}
+
+function updatePreviewTradeSummary(
+  trades: TradeSummary[],
+  id: number,
+  input: CreateClosedTradeInput,
+  calculation: ReturnType<typeof calculateTradeFormPreview>,
+): TradeSummary[] {
+  return trades.map((trade) => {
+    if (trade.id !== id) {
+      return trade;
+    }
+
+    return {
+      ...trade,
+      symbol: input.symbol,
+      direction: input.direction,
+      openedAt: input.openedAt,
+      closedAt: input.closedAt,
+      entryPriceAvg: input.entryPrice,
+      exitPriceAvg: input.exitPrice,
+      quantity: input.quantity,
+      feesTotal: input.feesTotal,
+      grossPnl: calculation?.grossPnl ?? trade.grossPnl,
+      netPnl: calculation?.netPnl ?? trade.netPnl,
+      riskAmount: calculation?.riskAmount ?? trade.riskAmount,
+      rMultiple: calculation?.rMultiple ?? trade.rMultiple,
+    };
+  });
 }
 
 function formatTradeTime(value: string) {
