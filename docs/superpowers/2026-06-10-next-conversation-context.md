@@ -88,14 +88,14 @@ docs/superpowers/2026-06-10-next-conversation-context.md
 最近一次人工记录的提交序列：
 
 ```text
+b301a3c feat: add trade screenshot attachments
+53fe691 feat: add closed trade editing
+1e6168a feat: improve trade record workflow
 d7fc313 docs: add next conversation handoff
 3ce5d5c feat: add closed trade entry form
 39a07aa feat: add closed trade persistence
 6896f6d feat: add local sqlite foundation
 61b3b3f refactor: migrate desktop shell to electron
-578c67f docs: mark m1 foundation plan complete
-486d236 chore: remove unused template assets
-9f2c6fd feat: scaffold desktop trading review app
 ```
 
 继续开发前应运行 `git status --short --branch` 和 `git log --oneline -8` 确认最新提交与工作区状态。
@@ -190,6 +190,7 @@ electron/ipc/databaseIpc.ts
 - `TradeService` 可读取单笔交易详情，包括止损、止盈、笔记字段和 entry/exit 成交明细。
 - `TradeService` 可更新已平仓交易，更新时会重新计算 PnL/R 并重建 entry/exit 成交明细。
 - `TradeService` 可删除交易，并依赖 SQLite 外键级联删除成交明细。
+- 删除交易时会同步清理该交易已复制到附件目录的截图文件，避免 SQLite cascade 后留下孤儿图片。
 - IPC 暴露：
 
 ```text
@@ -263,6 +264,48 @@ src/app/tradeList.ts
 src/app/reviewPanel.ts
 ```
 
+### 6.5 交易截图附件
+
+已完成：
+
+- `AttachmentService` 可从已有图片路径复制文件到本地 app data `attachments` 目录。
+- `AttachmentService` 会写入 `trade_attachment`，并保留图片类型、备注、排序和创建时间。
+- 支持的图片类型：
+  - `before_entry`
+  - `entry`
+  - `holding`
+  - `exit`
+  - `review_marked`
+- 附件列表按 `sort_order asc, id asc` 排序。
+- 删除单张附件时会删除数据库记录和本地复制文件。
+- Electron IPC / preload 暴露：
+
+```text
+window.desktopApi.attachments.listByTrade(tradeId)
+window.desktopApi.attachments.attachExistingFile(input)
+window.desktopApi.attachments.chooseAndAttach(input)
+window.desktopApi.attachments.delete(id)
+```
+
+- `chooseAndAttach` 通过 Electron `dialog.showOpenDialog` 选择本地图片，再复制到 app data 附件目录。
+- 选中交易详情里已经可以选择截图类型、填写备注、添加截图、查看附件列表、删除附件。
+
+当前限制：
+
+- UI 目前只显示附件类型、备注和本地路径，还没有显示缩略图或大图预览。
+- Renderer 不应直接裸用任意本地文件路径作为图片源。下一步建议由 Main Process 提供受控读取方式，例如返回 data URL，或注册受控 `app://attachments/...` 协议。
+- 附件相关类型目前分散在 Electron service、renderer helper 和 `src/vite-env.d.ts`，后续可抽到共享 contract，降低类型漂移风险。
+
+关键文件：
+
+```text
+electron/services/attachmentService.ts
+electron/ipc/attachmentIpc.ts
+src/app/attachmentPanel.ts
+src/App.tsx
+src/vite-env.d.ts
+```
+
 ## 7. 当前验证状态
 
 最近一次完整验证通过：
@@ -275,9 +318,10 @@ npm run lint
 
 结果：
 
-- Vitest：10 files / 38 tests passed。
+- Vitest：13 files / 52 tests passed。
 - Build：passed。
 - Lint：passed。
+- `git diff --check`：passed。
 
 注意：测试和临时 Node 脚本中会出现 `node:sqlite` ExperimentalWarning，这是当前技术选型的已知现象。
 
@@ -310,6 +354,15 @@ latest trade id = 7
 ## 9. 下一阶段建议
 
 优先级从高到低：
+
+### 9.0 下一步推荐
+
+下个对话建议优先做下面两件之一：
+
+1. **安全图片预览**：为附件截图增加受控读取/预览能力，让交易详情能显示缩略图和大图。推荐从 Main Process 提供安全图片读取接口或受控本地协议开始，不要让 renderer 直接访问任意本地路径。
+2. **入场规则库**：实现 `RuleService`、规则版本和交易绑定，为后续 AI 复盘判断“是否按规则执行”打基础。
+
+如果希望先让附件闭环更完整，选安全图片预览；如果希望推进 AI 复盘核心语义，选入场规则库。
 
 ### 9.1 交易表单产品化
 
@@ -433,6 +486,12 @@ session_template
 /Users/juyu/IdeaProjects/trading-ai-review
 
 当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。优先从“交易表单产品化 / 交易详情 / 附件截图 / 入场规则库”中选择下一步，并保持测试通过。
+
+当前最新提交应包含：
+
+b301a3c feat: add trade screenshot attachments
+
+建议下一步优先做“安全图片预览”：为已复制到 app data attachments 目录的截图提供受控读取接口或本地协议，交易详情里显示缩略图和大图预览。注意 renderer 不应直接访问 Node.js 文件系统或任意本地路径。
 ```
 
 ## 11. 开发命令
