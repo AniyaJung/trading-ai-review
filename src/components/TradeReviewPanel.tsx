@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AttachmentSection } from "./AttachmentSection";
 import type { AttachmentImageType, AttachmentPanelItem } from "../app/attachmentPanel";
+import type { ReviewActionState } from "../app/reviewPanel";
 
 type ReviewPanelState = {
   badge: string;
@@ -25,10 +26,15 @@ type AttachmentDraft = {
 
 type TradeReviewPanelProps = {
   reviewPanel: ReviewPanelState;
+  reviewAction: ReviewActionState;
+  latestReview: AIReview | undefined;
   selectedTrade: TradeSummary | undefined;
   selectedTradeDetail: TradeDetail | undefined;
   isLoadingTradeDetail: boolean;
   tradeDetailError: string | null;
+  isLoadingReview: boolean;
+  reviewError: string | null;
+  isSavingReview: boolean;
   isDeletingTrade: boolean;
   attachmentPanel: {
     countLabel: string;
@@ -43,6 +49,9 @@ type TradeReviewPanelProps = {
   attachmentImageDataUrls: Record<number, string>;
   onEditSelectedTrade: () => void;
   onDeleteSelectedTrade: () => void;
+  onConfirmReview: () => void;
+  onCorrectReview: () => void;
+  onInvalidateReview: () => void;
   onAttachmentDraftChange: (draft: AttachmentDraft) => void;
   onChooseAndAttach: () => void;
   onDeleteAttachment: (attachmentId: number) => void;
@@ -51,10 +60,15 @@ type TradeReviewPanelProps = {
 
 export function TradeReviewPanel({
   reviewPanel,
+  reviewAction,
+  latestReview,
   selectedTrade,
   selectedTradeDetail,
   isLoadingTradeDetail,
   tradeDetailError,
+  isLoadingReview,
+  reviewError,
+  isSavingReview,
   isDeletingTrade,
   attachmentPanel,
   attachmentDraft,
@@ -65,6 +79,9 @@ export function TradeReviewPanel({
   attachmentImageDataUrls,
   onEditSelectedTrade,
   onDeleteSelectedTrade,
+  onConfirmReview,
+  onCorrectReview,
+  onInvalidateReview,
   onAttachmentDraftChange,
   onChooseAndAttach,
   onDeleteAttachment,
@@ -210,18 +227,64 @@ export function TradeReviewPanel({
             <div className="ai-draft-card">
               <div className="detail-heading">
                 <strong>AI 复盘草稿</strong>
-                <span>{reviewPanel.status}</span>
+                <span>{latestReview?.status ?? reviewPanel.status}</span>
               </div>
-              <p>{reviewPanel.description}</p>
+              {isLoadingReview ? (
+                <div className="detail-state">正在读取本地复盘草稿...</div>
+              ) : reviewError ? (
+                <div className="detail-state error">
+                  读取复盘草稿失败：{reviewError}
+                </div>
+              ) : latestReview ? (
+                <>
+                  <p>{latestReview.summary || reviewPanel.description}</p>
+                  <div className="review-meta-grid">
+                    <div>
+                      <span>模型</span>
+                      <strong>{latestReview.model ?? "未记录"}</strong>
+                    </div>
+                    <div>
+                      <span>分数</span>
+                      <strong>{latestReview.scoreTotal ?? "-"}</strong>
+                    </div>
+                    <div>
+                      <span>置信度</span>
+                      <strong>{formatPercent(latestReview.confidence)}</strong>
+                    </div>
+                  </div>
+                  <ReviewChipList title="优势" items={latestReview.strengths} />
+                  <ReviewChipList title="建议" items={latestReview.suggestions} />
+                </>
+              ) : (
+                <p>{reviewAction.disabledReason ?? reviewPanel.description}</p>
+              )}
               <div className="draft-review-slots">
-                <button type="button" className="secondary-button" disabled>
-                  确认草稿
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={onConfirmReview}
+                  disabled={!reviewAction.canResolveDraft}
+                  title={reviewAction.disabledReason ?? "确认复盘草稿"}
+                >
+                  {reviewAction.confirmLabel}
                 </button>
-                <button type="button" className="secondary-button" disabled>
-                  修正草稿
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={onCorrectReview}
+                  disabled={!reviewAction.canResolveDraft}
+                  title={reviewAction.disabledReason ?? "修正复盘草稿摘要"}
+                >
+                  {reviewAction.correctLabel}
                 </button>
-                <button type="button" className="danger-button" disabled>
-                  标记无效
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={onInvalidateReview}
+                  disabled={!reviewAction.canResolveDraft}
+                  title={reviewAction.disabledReason ?? "标记复盘草稿无效"}
+                >
+                  {reviewAction.invalidateLabel}
                 </button>
               </div>
             </div>
@@ -276,13 +339,37 @@ export function TradeReviewPanel({
         <button
           type="button"
           className="primary-button"
-          disabled
-          title={reviewPanel.canConfirm ? "确认接口待接入" : "当前状态不能确认"}
+          onClick={onConfirmReview}
+          disabled={!reviewAction.canResolveDraft || isSavingReview}
+          title={reviewAction.disabledReason ?? "确认复盘草稿"}
         >
-          确认待接入
+          {reviewAction.confirmLabel}
         </button>
       </div>
     </section>
+  );
+}
+
+function ReviewChipList({
+  title,
+  items,
+}: {
+  title: string;
+  items: unknown[];
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="review-chip-list">
+      <span>{title}</span>
+      <div>
+        {items.map((item, index) => (
+          <strong key={`${String(item)}-${index}`}>{String(item)}</strong>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -305,4 +392,8 @@ function formatOptionalNumber(value: number | null) {
 
 function formatOptionalR(value: number | null) {
   return value == null ? "-" : `${value}R`;
+}
+
+function formatPercent(value: number | null) {
+  return value == null ? "-" : `${Math.round(value * 100)}%`;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getReviewPanelState } from "./reviewPanel";
+import { getReviewActionState, getReviewPanelState } from "./reviewPanel";
 
 const baseTrade: TradeSummary = {
   id: 1,
@@ -79,5 +79,92 @@ describe("review panel state", () => {
       description: "该复盘已由用户修正，可进入统计口径。",
       canConfirm: false,
     });
+  });
+});
+
+describe("review action state", () => {
+  const draftReview: AIReview = {
+    id: 10,
+    tradeId: 1,
+    status: "needs_review",
+    model: "gpt-4.1",
+    promptVersion: "single-trade-v1",
+    ruleVersionSnapshot: null,
+    scoreTotal: 82,
+    summary: "Draft summary",
+    facts: {},
+    missingInfo: [],
+    imageObservations: [],
+    strengths: [],
+    weaknesses: [],
+    suggestions: [],
+    tags: [],
+    confidence: 0.7,
+    rawResult: {},
+    createdAt: "2026-06-08T16:00:00.000Z",
+    confirmedAt: null,
+  };
+
+  it("enables review resolution only for persisted draft reviews in desktop runtime", () => {
+    expect(
+      getReviewActionState({
+        trade: baseTrade,
+        latestReview: draftReview,
+        hasDesktopRuntime: true,
+        isSavingReview: false,
+      }),
+    ).toEqual({
+      canResolveDraft: true,
+      confirmLabel: "确认草稿",
+      correctLabel: "修正草稿",
+      invalidateLabel: "标记无效",
+      disabledReason: null,
+    });
+  });
+
+  it("keeps actions disabled without a persisted review draft", () => {
+    expect(
+      getReviewActionState({
+        trade: baseTrade,
+        latestReview: undefined,
+        hasDesktopRuntime: true,
+        isSavingReview: false,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        canResolveDraft: false,
+        disabledReason: "暂无可确认的本地复盘草稿。",
+      }),
+    );
+  });
+
+  it("keeps actions disabled in browser preview and while saving", () => {
+    expect(
+      getReviewActionState({
+        trade: baseTrade,
+        latestReview: draftReview,
+        hasDesktopRuntime: false,
+        isSavingReview: false,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        canResolveDraft: false,
+        disabledReason: "请在 Electron 桌面运行时处理复盘草稿。",
+      }),
+    );
+
+    expect(
+      getReviewActionState({
+        trade: baseTrade,
+        latestReview: draftReview,
+        hasDesktopRuntime: true,
+        isSavingReview: true,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        canResolveDraft: false,
+        confirmLabel: "处理中",
+      }),
+    );
   });
 });

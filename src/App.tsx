@@ -16,7 +16,7 @@ import {
   type TradeFormState,
 } from "./app/tradeForm";
 import { getInitialTrades } from "./app/tradeList";
-import { getReviewPanelState } from "./app/reviewPanel";
+import { getReviewActionState, getReviewPanelState } from "./app/reviewPanel";
 import { parseChecklistText } from "./app/rulePanel";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppTopbar } from "./components/AppTopbar";
@@ -170,6 +170,17 @@ function App() {
   const [activeAttachmentPreviewId, setActiveAttachmentPreviewId] = useState<
     number | null
   >(null);
+  const [latestReviewByTradeId, setLatestReviewByTradeId] = useState<
+    Record<number, AIReview | undefined>
+  >({});
+  const [loadingReviewTradeId, setLoadingReviewTradeId] = useState<number | null>(
+    null,
+  );
+  const [reviewErrorState, setReviewErrorState] = useState<{
+    tradeId: number;
+    error: string;
+  }>();
+  const [isSavingReview, setIsSavingReview] = useState(false);
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
@@ -473,6 +484,11 @@ function App() {
         delete next[selectedTrade.id];
         return next;
       });
+      setLatestReviewByTradeId((current) => {
+        const next = { ...current };
+        delete next[selectedTrade.id];
+        return next;
+      });
       setEditingTradeId(null);
       setFormMessage("交易已删除。");
     } catch (error) {
@@ -480,6 +496,100 @@ function App() {
     } finally {
       setIsDeletingTrade(false);
     }
+  };
+
+  const handleConfirmReview = async () => {
+    if (!selectedTrade || !latestReview || !window.desktopApi) {
+      return;
+    }
+
+    setIsSavingReview(true);
+    try {
+      const review = await window.desktopApi.reviews.confirm(latestReview.id);
+      await applyReviewMutation(selectedTrade.id, review);
+      setFormMessage("复盘草稿已确认，后续统计会纳入该交易。");
+    } catch (error) {
+      setReviewErrorState({
+        tradeId: selectedTrade.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSavingReview(false);
+    }
+  };
+
+  const handleCorrectReview = async () => {
+    if (!selectedTrade || !latestReview || !window.desktopApi) {
+      return;
+    }
+
+    const summary = window.prompt(
+      "修正后的复盘摘要",
+      latestReview.summary ?? "",
+    );
+
+    if (summary == null) {
+      return;
+    }
+
+    setIsSavingReview(true);
+    try {
+      const review = await window.desktopApi.reviews.correct(latestReview.id, {
+        summary: summary.trim() || latestReview.summary,
+      });
+      await applyReviewMutation(selectedTrade.id, review);
+      setFormMessage("复盘草稿已修正，后续统计会使用修正结果。");
+    } catch (error) {
+      setReviewErrorState({
+        tradeId: selectedTrade.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSavingReview(false);
+    }
+  };
+
+  const handleInvalidateReview = async () => {
+    if (!selectedTrade || !latestReview || !window.desktopApi) {
+      return;
+    }
+
+    const confirmed = window.confirm("将这条复盘草稿标记为无效？该交易不会进入复盘统计口径。");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsSavingReview(true);
+    try {
+      const review = await window.desktopApi.reviews.invalidate(latestReview.id);
+      await applyReviewMutation(selectedTrade.id, review);
+      setFormMessage("复盘草稿已标记无效。");
+    } catch (error) {
+      setReviewErrorState({
+        tradeId: selectedTrade.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSavingReview(false);
+    }
+  };
+
+  const applyReviewMutation = async (tradeId: number, review: AIReview) => {
+    setLatestReviewByTradeId((current) => ({
+      ...current,
+      [tradeId]: review,
+    }));
+    setReviewErrorState(undefined);
+
+    const desktopTrades = await window.desktopApi?.trades.list();
+    if (desktopTrades) {
+      setTrades(desktopTrades);
+      setSelectedTradeId(tradeId);
+    }
+
+    const detail = await window.desktopApi?.trades.get(tradeId);
+    setSelectedTradeDetailState({ tradeId, detail });
   };
 
   const handleEditSelectedTrade = () => {
@@ -641,6 +751,15 @@ function App() {
   const selectedTrade =
     trades.find((trade) => trade.id === selectedTradeId) ?? trades[0];
   const reviewPanel = getReviewPanelState(selectedTrade);
+  const latestReview = selectedTrade
+    ? latestReviewByTradeId[selectedTrade.id]
+    : undefined;
+  const reviewAction = getReviewActionState({
+    trade: selectedTrade,
+    latestReview,
+    hasDesktopRuntime: Boolean(window.desktopApi),
+    isSavingReview,
+  });
   const previewTradeDetail =
     selectedTrade && !window.desktopApi
       ? createPreviewTradeDetail(selectedTrade)
@@ -662,6 +781,11 @@ function App() {
   const attachmentError =
     attachmentErrorState?.tradeId === selectedTrade?.id
       ? attachmentErrorState.error
+      : null;
+  const isLoadingReview = loadingReviewTradeId === selectedTrade?.id;
+  const reviewError =
+    reviewErrorState?.tradeId === selectedTrade?.id
+      ? reviewErrorState.error
       : null;
   const activeAttachmentPreview =
     activeAttachmentPreviewId == null
@@ -703,6 +827,48 @@ function App() {
       .finally(() => {
         if (!cancelled) {
           setLoadingTradeDetailId((current) =>
+            current === selectedTrade.id ? null : current,
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTrade]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!selectedTrade || !window.desktopApi) {
+      return;
+    }
+
+    void Promise.resolve()
+      .then(() => {
+        setLoadingReviewTradeId(selectedTrade.id);
+        return window.desktopApi?.reviews.getLatestForTrade(selectedTrade.id);
+      })
+      .then((review) => {
+        if (!cancelled) {
+          setLatestReviewByTradeId((current) => ({
+            ...current,
+            [selectedTrade.id]: review,
+          }));
+          setReviewErrorState(undefined);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setReviewErrorState({
+            tradeId: selectedTrade.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingReviewTradeId((current) =>
             current === selectedTrade.id ? null : current,
           );
         }
@@ -817,10 +983,15 @@ function App() {
 
           <TradeReviewPanel
             reviewPanel={reviewPanel}
+            reviewAction={reviewAction}
+            latestReview={latestReview}
             selectedTrade={selectedTrade}
             selectedTradeDetail={selectedTradeDetail}
             isLoadingTradeDetail={isLoadingTradeDetail}
             tradeDetailError={tradeDetailError}
+            isLoadingReview={isLoadingReview}
+            reviewError={reviewError}
+            isSavingReview={isSavingReview}
             isDeletingTrade={isDeletingTrade}
             attachmentPanel={attachmentPanel}
             attachmentDraft={attachmentDraft}
@@ -831,6 +1002,9 @@ function App() {
             attachmentImageDataUrls={attachmentImageDataUrls}
             onEditSelectedTrade={handleEditSelectedTrade}
             onDeleteSelectedTrade={handleDeleteSelectedTrade}
+            onConfirmReview={() => void handleConfirmReview()}
+            onCorrectReview={() => void handleCorrectReview()}
+            onInvalidateReview={() => void handleInvalidateReview()}
             onAttachmentDraftChange={setAttachmentDraft}
             onChooseAndAttach={() => void handleChooseAndAttach()}
             onDeleteAttachment={(attachmentId) =>

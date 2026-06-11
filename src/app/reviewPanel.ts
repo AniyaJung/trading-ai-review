@@ -7,6 +7,14 @@ export type ReviewPanelState = {
   canConfirm: boolean;
 };
 
+export type ReviewActionState = {
+  canResolveDraft: boolean;
+  confirmLabel: string;
+  correctLabel: string;
+  invalidateLabel: string;
+  disabledReason: string | null;
+};
+
 export function getReviewPanelState(
   trade: TradeSummary | undefined,
 ): ReviewPanelState {
@@ -93,4 +101,64 @@ export function getReviewPanelState(
         canConfirm: false,
       };
   }
+}
+
+export function getReviewActionState({
+  trade,
+  latestReview,
+  hasDesktopRuntime,
+  isSavingReview,
+}: {
+  trade: TradeSummary | undefined;
+  latestReview: AIReview | undefined;
+  hasDesktopRuntime: boolean;
+  isSavingReview: boolean;
+}): ReviewActionState {
+  const labels = {
+    confirmLabel: isSavingReview ? "处理中" : "确认草稿",
+    correctLabel: isSavingReview ? "处理中" : "修正草稿",
+    invalidateLabel: isSavingReview ? "处理中" : "标记无效",
+  };
+
+  if (!trade) {
+    return {
+      ...labels,
+      canResolveDraft: false,
+      disabledReason: "请先选择一笔交易。",
+    };
+  }
+
+  if (!hasDesktopRuntime) {
+    return {
+      ...labels,
+      canResolveDraft: false,
+      disabledReason: "请在 Electron 桌面运行时处理复盘草稿。",
+    };
+  }
+
+  if (!latestReview || !isDraftReviewStatus(latestReview.status)) {
+    return {
+      ...labels,
+      canResolveDraft: false,
+      disabledReason: "暂无可确认的本地复盘草稿。",
+    };
+  }
+
+  if (isSavingReview) {
+    return {
+      ...labels,
+      canResolveDraft: false,
+      disabledReason: "复盘草稿处理中。",
+    };
+  }
+
+  return {
+    ...labels,
+    canResolveDraft: true,
+    disabledReason: null,
+  };
+}
+
+function isDraftReviewStatus(status: ReviewStatus) {
+  return status === "draft" || status === "needs_review";
 }
