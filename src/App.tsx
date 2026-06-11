@@ -22,9 +22,16 @@ import {
 } from "./app/tradeDetailSelection";
 import { getReviewActionState, getReviewPanelState } from "./app/reviewPanel";
 import { parseChecklistText } from "./app/rulePanel";
+import {
+  buildStatsOverviewFilters,
+  getInitialStatsFilterState,
+  getStatsPanelState,
+  type StatsFilterState,
+} from "./app/statsPanel";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppTopbar } from "./components/AppTopbar";
 import { RulesView } from "./components/RulesView";
+import { StatsView } from "./components/StatsView";
 import { TradeFormPanel } from "./components/TradeFormPanel";
 import { TradeListPanel } from "./components/TradeListPanel";
 import { TradeReviewPanel } from "./components/TradeReviewPanel";
@@ -189,6 +196,16 @@ function App() {
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
+  const [statsOverview, setStatsOverview] = useState<StatsOverview | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [statsFilters, setStatsFilters] = useState<StatsFilterState>(() =>
+    getInitialStatsFilterState(),
+  );
+  const statsOverviewFilters = useMemo(
+    () => buildStatsOverviewFilters(statsFilters),
+    [statsFilters],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -200,13 +217,21 @@ function App() {
 
       setIsLoadingTrades(true);
       setIsLoadingRules(true);
+      setIsLoadingStats(true);
       try {
-        const [status, desktopTrades, activeRules, instrumentConfigs] =
+        const [
+          status,
+          desktopTrades,
+          activeRules,
+          instrumentConfigs,
+          desktopStatsOverview,
+        ] =
           await Promise.all([
             window.desktopApi.database.getStatus(),
             window.desktopApi.trades.list(),
             window.desktopApi.rules.listActive(),
             window.desktopApi.database.listInstruments(),
+            window.desktopApi.stats.getOverview({}),
           ]);
 
         if (!cancelled) {
@@ -216,21 +241,24 @@ function App() {
           setInstruments(instrumentConfigs);
           setTrades(desktopTrades);
           setEntryRules(activeRules);
+          setStatsOverview(desktopStatsOverview);
           setSelectedTradeId((current) => current ?? desktopTrades[0]?.id ?? null);
           setTradeLoadError(null);
           setRuleErrors([]);
+          setStatsError(null);
         }
       } catch (error) {
         if (!cancelled) {
-          setTradeLoadError(
-            error instanceof Error ? error.message : String(error),
-          );
-          setRuleErrors([error instanceof Error ? error.message : String(error)]);
+          const message = error instanceof Error ? error.message : String(error);
+          setTradeLoadError(message);
+          setRuleErrors([message]);
+          setStatsError(message);
         }
       } finally {
         if (!cancelled) {
           setIsLoadingTrades(false);
           setIsLoadingRules(false);
+          setIsLoadingStats(false);
         }
       }
     }
@@ -265,6 +293,31 @@ function App() {
       setRuleErrors([error instanceof Error ? error.message : String(error)]);
     } finally {
       setIsLoadingRules(false);
+    }
+  };
+
+
+  const refreshStats = async (filters = statsOverviewFilters) => {
+    if (!window.desktopApi) {
+      return;
+    }
+
+    setIsLoadingStats(true);
+    try {
+      setStatsOverview(await window.desktopApi.stats.getOverview(filters));
+      setStatsError(null);
+    } catch (error) {
+      setStatsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const handleStatsFiltersChange = (nextFilters: StatsFilterState) => {
+    setStatsFilters(nextFilters);
+
+    if (window.desktopApi) {
+      void refreshStats(buildStatsOverviewFilters(nextFilters));
     }
   };
 
@@ -412,6 +465,7 @@ function App() {
           }
 
           setTrades(await window.desktopApi.trades.list());
+          await refreshStats();
           setSelectedTradeId(updatedTrade.id);
           setSelectedTradeDetailState(undefined);
         } else {
@@ -448,6 +502,7 @@ function App() {
         result.input,
       );
       setTrades(await window.desktopApi.trades.list());
+      await refreshStats();
       setSelectedTradeId(createdTrade.id);
       setTradeForm(createTradeFormAfterSave(tradeForm));
       setFormMessage("交易已保存，并自动生成 entry/exit 成交明细。");
@@ -479,6 +534,7 @@ function App() {
         await window.desktopApi.trades.delete(selectedTrade.id);
         const nextTrades = await window.desktopApi.trades.list();
         setTrades(nextTrades);
+        await refreshStats();
         setSelectedTradeId(nextTrades[0]?.id ?? null);
       } else {
         const nextTrades = trades.filter((trade) => trade.id !== selectedTrade.id);
@@ -595,6 +651,8 @@ function App() {
       setTrades(desktopTrades);
       setSelectedTradeId(tradeId);
     }
+
+    await refreshStats();
 
     const detail = await window.desktopApi?.trades.get(tradeId);
     setSelectedTradeDetailState({ tradeId, detail });
@@ -756,6 +814,32 @@ function App() {
     () => navigationItems.find((item) => item.id === currentView),
     [currentView],
   );
+  const statsPanel = getStatsPanelState({
+    runtime: desktopRuntime,
+    overview: statsOverview,
+    trades,
+    filters: statsOverviewFilters,
+  });
+  const statsInstrumentOptions = useMemo(() => {
+    if (instruments.length > 0) {
+      return instruments;
+    }
+
+    const previewInstruments = new Map<string, InstrumentConfig>();
+    for (const trade of trades) {
+      previewInstruments.set(trade.symbol, {
+        symbol: trade.symbol,
+        name: trade.instrumentName,
+        assetClass: "futures",
+        exchange: "CME",
+        currency: "USD",
+        tickSize: 0.25,
+        tickValue: 0,
+        pointValue: 0,
+      });
+    }
+    return [...previewInstruments.values()];
+  }, [instruments, trades]);
   const selectedTrade =
     trades.find((trade) => trade.id === selectedTradeId) ?? trades[0];
   const reviewPanel = getReviewPanelState(selectedTrade);
@@ -971,6 +1055,17 @@ function App() {
             onCreateRule={() => void handleCreateRule()}
             onCreateRuleVersion={() => void handleCreateRuleVersion()}
             onArchiveRule={(rule) => void handleArchiveRule(rule)}
+          />
+        ) : currentView === "stats" ? (
+          <StatsView
+            overview={statsPanel.overview}
+            isLoading={isLoadingStats}
+            error={statsError}
+            isPreview={statsPanel.isPreview}
+            filters={statsFilters}
+            instruments={statsInstrumentOptions}
+            onFiltersChange={handleStatsFiltersChange}
+            onRefresh={() => void refreshStats()}
           />
         ) : (
         <section className="desk-grid">

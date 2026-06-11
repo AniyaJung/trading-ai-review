@@ -38,6 +38,10 @@ const desktopApi = {
       ipcRenderer.invoke("reviews:correct", id, input),
     invalidate: (id: number) => ipcRenderer.invoke("reviews:invalidate", id),
   },
+  stats: {
+    getOverview: (filters?: unknown) =>
+      ipcRenderer.invoke("stats:getOverview", filters),
+  },
   attachments: {
     listByTrade: (tradeId: number) =>
       ipcRenderer.invoke("attachments:listByTrade", tradeId),

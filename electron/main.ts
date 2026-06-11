@@ -6,6 +6,7 @@ import { registerAttachmentIpc } from "./ipc/attachmentIpc.js";
 import { registerDatabaseIpc } from "./ipc/databaseIpc.js";
 import { registerReviewIpc } from "./ipc/reviewIpc.js";
 import { registerRuleIpc } from "./ipc/ruleIpc.js";
+import { registerStatsIpc } from "./ipc/statsIpc.js";
 import { resolveRuntimePaths } from "./runtimePaths.js";
 import { registerTradeIpc } from "./ipc/tradeIpc.js";
 import { buildMainWindowOptions } from "./windowOptions.js";
@@ -47,6 +48,7 @@ app.whenReady().then(() => {
   registerRuleIpc(db);
   registerTradeIpc(db);
   registerReviewIpc(db);
+  registerStatsIpc(db);
   registerAttachmentIpc(db, appDataPaths.attachmentsDir);
 
   void createMainWindow();

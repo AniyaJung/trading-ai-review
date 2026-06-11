@@ -196,6 +196,34 @@ type TradeAttachment = {
   createdAt: string;
 };
 
+type InstrumentStats = {
+  symbol: string;
+  instrumentName: string;
+  tradeCount: number;
+  netPnl: number;
+  winRate: number | null;
+  averageRMultiple: number | null;
+  profitFactor: number | null;
+  feesTotal: number;
+};
+
+type StatsOverview = {
+  totalTradeCount: number;
+  confirmedReviewCount: number;
+  totalNetPnl: number;
+  winRate: number | null;
+  averageRMultiple: number | null;
+  profitFactor: number | null;
+  totalFees: number;
+  byInstrument: InstrumentStats[];
+};
+
+type StatsOverviewFilters = {
+  symbol?: string;
+  openedFrom?: string;
+  openedBefore?: string;
+};
+
 type AttachExistingFileInput = {
   tradeId: number;
   sourceFilePath: string;
@@ -244,6 +272,9 @@ type DesktopApi = {
     confirm: (id: number) => Promise<AIReview>;
     correct: (id: number, input: CorrectReviewInput) => Promise<AIReview>;
     invalidate: (id: number) => Promise<AIReview>;
+  };
+  stats: {
+    getOverview: (filters?: StatsOverviewFilters) => Promise<StatsOverview>;
   };
   attachments: {
     listByTrade: (tradeId: number) => Promise<TradeAttachment[]>;
