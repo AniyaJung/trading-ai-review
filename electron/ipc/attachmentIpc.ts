@@ -4,6 +4,7 @@ import {
   attachExistingFile,
   deleteAttachment,
   listAttachmentsByTrade,
+  readAttachmentImageDataUrl,
   type AttachExistingFileInput,
 } from "../services/attachmentService.js";
 
@@ -34,6 +35,7 @@ export function createAttachmentIpcHandlers(
         sourceFilePath,
       });
     },
+    readImageDataUrl: (id: number) => readAttachmentImageDataUrl(db, id),
     delete: (id: number) => deleteAttachment(db, id),
   };
 }
@@ -70,6 +72,9 @@ export function registerAttachmentIpc(
   ipcMain.handle(
     "attachments:chooseAndAttach",
     (_event, input: ChooseAndAttachInput) => handlers.chooseAndAttach(input),
+  );
+  ipcMain.handle("attachments:readImageDataUrl", (_event, id: number) =>
+    handlers.readImageDataUrl(id),
   );
   ipcMain.handle("attachments:delete", (_event, id: number) =>
     handlers.delete(id),

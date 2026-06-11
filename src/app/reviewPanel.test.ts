@@ -17,6 +17,10 @@ const baseTrade: TradeSummary = {
   netPnl: 445,
   riskAmount: 200,
   rMultiple: 2.225,
+  entryRuleId: null,
+  entryRuleVersionId: null,
+  entryRuleName: null,
+  entryRuleVersionNo: null,
   aiReviewStatus: "not_generated",
 };
 

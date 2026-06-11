@@ -19,6 +19,7 @@ export type CreateClosedTradeInput = {
   exitReason?: string | null;
   emotionNote?: string | null;
   lessonNote?: string | null;
+  entryRuleVersionId?: number | null;
 };
 
 export type TradeSummary = {
@@ -37,6 +38,10 @@ export type TradeSummary = {
   netPnl: number;
   riskAmount: number;
   rMultiple: number | null;
+  entryRuleId: number | null;
+  entryRuleVersionId: number | null;
+  entryRuleName: string | null;
+  entryRuleVersionNo: number | null;
   aiReviewStatus:
     | "not_generated"
     | "draft"
@@ -65,6 +70,8 @@ export type TradeDetail = TradeSummary & {
   exitReason: string | null;
   emotionNote: string | null;
   lessonNote: string | null;
+  entryRuleContent: string | null;
+  entryRuleChecklist: string[];
   executions: TradeExecutionDetail[];
 };
 
@@ -74,6 +81,15 @@ type InstrumentRow = {
   name: string;
   point_value: number;
   currency: string;
+};
+
+type EntryRuleVersionBinding = {
+  entryRuleId: number;
+  entryRuleVersionId: number;
+};
+
+type TradeDetailRow = Omit<TradeDetail, "entryRuleChecklist" | "executions"> & {
+  entryRuleChecklistJson: string | null;
 };
 
 export function createClosedTrade(
@@ -86,6 +102,11 @@ export function createClosedTrade(
   if (!instrument) {
     throw new Error(`Instrument ${input.symbol} is not configured.`);
   }
+
+  const entryRuleBinding = resolveEntryRuleBinding(
+    db,
+    input.entryRuleVersionId ?? null,
+  );
 
   const calculation = calculateClosedFuturesTrade({
     direction: input.direction,
@@ -103,6 +124,8 @@ export function createClosedTrade(
       .prepare(
         `insert into trade (
           instrument_id,
+          entry_rule_id,
+          entry_rule_version_id,
           direction,
           status,
           opened_at,
@@ -122,10 +145,12 @@ export function createClosedTrade(
           exit_reason,
           emotion_note,
           lesson_note
-        ) values (?, ?, 'closed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) values (?, ?, ?, ?, 'closed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         instrument.id,
+        entryRuleBinding?.entryRuleId ?? null,
+        entryRuleBinding?.entryRuleVersionId ?? null,
         input.direction,
         input.openedAt,
         input.closedAt,
@@ -268,9 +293,15 @@ export function listTrades(db: DatabaseSync): TradeSummary[] {
         trade.net_pnl as netPnl,
         trade.risk_amount as riskAmount,
         trade.r_multiple as rMultiple,
+        trade.entry_rule_id as entryRuleId,
+        trade.entry_rule_version_id as entryRuleVersionId,
+        entry_rule.name as entryRuleName,
+        entry_rule_version.version_no as entryRuleVersionNo,
         trade.ai_review_status as aiReviewStatus
       from trade
       join instrument on instrument.id = trade.instrument_id
+      left join entry_rule on entry_rule.id = trade.entry_rule_id
+      left join entry_rule_version on entry_rule_version.id = trade.entry_rule_version_id
       order by trade.opened_at desc, trade.id desc`,
     )
     .all() as unknown as TradeSummary[];
@@ -300,6 +331,12 @@ export function getTradeDetail(
         trade.net_pnl as netPnl,
         trade.risk_amount as riskAmount,
         trade.r_multiple as rMultiple,
+        trade.entry_rule_id as entryRuleId,
+        trade.entry_rule_version_id as entryRuleVersionId,
+        entry_rule.name as entryRuleName,
+        entry_rule_version.version_no as entryRuleVersionNo,
+        entry_rule_version.content as entryRuleContent,
+        entry_rule_version.checklist_json as entryRuleChecklistJson,
         trade.background_note as backgroundNote,
         trade.entry_reason as entryReason,
         trade.exit_reason as exitReason,
@@ -308,9 +345,11 @@ export function getTradeDetail(
         trade.ai_review_status as aiReviewStatus
       from trade
       join instrument on instrument.id = trade.instrument_id
+      left join entry_rule on entry_rule.id = trade.entry_rule_id
+      left join entry_rule_version on entry_rule_version.id = trade.entry_rule_version_id
       where trade.id = ?`,
     )
-    .get(id) as Omit<TradeDetail, "executions"> | undefined;
+    .get(id) as TradeDetailRow | undefined;
 
   if (!trade) {
     return undefined;
@@ -333,7 +372,15 @@ export function getTradeDetail(
     )
     .all(id) as unknown as TradeExecutionDetail[];
 
-  return { ...trade, executions };
+  const { entryRuleChecklistJson, ...tradeDetail } = trade;
+
+  return {
+    ...tradeDetail,
+    entryRuleChecklist: entryRuleChecklistJson
+      ? (JSON.parse(entryRuleChecklistJson) as string[])
+      : [],
+    executions,
+  };
 }
 
 export function deleteTrade(db: DatabaseSync, id: number): boolean {
@@ -371,6 +418,11 @@ export function updateClosedTrade(
     throw new Error(`Instrument ${input.symbol} is not configured.`);
   }
 
+  const entryRuleBinding = resolveEntryRuleBinding(
+    db,
+    input.entryRuleVersionId ?? null,
+  );
+
   const calculation = calculateClosedFuturesTrade({
     direction: input.direction,
     entryPrice: input.entryPrice,
@@ -386,6 +438,8 @@ export function updateClosedTrade(
     db.prepare(
       `update trade set
         instrument_id = ?,
+        entry_rule_id = ?,
+        entry_rule_version_id = ?,
         direction = ?,
         opened_at = ?,
         closed_at = ?,
@@ -408,6 +462,8 @@ export function updateClosedTrade(
       where id = ?`,
     ).run(
       instrument.id,
+      entryRuleBinding?.entryRuleId ?? null,
+      entryRuleBinding?.entryRuleVersionId ?? null,
       input.direction,
       input.openedAt,
       input.closedAt,
@@ -494,9 +550,15 @@ function getTradeById(db: DatabaseSync, id: number): TradeSummary {
         trade.net_pnl as netPnl,
         trade.risk_amount as riskAmount,
         trade.r_multiple as rMultiple,
+        trade.entry_rule_id as entryRuleId,
+        trade.entry_rule_version_id as entryRuleVersionId,
+        entry_rule.name as entryRuleName,
+        entry_rule_version.version_no as entryRuleVersionNo,
         trade.ai_review_status as aiReviewStatus
       from trade
       join instrument on instrument.id = trade.instrument_id
+      left join entry_rule on entry_rule.id = trade.entry_rule_id
+      left join entry_rule_version on entry_rule_version.id = trade.entry_rule_version_id
       where trade.id = ?`,
     )
     .get(id) as TradeSummary | undefined;
@@ -506,6 +568,31 @@ function getTradeById(db: DatabaseSync, id: number): TradeSummary {
   }
 
   return trade;
+}
+
+function resolveEntryRuleBinding(
+  db: DatabaseSync,
+  entryRuleVersionId: number | null,
+): EntryRuleVersionBinding | undefined {
+  if (entryRuleVersionId == null) {
+    return undefined;
+  }
+
+  const version = db
+    .prepare(
+      `select
+        entry_rule_id as entryRuleId,
+        id as entryRuleVersionId
+      from entry_rule_version
+      where id = ?`,
+    )
+    .get(entryRuleVersionId) as EntryRuleVersionBinding | undefined;
+
+  if (!version) {
+    throw new Error(`Entry rule version ${entryRuleVersionId} was not found.`);
+  }
+
+  return version;
 }
 
 function findInstrumentBySymbol(

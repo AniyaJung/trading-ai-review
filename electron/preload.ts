@@ -20,6 +20,13 @@ const desktopApi = {
     createClosed: (input: unknown) =>
       ipcRenderer.invoke("trades:createClosed", input),
   },
+  rules: {
+    listActive: () => ipcRenderer.invoke("rules:listActive"),
+    create: (input: unknown) => ipcRenderer.invoke("rules:create", input),
+    createVersion: (input: unknown) =>
+      ipcRenderer.invoke("rules:createVersion", input),
+    archive: (id: number) => ipcRenderer.invoke("rules:archive", id),
+  },
   attachments: {
     listByTrade: (tradeId: number) =>
       ipcRenderer.invoke("attachments:listByTrade", tradeId),
@@ -27,6 +34,8 @@ const desktopApi = {
       ipcRenderer.invoke("attachments:attachExistingFile", input),
     chooseAndAttach: (input: unknown) =>
       ipcRenderer.invoke("attachments:chooseAndAttach", input),
+    readImageDataUrl: (id: number) =>
+      ipcRenderer.invoke("attachments:readImageDataUrl", id),
     delete: (id: number) => ipcRenderer.invoke("attachments:delete", id),
   },
 };

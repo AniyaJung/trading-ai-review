@@ -73,6 +73,9 @@ describe("createAttachmentIpcHandlers", () => {
       }),
     );
     expect(handlers.listByTrade(trade.id)).toEqual([attached]);
+    expect(handlers.readImageDataUrl(attached.id)).toBe(
+      "data:image/png;base64,ZmFrZSBpbWFnZSBieXRlcw==",
+    );
     expect(handlers.delete(attached.id)).toBe(true);
     expect(handlers.listByTrade(trade.id)).toEqual([]);
 

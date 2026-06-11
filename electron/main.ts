@@ -4,6 +4,7 @@ import { ensureAppDataDirectories, resolveAppDataPaths } from "./data/appData.js
 import { initializeAppDatabase } from "./data/database.js";
 import { registerAttachmentIpc } from "./ipc/attachmentIpc.js";
 import { registerDatabaseIpc } from "./ipc/databaseIpc.js";
+import { registerRuleIpc } from "./ipc/ruleIpc.js";
 import { resolveRuntimePaths } from "./runtimePaths.js";
 import { registerTradeIpc } from "./ipc/tradeIpc.js";
 import { buildMainWindowOptions } from "./windowOptions.js";
@@ -42,6 +43,7 @@ app.whenReady().then(() => {
   ensureAppDataDirectories(appDataPaths);
   const db = initializeAppDatabase(appDataPaths.databasePath);
   registerDatabaseIpc(db, appDataPaths);
+  registerRuleIpc(db);
   registerTradeIpc(db);
   registerAttachmentIpc(db, appDataPaths.attachmentsDir);
 

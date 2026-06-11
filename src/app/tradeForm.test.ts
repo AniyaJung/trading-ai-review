@@ -21,6 +21,7 @@ const completeTradeForm: TradeFormState = {
   feesTotal: "5",
   entryReason: "Opening range pullback",
   exitReason: "Scaled out at target area",
+  entryRuleVersionId: "3",
 };
 
 describe("trade form helpers", () => {
@@ -98,6 +99,12 @@ describe("trade form helpers", () => {
       exitReason: "Covered near target",
       emotionNote: null,
       lessonNote: null,
+      entryRuleId: 10,
+      entryRuleVersionId: 12,
+      entryRuleName: "Trend continuation",
+      entryRuleVersionNo: 2,
+      entryRuleContent: "Trade continuation after pullback.",
+      entryRuleChecklist: ["Higher low held"],
       aiReviewStatus: "not_generated",
       executions: [],
     };
@@ -115,6 +122,7 @@ describe("trade form helpers", () => {
       feesTotal: "3.6",
       entryReason: "Failed breakout",
       exitReason: "Covered near target",
+      entryRuleVersionId: "12",
     });
   });
 
@@ -139,8 +147,25 @@ describe("trade form helpers", () => {
         feesTotal: 5,
         entryReason: "Opening range pullback",
         exitReason: "Scaled out at target area",
+        entryRuleVersionId: 3,
       },
     });
+  });
+
+  it("builds a closed trade input with no rule binding when the rule selection is blank", () => {
+    const result = buildCreateClosedTradeInput({
+      ...completeTradeForm,
+      entryRuleVersionId: "",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        input: expect.objectContaining({
+          entryRuleVersionId: null,
+        }),
+      }),
+    );
   });
 
   it("returns Chinese validation errors before the Electron IPC call", () => {

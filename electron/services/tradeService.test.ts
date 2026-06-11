@@ -11,6 +11,7 @@ import {
   updateClosedTrade,
   type CreateClosedTradeInput,
 } from "./tradeService";
+import { createEntryRule } from "./ruleService";
 
 const tempDirs: string[] = [];
 
@@ -220,6 +221,60 @@ describe("createClosedTrade", () => {
 
     db.close();
   });
+
+  it("binds a closed trade to a specific entry rule version", () => {
+    const db = createTestDb();
+    const rule = createEntryRule(db, {
+      name: "Opening range pullback",
+      marketType: "index_futures",
+      content: "Break, retest, enter with defined risk.",
+      checklist: ["Break confirmed", "Retest held"],
+    });
+
+    const trade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        entryRuleVersionId: rule.latestVersion.id,
+      }),
+    );
+
+    expect(trade).toEqual(
+      expect.objectContaining({
+        entryRuleId: rule.id,
+        entryRuleVersionId: rule.latestVersion.id,
+        entryRuleName: "Opening range pullback",
+        entryRuleVersionNo: 1,
+      }),
+    );
+    expect(getTradeDetail(db, trade.id)).toEqual(
+      expect.objectContaining({
+        entryRuleId: rule.id,
+        entryRuleVersionId: rule.latestVersion.id,
+        entryRuleName: "Opening range pullback",
+        entryRuleVersionNo: 1,
+        entryRuleContent: "Break, retest, enter with defined risk.",
+        entryRuleChecklist: ["Break confirmed", "Retest held"],
+      }),
+    );
+
+    db.close();
+  });
+
+  it("rejects unknown entry rule versions before inserting", () => {
+    const db = createTestDb();
+
+    expect(() =>
+      createClosedTrade(
+        db,
+        validClosedTradeInput({
+          entryRuleVersionId: 999,
+        }),
+      ),
+    ).toThrow("Entry rule version 999 was not found.");
+    expect(listTrades(db)).toEqual([]);
+
+    db.close();
+  });
 });
 
 describe("listTrades", () => {
@@ -299,6 +354,8 @@ describe("getTradeDetail", () => {
       exitReason: "Scaled out at target area",
       emotionNote: "Calm",
       lessonNote: "Wait for retest",
+      entryRuleContent: null,
+      entryRuleChecklist: [],
       executions: [
         {
           id: 1,
@@ -330,6 +387,49 @@ describe("getTradeDetail", () => {
     const db = createTestDb();
 
     expect(getTradeDetail(db, 999)).toBeUndefined();
+
+    db.close();
+  });
+});
+
+describe("updateClosedTrade", () => {
+  it("updates the bound entry rule version", () => {
+    const db = createTestDb();
+    const firstRule = createEntryRule(db, {
+      name: "Opening range pullback",
+      marketType: "index_futures",
+      content: "Version one content",
+      checklist: ["V1 item"],
+    });
+    const secondRule = createEntryRule(db, {
+      name: "Trend continuation",
+      marketType: "index_futures",
+      content: "Continuation setup content",
+      checklist: ["Higher low held"],
+    });
+    const created = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        entryRuleVersionId: firstRule.latestVersion.id,
+      }),
+    );
+
+    const updated = updateClosedTrade(
+      db,
+      created.id,
+      validClosedTradeInput({
+        entryRuleVersionId: secondRule.latestVersion.id,
+      }),
+    );
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        entryRuleId: secondRule.id,
+        entryRuleVersionId: secondRule.latestVersion.id,
+        entryRuleName: "Trend continuation",
+        entryRuleVersionNo: 1,
+      }),
+    );
 
     db.close();
   });

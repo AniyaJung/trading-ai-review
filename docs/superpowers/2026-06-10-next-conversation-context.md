@@ -284,16 +284,17 @@ src/app/reviewPanel.ts
 window.desktopApi.attachments.listByTrade(tradeId)
 window.desktopApi.attachments.attachExistingFile(input)
 window.desktopApi.attachments.chooseAndAttach(input)
+window.desktopApi.attachments.readImageDataUrl(id)
 window.desktopApi.attachments.delete(id)
 ```
 
 - `chooseAndAttach` 通过 Electron `dialog.showOpenDialog` 选择本地图片，再复制到 app data 附件目录。
 - 选中交易详情里已经可以选择截图类型、填写备注、添加截图、查看附件列表、删除附件。
+- 选中交易详情里已经通过受控 preload API 读取已登记附件的 data URL，显示缩略图，并支持点击打开大图预览。
 
 当前限制：
 
-- UI 目前只显示附件类型、备注和本地路径，还没有显示缩略图或大图预览。
-- Renderer 不应直接裸用任意本地文件路径作为图片源。下一步建议由 Main Process 提供受控读取方式，例如返回 data URL，或注册受控 `app://attachments/...` 协议。
+- Renderer 不直接裸用任意本地文件路径作为图片源；当前使用 `attachments:readImageDataUrl` 通过附件 id 读取数据库中已登记的本地副本。
 - 附件相关类型目前分散在 Electron service、renderer helper 和 `src/vite-env.d.ts`，后续可抽到共享 contract，降低类型漂移风险。
 
 关键文件：
@@ -304,6 +305,81 @@ electron/ipc/attachmentIpc.ts
 src/app/attachmentPanel.ts
 src/App.tsx
 src/vite-env.d.ts
+```
+
+### 6.6 入场规则库
+
+已完成：
+
+- `RuleService` 可创建 active 入场规则，并自动生成不可变 v1。
+- `RuleService` 可追加规则版本，版本号按规则递增，旧版本不被覆盖。
+- `RuleService` 可列出 active 规则及 latest version。
+- `RuleService` 可归档规则；归档不会删除历史版本，也不会破坏历史交易绑定。
+- 交易创建和编辑时可绑定 `entry_rule_version_id`，服务层会同步写入 `entry_rule_id`。
+- 交易列表和交易详情会带回规则名称、版本号；交易详情会带回规则内容和 checklist。
+- Electron IPC / preload 暴露：
+
+```text
+window.desktopApi.rules.listActive()
+window.desktopApi.rules.create(input)
+window.desktopApi.rules.createVersion(input)
+window.desktopApi.rules.archive(id)
+```
+
+- UI 规则页可新建规则、追加版本、归档 active 规则。
+- 交易表单可选择 active 规则的 latest version；交易详情展示绑定的规则版本、内容和 checklist。
+
+当前限制：
+
+- 规则编辑采用“追加版本”，不支持直接修改历史版本，这是刻意设计。
+- 规则 UI 目前是最小可用版本，已经拆成组件，但还没有富文本、模板、标签或复杂 checklist 编辑器。
+- 交易只能从 active 规则的 latest version 里选择；历史绑定版本会保留并展示，但 UI 暂不提供绑定 archived 规则旧版本的入口。
+
+关键文件：
+
+```text
+electron/services/ruleService.ts
+electron/ipc/ruleIpc.ts
+electron/services/tradeService.ts
+src/app/rulePanel.ts
+src/app/tradeForm.ts
+src/App.tsx
+src/vite-env.d.ts
+```
+
+### 6.7 UI 结构拆分
+
+已完成：
+
+- `src/App.tsx` 继续负责应用级状态、副作用、IPC 调用和跨面板编排。
+- 主工作台 UI 已拆分到 `src/components`：
+  - `AppSidebar`
+  - `AppTopbar`
+  - `TradeListPanel`
+  - `TradeFormPanel`
+  - `TradeReviewPanel`
+  - `AttachmentSection`
+  - `RulesView`
+- 交易列表、交易表单、交易详情/复盘区、附件区、规则库页面都已经从 `App.tsx` 移出。
+- 当前拆分保持行为等价，未引入新 UI 框架，也没有大改视觉主题。
+
+当前限制：
+
+- `App.tsx` 仍然较长，因为状态管理和 Electron runtime 副作用仍集中在一个组件中。
+- 组件 props 仍偏多，后续接 AI 复盘时可以继续拆服务 hooks 或 view model。
+- 视觉效果还没有系统优化；当前只是结构拆分后的原样式迁移。
+
+关键文件：
+
+```text
+src/components/AppSidebar.tsx
+src/components/AppTopbar.tsx
+src/components/TradeListPanel.tsx
+src/components/TradeFormPanel.tsx
+src/components/TradeReviewPanel.tsx
+src/components/AttachmentSection.tsx
+src/components/RulesView.tsx
+src/App.tsx
 ```
 
 ## 7. 当前验证状态
@@ -318,7 +394,7 @@ npm run lint
 
 结果：
 
-- Vitest：13 files / 52 tests passed。
+- Vitest：16 files / 67 tests passed。
 - Build：passed。
 - Lint：passed。
 - `git diff --check`：passed。
@@ -357,12 +433,30 @@ latest trade id = 7
 
 ### 9.0 下一步推荐
 
-下个对话建议优先做下面两件之一：
+下个对话建议优先做 **视觉效果优化**，然后再接 AI 复盘。用户已明确指定视觉优化阶段使用下面这个 skill：
 
-1. **安全图片预览**：为附件截图增加受控读取/预览能力，让交易详情能显示缩略图和大图。推荐从 Main Process 提供安全图片读取接口或受控本地协议开始，不要让 renderer 直接访问任意本地路径。
-2. **入场规则库**：实现 `RuleService`、规则版本和交易绑定，为后续 AI 复盘判断“是否按规则执行”打基础。
+```text
+/Users/juyu/.agents/skills/ui-ux-pro-max/SKILL.md
+```
 
-如果希望先让附件闭环更完整，选安全图片预览；如果希望推进 AI 复盘核心语义，选入场规则库。
+现在 UI 结构已经拆分，适合在组件边界上优化交易页、规则页和详情区的视觉层级。
+
+视觉优化建议聚焦：
+
+- 重新组织交易页右侧详情区，为后续 AI 草稿、规则检查结果、用户确认/修正留出稳定区域。
+- 优化规则页的密度和版本操作体验，但不引入富文本或复杂编辑器。
+- 统一截图区、规则绑定区、复盘状态区的视觉语言。
+- 保持这是本地桌面工作台，不要做 landing page、营销页或大幅品牌重设计。
+- 沿用现有 React + plain CSS + lucide-react，不引入新的 UI 框架。
+- 视觉优化应先在拆分后的组件上进行：
+  - `src/components/TradeListPanel.tsx`
+  - `src/components/TradeFormPanel.tsx`
+  - `src/components/TradeReviewPanel.tsx`
+  - `src/components/AttachmentSection.tsx`
+  - `src/components/RulesView.tsx`
+  - `src/components/AppSidebar.tsx`
+  - `src/components/AppTopbar.tsx`
+- 完成后必须检查桌面和窄屏布局，确认文本不溢出、面板不重叠、表单和按钮仍可用。
 
 ### 9.1 交易表单产品化
 
@@ -380,8 +474,9 @@ latest trade id = 7
 当前状态：
 
 - 已完成客户端校验、时间解析、保存后重置、选择交易、详情读取、编辑交易、删除交易、加载/错误/空状态。
+- 已完成交易录入和编辑时绑定 active 规则 latest version。
 - “复制上一笔”按钮仍是占位入口，尚未接入行为。
-- `src/App.tsx` 已经承载较多状态，继续做入场规则、AI 复盘或截图预览前应考虑拆分交易表单、列表和详情面板组件。
+- `src/App.tsx` 已经完成主要 UI 面板拆分，但仍承载较多状态和副作用；继续做 AI 复盘前可先做视觉整理，后续再按需要拆 hooks/view model。
 
 ### 9.2 交易日和市场会话日
 
@@ -411,23 +506,24 @@ session_template
 建议任务：
 
 - 已完成 `AttachmentService`：复制已有图片到 app data attachments 目录、写入 `trade_attachment`、按交易列出、删除附件并清理文件。
+- 已完成 `AttachmentService`：按附件 id 读取已登记图片文件并返回 data URL，用于安全预览。
 - 已完成 preload / IPC：支持选择本地图片并 attach，底层仍保留 `attachExistingFile`。
 - 已完成 UI：选中交易详情里可选择截图类型、备注、通过系统文件选择器添加截图、列出附件、删除附件。
 - 已完成交易删除时清理附件文件，避免 SQLite cascade 后留下孤儿图片。
-- 待完成：安全的内联图片预览或受控本地图片协议，让 UI 显示缩略图/大图，而不是只显示本地路径。
+- 已完成安全的内联图片预览：renderer 通过附件 id 请求 data URL，UI 显示缩略图和大图预览，而不是直接把本地路径作为图片源。
 - 暂不做在线画线和标注，MVP 接收用户外部标注后的图片。
 
 ### 9.4 入场规则库
 
 目标：让每笔交易能绑定具体规则版本。
 
-建议任务：
+当前状态：
 
-- `RuleService`。
-- 新增规则。
-- 创建不可变规则版本。
-- 交易录入时选择 `entry_rule_version_id`。
-- 后续 AI 复盘根据规则 checklist 判断执行一致性。
+- 已完成 `RuleService`。
+- 已完成新增规则和不可变规则版本。
+- 已完成交易录入/编辑时选择 `entry_rule_version_id`。
+- 已完成规则归档和 active latest version 列表。
+- 后续 AI 复盘可根据绑定规则版本的 content/checklist 判断执行一致性。
 
 ### 9.5 AI 复盘草稿
 
@@ -485,13 +581,17 @@ session_template
 
 /Users/juyu/IdeaProjects/trading-ai-review
 
-当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。优先从“交易表单产品化 / 交易详情 / 附件截图 / 入场规则库”中选择下一步，并保持测试通过。
+当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。当前“交易事实 + 附件截图 + 入场规则版本绑定”输入链路已成型，主要 UI 面板也已拆分到 src/components。建议下一步优先做视觉效果优化，并保持测试通过。
 
 当前最新提交应包含：
 
 b301a3c feat: add trade screenshot attachments
 
-建议下一步优先做“安全图片预览”：为已复制到 app data attachments 目录的截图提供受控读取接口或本地协议，交易详情里显示缩略图和大图预览。注意 renderer 不应直接访问 Node.js 文件系统或任意本地路径。
+建议下一步优先做“视觉效果优化”。用户指定使用 skill：
+
+/Users/juyu/.agents/skills/ui-ux-pro-max/SKILL.md
+
+请在现有组件边界上优化交易页、规则页和详情区，为 AI 复盘草稿、规则检查和用户确认/修正流程预留稳定区域。不要引入新的 UI 框架，不要做 landing page，不要删除或重置本地数据库。
 ```
 
 ## 11. 开发命令

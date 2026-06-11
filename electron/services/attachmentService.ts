@@ -123,6 +123,26 @@ export function deleteAttachment(db: DatabaseSync, id: number): boolean {
   return true;
 }
 
+export function readAttachmentImageDataUrl(
+  db: DatabaseSync,
+  id: number,
+): string {
+  const attachment = getAttachmentById(db, id);
+
+  if (!attachment) {
+    throw new Error(`Attachment ${id} was not found.`);
+  }
+
+  if (!fs.existsSync(attachment.filePath)) {
+    throw new Error("Attachment image file was not found.");
+  }
+
+  const image = fs.readFileSync(attachment.filePath);
+  return `data:${getImageMimeType(attachment.filePath)};base64,${image.toString(
+    "base64",
+  )}`;
+}
+
 function validateImageType(imageType: AttachmentImageType) {
   if (!supportedImageTypes.includes(imageType)) {
     throw new Error(`Image type ${imageType} is not supported.`);
@@ -159,6 +179,24 @@ function createAttachmentDestinationPath(
   }
 
   throw new Error("Unable to allocate attachment filename.");
+}
+
+function getImageMimeType(filePath: string) {
+  const extension = path.extname(filePath).toLowerCase();
+
+  switch (extension) {
+    case ".gif":
+      return "image/gif";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "application/octet-stream";
+  }
 }
 
 function getAttachmentById(

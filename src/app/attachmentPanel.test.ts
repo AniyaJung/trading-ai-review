@@ -54,12 +54,14 @@ describe("attachment panel helpers", () => {
           label: "入场时",
           caption: "Breakout retest",
           filePath: "/tmp/entry.png",
+          fileName: "entry.png",
         },
         {
           id: 1,
           label: "入场前",
           caption: "未填写备注",
           filePath: "/tmp/before.png",
+          fileName: "before.png",
         },
       ],
     });

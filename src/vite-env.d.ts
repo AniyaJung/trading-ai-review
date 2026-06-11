@@ -18,6 +18,7 @@ type CreateClosedTradeInput = {
   exitReason?: string | null;
   emotionNote?: string | null;
   lessonNote?: string | null;
+  entryRuleVersionId?: number | null;
 };
 
 type TradeSummary = {
@@ -36,6 +37,10 @@ type TradeSummary = {
   netPnl: number;
   riskAmount: number;
   rMultiple: number | null;
+  entryRuleId: number | null;
+  entryRuleVersionId: number | null;
+  entryRuleName: string | null;
+  entryRuleVersionNo: number | null;
   aiReviewStatus:
     | "not_generated"
     | "draft"
@@ -64,7 +69,43 @@ type TradeDetail = TradeSummary & {
   exitReason: string | null;
   emotionNote: string | null;
   lessonNote: string | null;
+  entryRuleContent: string | null;
+  entryRuleChecklist: string[];
   executions: TradeExecutionDetail[];
+};
+
+type EntryRuleVersion = {
+  id: number;
+  entryRuleId: number;
+  versionNo: number;
+  content: string;
+  checklist: string[];
+  createdAt: string;
+};
+
+type EntryRuleWithLatestVersion = {
+  id: number;
+  name: string;
+  description: string | null;
+  marketType: string | null;
+  status: "active" | "archived";
+  createdAt: string;
+  updatedAt: string;
+  latestVersion: EntryRuleVersion;
+};
+
+type CreateEntryRuleInput = {
+  name: string;
+  description?: string | null;
+  marketType?: string | null;
+  content: string;
+  checklist?: string[];
+};
+
+type CreateEntryRuleVersionInput = {
+  entryRuleId: number;
+  content: string;
+  checklist?: string[];
 };
 
 type AttachmentImageType =
@@ -115,6 +156,16 @@ type DesktopApi = {
     delete: (id: number) => Promise<boolean>;
     createClosed: (input: CreateClosedTradeInput) => Promise<TradeSummary>;
   };
+  rules: {
+    listActive: () => Promise<EntryRuleWithLatestVersion[]>;
+    create: (
+      input: CreateEntryRuleInput,
+    ) => Promise<EntryRuleWithLatestVersion>;
+    createVersion: (
+      input: CreateEntryRuleVersionInput,
+    ) => Promise<EntryRuleVersion>;
+    archive: (id: number) => Promise<boolean>;
+  };
   attachments: {
     listByTrade: (tradeId: number) => Promise<TradeAttachment[]>;
     attachExistingFile: (
@@ -123,6 +174,7 @@ type DesktopApi = {
     chooseAndAttach: (
       input: ChooseAndAttachInput,
     ) => Promise<TradeAttachment | undefined>;
+    readImageDataUrl: (id: number) => Promise<string>;
     delete: (id: number) => Promise<boolean>;
   };
 };

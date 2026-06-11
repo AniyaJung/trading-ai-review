@@ -1,11 +1,18 @@
 :root {
-  --surface: #ece7dc;
-  --panel: #fffdf7;
-  --line: #d8d2c5;
-  --ink: #232323;
-  --ink-soft: #4f4d49;
+  --surface: #f3f4f1;
+  --panel: #fffdfa;
+  --panel-subtle: #f8f7f2;
+  --line: #d8dad2;
+  --line-strong: #bfc5bc;
+  --ink: #202322;
+  --ink-soft: #4d5350;
   --ink-invert: #f5f3ec;
-  --muted: #746f66;
+  --muted: #727970;
+  --accent: #a64032;
+  --accent-strong: #823227;
+  --positive: #0d6b4d;
+  --warning: #8a5e0c;
+  --focus: #24584c;
 
   color: var(--ink);
   background: var(--surface);
@@ -41,7 +48,9 @@ input {
 }
 
 button:focus-visible,
-input:focus-visible {
-  outline: 2px solid #2d5148;
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }

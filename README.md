@@ -18,6 +18,10 @@ Current implemented scope:
 - Existing closed trades can be edited; updating recalculates PnL/R and rebuilds entry/exit executions.
 - Trades can be deleted through the Electron preload API with SQLite cascade cleanup and attachment file cleanup.
 - Trade screenshots can be selected through the Electron preload API, copied into the app attachments directory, listed, and deleted.
+- Trade screenshots can be previewed inline through a controlled Electron preload API that returns data URLs for stored attachment ids.
+- Entry rules can be created, versioned immutably, archived, listed, and bound to closed trades by rule version.
+- Trade detail shows the bound entry rule version, content, and checklist snapshot.
+- Main workbench UI is split into focused React components for sidebar, topbar, trade list, trade form, trade review/detail, attachments, and rules.
 - AI review panel currently shows honest status placeholders; AI generation is not connected yet.
 - Initial instrument presets: ES, MES, NQ, MNQ.
 - Design spec and implementation plans are stored under `docs/superpowers`.
@@ -26,8 +30,7 @@ MVP does not support open trades. A trade is one complete trading plan, not a si
 
 Not implemented yet:
 
-- Inline screenshot image preview and AI image ingestion.
-- Entry rule library and rule version binding.
+- AI image ingestion.
 - AI review generation, confirmation, and correction workflow.
 - Stats, backup/restore, settings, and data reset workflows.
 

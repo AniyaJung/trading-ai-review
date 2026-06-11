@@ -1,20 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  Camera,
-  Clock3,
-  Copy,
-  FileText,
-  Plus,
-  ShieldCheck,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { X } from "lucide-react";
 import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
 import {
-  attachmentImageTypeOptions,
   getAttachmentPanelState,
   type AttachmentImageType,
   type AttachmentSummary,
@@ -29,6 +17,13 @@ import {
 } from "./app/tradeForm";
 import { getInitialTrades } from "./app/tradeList";
 import { getReviewPanelState } from "./app/reviewPanel";
+import { parseChecklistText } from "./app/rulePanel";
+import { AppSidebar } from "./components/AppSidebar";
+import { AppTopbar } from "./components/AppTopbar";
+import { RulesView } from "./components/RulesView";
+import { TradeFormPanel } from "./components/TradeFormPanel";
+import { TradeListPanel } from "./components/TradeListPanel";
+import { TradeReviewPanel } from "./components/TradeReviewPanel";
 
 const sampleTrades: TradeSummary[] = [
   {
@@ -47,6 +42,10 @@ const sampleTrades: TradeSummary[] = [
     netPnl: 445,
     riskAmount: 200,
     rMultiple: 2.225,
+    entryRuleId: null,
+    entryRuleVersionId: null,
+    entryRuleName: null,
+    entryRuleVersionNo: null,
     aiReviewStatus: "needs_review",
   },
   {
@@ -65,6 +64,10 @@ const sampleTrades: TradeSummary[] = [
     netPnl: 92.4,
     riskAmount: 48,
     rMultiple: 1.925,
+    entryRuleId: null,
+    entryRuleVersionId: null,
+    entryRuleName: null,
+    entryRuleVersionNo: null,
     aiReviewStatus: "confirmed",
   },
   {
@@ -83,6 +86,10 @@ const sampleTrades: TradeSummary[] = [
     netPnl: -16.5,
     riskAmount: 12.5,
     rMultiple: -1.32,
+    entryRuleId: null,
+    entryRuleVersionId: null,
+    entryRuleName: null,
+    entryRuleVersionNo: null,
     aiReviewStatus: "corrected",
   },
 ];
@@ -96,6 +103,25 @@ function App() {
   const [tradeForm, setTradeForm] = useState<TradeFormState>(() =>
     createInitialTradeForm(),
   );
+  const [entryRules, setEntryRules] = useState<EntryRuleWithLatestVersion[]>([]);
+  const [isLoadingRules, setIsLoadingRules] = useState(false);
+  const [ruleMessage, setRuleMessage] = useState(
+    "创建入场规则后，交易录入时可以绑定具体版本。",
+  );
+  const [ruleErrors, setRuleErrors] = useState<string[]>([]);
+  const [ruleDraft, setRuleDraft] = useState({
+    name: "",
+    marketType: "index_futures",
+    description: "",
+    content: "",
+    checklistText: "",
+  });
+  const [versionDraft, setVersionDraft] = useState({
+    entryRuleId: "",
+    content: "",
+    checklistText: "",
+  });
+  const [isSavingRule, setIsSavingRule] = useState(false);
   const [formMessage, setFormMessage] = useState<string>(
     "录入已平仓交易后会立即写入本地 SQLite。",
   );
@@ -138,6 +164,12 @@ function App() {
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(
     null,
   );
+  const [attachmentImageDataUrls, setAttachmentImageDataUrls] = useState<
+    Record<number, string>
+  >({});
+  const [activeAttachmentPreviewId, setActiveAttachmentPreviewId] = useState<
+    number | null
+  >(null);
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
@@ -151,10 +183,12 @@ function App() {
       }
 
       setIsLoadingTrades(true);
+      setIsLoadingRules(true);
       try {
-        const [status, desktopTrades] = await Promise.all([
+        const [status, desktopTrades, activeRules] = await Promise.all([
           window.desktopApi.database.getStatus(),
           window.desktopApi.trades.list(),
+          window.desktopApi.rules.listActive(),
         ]);
 
         if (!cancelled) {
@@ -162,18 +196,22 @@ function App() {
             `SQLite v${status.migrationVersion} / ${status.instrumentCount} 个品种`,
           );
           setTrades(desktopTrades);
+          setEntryRules(activeRules);
           setSelectedTradeId((current) => current ?? desktopTrades[0]?.id ?? null);
           setTradeLoadError(null);
+          setRuleErrors([]);
         }
       } catch (error) {
         if (!cancelled) {
           setTradeLoadError(
             error instanceof Error ? error.message : String(error),
           );
+          setRuleErrors([error instanceof Error ? error.message : String(error)]);
         }
       } finally {
         if (!cancelled) {
           setIsLoadingTrades(false);
+          setIsLoadingRules(false);
         }
       }
     }
@@ -192,6 +230,143 @@ function App() {
   const updateTradeForm = (field: keyof TradeFormState, value: string) => {
     setTradeForm((current) => ({ ...current, [field]: value }));
     setFormErrors([]);
+  };
+
+  const refreshRules = async () => {
+    if (!window.desktopApi) {
+      return;
+    }
+
+    setIsLoadingRules(true);
+    try {
+      const activeRules = await window.desktopApi.rules.listActive();
+      setEntryRules(activeRules);
+      setRuleErrors([]);
+    } catch (error) {
+      setRuleErrors([error instanceof Error ? error.message : String(error)]);
+    } finally {
+      setIsLoadingRules(false);
+    }
+  };
+
+  const handleCreateRule = async () => {
+    setRuleErrors([]);
+
+    if (!window.desktopApi) {
+      setRuleErrors(["浏览器预览不会写入规则库；请在 Electron 桌面运行时操作。"]);
+      return;
+    }
+
+    if (!ruleDraft.name.trim() || !ruleDraft.content.trim()) {
+      setRuleErrors(["请填写规则名称和版本内容。"]);
+      return;
+    }
+
+    setIsSavingRule(true);
+    try {
+      const created = await window.desktopApi.rules.create({
+        name: ruleDraft.name,
+        description: ruleDraft.description || null,
+        marketType: ruleDraft.marketType || null,
+        content: ruleDraft.content,
+        checklist: parseChecklistText(ruleDraft.checklistText),
+      });
+      setRuleDraft({
+        name: "",
+        marketType: "index_futures",
+        description: "",
+        content: "",
+        checklistText: "",
+      });
+      setVersionDraft((current) => ({
+        ...current,
+        entryRuleId: String(created.id),
+      }));
+      setTradeForm((current) => ({
+        ...current,
+        entryRuleVersionId: String(created.latestVersion.id),
+      }));
+      await refreshRules();
+      setRuleMessage("规则已创建，交易表单已选中新规则版本。");
+    } catch (error) {
+      setRuleErrors([error instanceof Error ? error.message : String(error)]);
+    } finally {
+      setIsSavingRule(false);
+    }
+  };
+
+  const handleCreateRuleVersion = async () => {
+    setRuleErrors([]);
+
+    if (!window.desktopApi) {
+      setRuleErrors(["浏览器预览不会写入规则库；请在 Electron 桌面运行时操作。"]);
+      return;
+    }
+
+    const entryRuleId = Number(versionDraft.entryRuleId);
+
+    if (!Number.isInteger(entryRuleId) || entryRuleId <= 0) {
+      setRuleErrors(["请选择要追加版本的规则。"]);
+      return;
+    }
+
+    if (!versionDraft.content.trim()) {
+      setRuleErrors(["请填写新版本内容。"]);
+      return;
+    }
+
+    setIsSavingRule(true);
+    try {
+      const version = await window.desktopApi.rules.createVersion({
+        entryRuleId,
+        content: versionDraft.content,
+        checklist: parseChecklistText(versionDraft.checklistText),
+      });
+      setVersionDraft((current) => ({
+        ...current,
+        content: "",
+        checklistText: "",
+      }));
+      setTradeForm((current) => ({
+        ...current,
+        entryRuleVersionId: String(version.id),
+      }));
+      await refreshRules();
+      setRuleMessage("规则新版本已创建，交易表单已选中新版本。");
+    } catch (error) {
+      setRuleErrors([error instanceof Error ? error.message : String(error)]);
+    } finally {
+      setIsSavingRule(false);
+    }
+  };
+
+  const handleArchiveRule = async (rule: EntryRuleWithLatestVersion) => {
+    const confirmed = window.confirm(`归档规则 ${rule.name}？历史交易绑定不会被删除。`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    if (!window.desktopApi) {
+      setRuleErrors(["浏览器预览不会写入规则库；请在 Electron 桌面运行时操作。"]);
+      return;
+    }
+
+    setIsSavingRule(true);
+    try {
+      await window.desktopApi.rules.archive(rule.id);
+      await refreshRules();
+      setTradeForm((current) =>
+        current.entryRuleVersionId === String(rule.latestVersion.id)
+          ? { ...current, entryRuleVersionId: "" }
+          : current,
+      );
+      setRuleMessage("规则已归档，历史交易仍保留原版本绑定。");
+    } catch (error) {
+      setRuleErrors([error instanceof Error ? error.message : String(error)]);
+    } finally {
+      setIsSavingRule(false);
+    }
   };
 
   const handleCreateClosedTrade = async () => {
@@ -337,6 +512,7 @@ function App() {
         ...current,
         [tradeId]: attachments,
       }));
+      await loadAttachmentImageDataUrls(attachments);
       setAttachmentErrorState(undefined);
     } catch (error) {
       setAttachmentErrorState({
@@ -348,6 +524,34 @@ function App() {
         current === tradeId ? null : current,
       );
     }
+  };
+
+  const loadAttachmentImageDataUrls = async (attachments: AttachmentSummary[]) => {
+    if (!window.desktopApi || attachments.length === 0) {
+      return;
+    }
+
+    const entries = await Promise.all(
+      attachments.map(async (attachment) => {
+        try {
+          const dataUrl =
+            await window.desktopApi?.attachments.readImageDataUrl(attachment.id);
+          return dataUrl ? ([attachment.id, dataUrl] as const) : undefined;
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    const imageDataUrls = Object.fromEntries(
+      entries.filter((entry): entry is readonly [number, string] =>
+        Boolean(entry),
+      ),
+    );
+
+    setAttachmentImageDataUrls((current) => ({
+      ...current,
+      ...imageDataUrls,
+    }));
   };
 
   const handleChooseAndAttach = async () => {
@@ -404,6 +608,14 @@ function App() {
       if (window.desktopApi) {
         await window.desktopApi.attachments.delete(attachmentId);
         await refreshAttachmentsForTrade(selectedTrade.id);
+        setAttachmentImageDataUrls((current) => {
+          const next = { ...current };
+          delete next[attachmentId];
+          return next;
+        });
+        setActiveAttachmentPreviewId((current) =>
+          current === attachmentId ? null : current,
+        );
       } else {
         setAttachmentsByTradeId((current) => ({
           ...current,
@@ -451,6 +663,16 @@ function App() {
     attachmentErrorState?.tradeId === selectedTrade?.id
       ? attachmentErrorState.error
       : null;
+  const activeAttachmentPreview =
+    activeAttachmentPreviewId == null
+      ? undefined
+      : attachmentPanel.items.find(
+          (attachment) => attachment.id === activeAttachmentPreviewId,
+        );
+  const activeAttachmentPreviewDataUrl =
+    activeAttachmentPreviewId == null
+      ? undefined
+      : attachmentImageDataUrls[activeAttachmentPreviewId];
 
   useEffect(() => {
     let cancelled = false;
@@ -509,6 +731,7 @@ function App() {
             ...current,
             [selectedTrade.id]: attachments ?? [],
           }));
+          void loadAttachmentImageDataUrls(attachments ?? []);
           setAttachmentErrorState(undefined);
         }
       })
@@ -535,525 +758,123 @@ function App() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar" aria-label="主导航">
-        <div className="brand-block">
-          <div className="brand-mark">AI</div>
-          <div>
-            <p className="eyebrow">Local review desk</p>
-            <h1>交易复盘</h1>
-          </div>
-        </div>
-
-        <nav className="nav-list">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={item.id === currentView ? "nav-item active" : "nav-item"}
-                title={item.description}
-                onClick={() => setCurrentView(item.id)}
-              >
-                <Icon aria-hidden="true" size={18} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="sync-card">
-          <ShieldCheck aria-hidden="true" size={18} />
-          <div>
-            <strong>本地优先</strong>
-            <span>
-              {desktopRuntime} / {databaseStatus}
-            </span>
-          </div>
-        </div>
-      </aside>
+      <AppSidebar
+        currentView={currentView}
+        desktopRuntime={desktopRuntime}
+        databaseStatus={databaseStatus}
+        onViewChange={setCurrentView}
+      />
 
       <section className="workspace">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">{activeView?.description}</p>
-            <h2>{activeView?.label}</h2>
-          </div>
-          <div className="toolbar">
-            <button type="button" className="icon-button" title="复制当前交易">
-              <Copy aria-hidden="true" size={18} />
-            </button>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={handleCreateClosedTrade}
-              disabled={isSavingTrade}
-            >
-              <Plus aria-hidden="true" size={18} />
-              {isSavingTrade
-                ? "保存中"
-                : editingTradeId == null
-                  ? "保存已平仓交易"
-                  : "更新已平仓交易"}
-            </button>
-            {editingTradeId != null ? (
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={handleCancelEdit}
-                disabled={isSavingTrade}
-              >
-                取消编辑
-              </button>
-            ) : null}
-          </div>
-        </header>
+        <AppTopbar
+          activeView={activeView}
+          currentView={currentView}
+          editingTradeId={editingTradeId}
+          isSavingTrade={isSavingTrade}
+          isLoadingRules={isLoadingRules}
+          onSaveTrade={handleCreateClosedTrade}
+          onCancelEdit={handleCancelEdit}
+          onRefreshRules={() => void refreshRules()}
+        />
 
+        {currentView === "rules" ? (
+          <RulesView
+            entryRules={entryRules}
+            isLoadingRules={isLoadingRules}
+            isSavingRule={isSavingRule}
+            ruleDraft={ruleDraft}
+            versionDraft={versionDraft}
+            ruleErrors={ruleErrors}
+            ruleMessage={ruleMessage}
+            onRuleDraftChange={setRuleDraft}
+            onVersionDraftChange={setVersionDraft}
+            onCreateRule={() => void handleCreateRule()}
+            onCreateRuleVersion={() => void handleCreateRuleVersion()}
+            onArchiveRule={(rule) => void handleArchiveRule(rule)}
+          />
+        ) : (
         <section className="desk-grid">
-          <section className="panel trade-list-panel" aria-label="交易列表">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Recent closed trades</p>
-                <h3>交易列表</h3>
-              </div>
-              <span className="count-pill">{trades.length}</span>
-            </div>
+          <TradeListPanel
+            trades={trades}
+            selectedTradeId={selectedTrade?.id}
+            isLoadingTrades={isLoadingTrades}
+            tradeLoadError={tradeLoadError}
+            onSelectTrade={(tradeId) => {
+              setSelectedTradeId(tradeId);
+              setActiveAttachmentPreviewId(null);
+            }}
+          />
 
-            <div className="trade-table">
-              {isLoadingTrades ? (
-                <div className="table-state">正在读取本地交易记录...</div>
-              ) : tradeLoadError ? (
-                <div className="table-state error">
-                  读取交易失败：{tradeLoadError}
-                </div>
-              ) : trades.length === 0 ? (
-                <div className="table-state">
-                  暂无交易。保存右侧表单后，这里会显示真实记录。
-                </div>
-              ) : (
-                trades.map((trade) => (
-                  <button
-                    key={trade.id}
-                    type="button"
-                    className={
-                      trade.id === selectedTrade?.id
-                        ? "trade-row selected"
-                        : "trade-row"
-                    }
-                    onClick={() => setSelectedTradeId(trade.id)}
-                  >
-                    <span className="trade-main">
-                      <strong>{trade.symbol}</strong>
-                      <small>{formatTradeTime(trade.openedAt)}</small>
-                    </span>
-                    <span className="direction">
-                      {trade.direction === "long" ? (
-                        <ArrowUpRight aria-hidden="true" size={16} />
-                      ) : (
-                        <ArrowDownRight aria-hidden="true" size={16} />
-                      )}
-                      {trade.direction}
-                    </span>
-                    <span>{trade.quantity}</span>
-                    <span>{trade.entryPriceAvg}</span>
-                    <span>{trade.exitPriceAvg}</span>
-                    <span className={`status ${trade.aiReviewStatus}`}>
-                      {trade.aiReviewStatus}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          </section>
+          <TradeFormPanel
+            tradeForm={tradeForm}
+            entryRules={entryRules}
+            formPreview={formPreview}
+            formErrors={formErrors}
+            formMessage={formMessage}
+            editingTradeId={editingTradeId}
+            onChange={updateTradeForm}
+          />
 
-          <section className="panel form-panel" aria-label="交易事实">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Closed trade facts</p>
-                <h3>{editingTradeId == null ? "单笔交易事实" : "编辑交易事实"}</h3>
-              </div>
-              <Clock3 aria-hidden="true" size={18} />
-            </div>
-
-            <div className="form-grid trade-form-grid">
-              <label>
-                品种
-                <select
-                  value={tradeForm.symbol}
-                  onChange={(event) =>
-                    updateTradeForm(
-                      "symbol",
-                      event.currentTarget.value as TradeFormState["symbol"],
-                    )
-                  }
-                >
-                  <option value="ES">ES</option>
-                  <option value="MES">MES</option>
-                  <option value="NQ">NQ</option>
-                  <option value="MNQ">MNQ</option>
-                </select>
-              </label>
-              <label>
-                方向
-                <select
-                  value={tradeForm.direction}
-                  onChange={(event) =>
-                    updateTradeForm(
-                      "direction",
-                      event.currentTarget.value as TradeDirection,
-                    )
-                  }
-                >
-                  <option value="long">long</option>
-                  <option value="short">short</option>
-                </select>
-              </label>
-              <label>
-                开仓时间
-                <input
-                  type="datetime-local"
-                  value={tradeForm.openedAt}
-                  onChange={(event) =>
-                    updateTradeForm("openedAt", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label>
-                平仓时间
-                <input
-                  type="datetime-local"
-                  value={tradeForm.closedAt}
-                  onChange={(event) =>
-                    updateTradeForm("closedAt", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label>
-                入场点位
-                <input
-                  inputMode="decimal"
-                  value={tradeForm.entryPrice}
-                  onChange={(event) =>
-                    updateTradeForm("entryPrice", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label>
-                出场点位
-                <input
-                  inputMode="decimal"
-                  value={tradeForm.exitPrice}
-                  onChange={(event) =>
-                    updateTradeForm("exitPrice", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label>
-                止损点位
-                <input
-                  inputMode="decimal"
-                  value={tradeForm.stopLossPrice}
-                  onChange={(event) =>
-                    updateTradeForm("stopLossPrice", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label>
-                合约数
-                <input
-                  inputMode="decimal"
-                  value={tradeForm.quantity}
-                  onChange={(event) =>
-                    updateTradeForm("quantity", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label>
-                止盈点位
-                <input
-                  inputMode="decimal"
-                  value={tradeForm.takeProfitPrice}
-                  onChange={(event) =>
-                    updateTradeForm("takeProfitPrice", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label>
-                手续费
-                <input
-                  inputMode="decimal"
-                  value={tradeForm.feesTotal}
-                  onChange={(event) =>
-                    updateTradeForm("feesTotal", event.currentTarget.value)
-                  }
-                />
-              </label>
-            </div>
-
-            <div className="notes-grid">
-              <label>
-                入场理由
-                <textarea
-                  value={tradeForm.entryReason}
-                  onChange={(event) =>
-                    updateTradeForm("entryReason", event.currentTarget.value)
-                  }
-                />
-              </label>
-              <label>
-                出场理由
-                <textarea
-                  value={tradeForm.exitReason}
-                  onChange={(event) =>
-                    updateTradeForm("exitReason", event.currentTarget.value)
-                  }
-                />
-              </label>
-            </div>
-
-            <div className="metric-strip">
-              <div>
-                <span>净盈亏</span>
-                <strong>${formPreview?.netPnl ?? "-"}</strong>
-              </div>
-              <div>
-                <span>R 倍数</span>
-                <strong>{formPreview?.rMultiple ?? "-"}R</strong>
-              </div>
-              <div>
-                <span>计划风险</span>
-                <strong>${formPreview?.riskAmount ?? "-"}</strong>
-              </div>
-            </div>
-
-            <div
-              className={
-                formErrors.length > 0 ? "form-status error" : "form-status"
-              }
-            >
-              {formErrors.length > 0 ? (
-                <ul>
-                  {formErrors.map((error) => (
-                    <li key={error}>{error}</li>
-                  ))}
-                </ul>
-              ) : (
-                formMessage
-              )}
-            </div>
-          </section>
-
-          <section className="panel review-panel" aria-label="AI 复盘">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">AI review draft</p>
-                <h3>复盘结果</h3>
-              </div>
-              <Sparkles aria-hidden="true" size={18} />
-            </div>
-
-            <div className="review-score">
-              <span>{reviewPanel.badge}</span>
-              <div>
-                <strong>{reviewPanel.status}</strong>
-                <p>{reviewPanel.description}</p>
-              </div>
-            </div>
-
-            <ul className="review-list">
-              {reviewPanel.bullets.map((bullet, index) => {
-                const Icon = index === 0 ? FileText : Camera;
-                return (
-                  <li key={bullet}>
-                    <Icon aria-hidden="true" size={17} />
-                    {bullet}
-                  </li>
-                );
-              })}
-            </ul>
-
-            <div className="detail-block">
-              <div className="detail-heading">
-                <strong>选中交易详情</strong>
-                <span>{selectedTrade?.symbol ?? "-"}</span>
-              </div>
-              {isLoadingTradeDetail ? (
-                <div className="detail-state">正在读取交易详情...</div>
-              ) : tradeDetailError ? (
-                <div className="detail-state error">
-                  读取详情失败：{tradeDetailError}
-                </div>
-              ) : selectedTradeDetail ? (
-                <>
-                  <div className="detail-grid">
-                    <span>止损</span>
-                    <strong>{formatOptionalNumber(selectedTradeDetail.stopLossPrice)}</strong>
-                    <span>止盈</span>
-                    <strong>
-                      {formatOptionalNumber(selectedTradeDetail.takeProfitPrice)}
-                    </strong>
-                    <span>净盈亏</span>
-                    <strong>{formatCurrency(selectedTradeDetail.netPnl)}</strong>
-                    <span>R 倍数</span>
-                    <strong>{formatOptionalNumber(selectedTradeDetail.rMultiple)}R</strong>
-                  </div>
-
-                  <div className="detail-notes">
-                    <p>
-                      <span>入场理由</span>
-                      {selectedTradeDetail.entryReason || "未填写"}
-                    </p>
-                    <p>
-                      <span>出场理由</span>
-                      {selectedTradeDetail.exitReason || "未填写"}
-                    </p>
-                  </div>
-
-                  <div className="execution-list">
-                    {selectedTradeDetail.executions.map((execution) => (
-                      <div key={execution.id} className="execution-row">
-                        <span>{execution.executionType}</span>
-                        <strong>
-                          {execution.side} {execution.quantity} @ {execution.price}
-                        </strong>
-                        <small>{formatTradeTime(execution.executedAt)}</small>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="attachment-block">
-                    <div className="detail-heading">
-                      <strong>交易截图</strong>
-                      <span>{attachmentPanel.countLabel}</span>
-                    </div>
-
-                    <form
-                      className="attachment-form"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void handleChooseAndAttach();
-                      }}
-                    >
-                      <select
-                        aria-label="截图类型"
-                        value={attachmentDraft.imageType}
-                        onChange={(event) =>
-                          setAttachmentDraft((current) => ({
-                            ...current,
-                            imageType: event.currentTarget
-                              .value as AttachmentImageType,
-                          }))
-                        }
-                      >
-                        {attachmentImageTypeOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        aria-label="截图备注"
-                        placeholder="备注"
-                        value={attachmentDraft.caption}
-                        onChange={(event) =>
-                          setAttachmentDraft((current) => ({
-                            ...current,
-                            caption: event.currentTarget.value,
-                          }))
-                        }
-                      />
-                      <button
-                        type="submit"
-                        className="secondary-button"
-                        disabled={isSavingAttachment || !selectedTrade}
-                      >
-                        <Camera aria-hidden="true" size={16} />
-                        {isSavingAttachment ? "添加中" : "添加截图"}
-                      </button>
-                    </form>
-
-                    {isLoadingAttachments ? (
-                      <div className="detail-state">正在读取截图...</div>
-                    ) : attachmentError ? (
-                      <div className="detail-state error">
-                        截图操作失败：{attachmentError}
-                      </div>
-                    ) : attachmentPanel.items.length === 0 ? (
-                      <div className="detail-state">
-                        {attachmentPanel.emptyText}
-                      </div>
-                    ) : (
-                      <div className="attachment-list">
-                        {attachmentPanel.items.map((attachment) => (
-                          <div key={attachment.id} className="attachment-row">
-                            <div>
-                              <span>{attachment.label}</span>
-                              <strong>{attachment.caption}</strong>
-                              <small>{attachment.filePath}</small>
-                            </div>
-                            <button
-                              type="button"
-                              className="icon-button danger-icon"
-                              title="删除截图"
-                              disabled={deletingAttachmentId === attachment.id}
-                              onClick={() => void handleDeleteAttachment(attachment.id)}
-                            >
-                              <Trash2 aria-hidden="true" size={15} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="detail-state">暂无交易详情。</div>
-              )}
-            </div>
-
-            <div className="review-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={handleEditSelectedTrade}
-                disabled={!selectedTradeDetail || isDeletingTrade}
-              >
-                编辑交易
-              </button>
-              <button
-                type="button"
-                className="danger-button"
-                onClick={handleDeleteSelectedTrade}
-                disabled={!selectedTrade || isDeletingTrade}
-                title="删除选中交易"
-              >
-                <Trash2 aria-hidden="true" size={16} />
-                {isDeletingTrade ? "删除中" : "删除交易"}
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled
-                title={
-                  reviewPanel.canGenerate ? "生成接口待接入" : "当前状态不能生成"
-                }
-              >
-                生成待接入
-              </button>
-              <button
-                type="button"
-                className="primary-button"
-                disabled
-                title={
-                  reviewPanel.canConfirm ? "确认接口待接入" : "当前状态不能确认"
-                }
-              >
-                确认待接入
-              </button>
-            </div>
-          </section>
+          <TradeReviewPanel
+            reviewPanel={reviewPanel}
+            selectedTrade={selectedTrade}
+            selectedTradeDetail={selectedTradeDetail}
+            isLoadingTradeDetail={isLoadingTradeDetail}
+            tradeDetailError={tradeDetailError}
+            isDeletingTrade={isDeletingTrade}
+            attachmentPanel={attachmentPanel}
+            attachmentDraft={attachmentDraft}
+            isLoadingAttachments={isLoadingAttachments}
+            attachmentError={attachmentError}
+            isSavingAttachment={isSavingAttachment}
+            deletingAttachmentId={deletingAttachmentId}
+            attachmentImageDataUrls={attachmentImageDataUrls}
+            onEditSelectedTrade={handleEditSelectedTrade}
+            onDeleteSelectedTrade={handleDeleteSelectedTrade}
+            onAttachmentDraftChange={setAttachmentDraft}
+            onChooseAndAttach={() => void handleChooseAndAttach()}
+            onDeleteAttachment={(attachmentId) =>
+              void handleDeleteAttachment(attachmentId)
+            }
+            onPreviewAttachment={setActiveAttachmentPreviewId}
+          />
         </section>
+        )}
       </section>
+
+      {activeAttachmentPreview && activeAttachmentPreviewDataUrl ? (
+        <div
+          className="image-preview-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="交易截图预览"
+          onClick={() => setActiveAttachmentPreviewId(null)}
+        >
+          <div
+            className="image-preview-dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="image-preview-heading">
+              <div>
+                <span>{activeAttachmentPreview.label}</span>
+                <strong>{activeAttachmentPreview.caption}</strong>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                title="关闭预览"
+                onClick={() => setActiveAttachmentPreviewId(null)}
+              >
+                <X aria-hidden="true" size={18} />
+              </button>
+            </div>
+            <img
+              src={activeAttachmentPreviewDataUrl}
+              alt={`${activeAttachmentPreview.label} ${activeAttachmentPreview.caption}`}
+            />
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -1068,6 +889,8 @@ function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
     exitReason: null,
     emotionNote: null,
     lessonNote: null,
+    entryRuleContent: null,
+    entryRuleChecklist: [],
     executions: [
       {
         id: trade.id * 10 + 1,
@@ -1129,14 +952,6 @@ function formatTradeTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-function formatCurrency(value: number) {
-  return `$${value}`;
-}
-
-function formatOptionalNumber(value: number | null) {
-  return value ?? "-";
 }
 
 export default App;

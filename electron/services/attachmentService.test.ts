@@ -17,6 +17,7 @@ import {
   attachExistingFile,
   deleteAttachment,
   listAttachmentsByTrade,
+  readAttachmentImageDataUrl,
   type AttachExistingFileInput,
 } from "./attachmentService";
 
@@ -241,6 +242,55 @@ describe("deleteAttachment", () => {
     const db = createTestDb();
 
     expect(deleteAttachment(db, 999)).toBe(false);
+
+    db.close();
+  });
+});
+
+describe("readAttachmentImageDataUrl", () => {
+  it("returns a data URL for a stored attachment image", () => {
+    const db = createTestDb();
+    const attachmentsDir = createTempDir("trading-ai-review-attachments-store-");
+    const trade = createClosedTrade(db, validClosedTradeInput());
+    const sourceFilePath = createSourceImage("entry.png");
+    writeFileSync(sourceFilePath, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    const attachment = attachExistingFile(
+      db,
+      attachmentsDir,
+      validAttachmentInput(trade.id, sourceFilePath),
+    );
+
+    expect(readAttachmentImageDataUrl(db, attachment.id)).toBe(
+      "data:image/png;base64,iVBORw==",
+    );
+
+    db.close();
+  });
+
+  it("rejects unknown attachment ids", () => {
+    const db = createTestDb();
+
+    expect(() => readAttachmentImageDataUrl(db, 999)).toThrow(
+      "Attachment 999 was not found.",
+    );
+
+    db.close();
+  });
+
+  it("rejects missing copied files", () => {
+    const db = createTestDb();
+    const attachmentsDir = createTempDir("trading-ai-review-attachments-store-");
+    const trade = createClosedTrade(db, validClosedTradeInput());
+    const attachment = attachExistingFile(
+      db,
+      attachmentsDir,
+      validAttachmentInput(trade.id),
+    );
+    rmSync(attachment.filePath, { force: true });
+
+    expect(() => readAttachmentImageDataUrl(db, attachment.id)).toThrow(
+      "Attachment image file was not found.",
+    );
 
     db.close();
   });

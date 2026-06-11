@@ -14,6 +14,7 @@ export type TradeFormState = {
   feesTotal: string;
   entryReason: string;
   exitReason: string;
+  entryRuleVersionId: string;
 };
 
 type TradeFormBuildResult =
@@ -41,6 +42,7 @@ export function createInitialTradeForm(now = new Date()): TradeFormState {
     feesTotal: "0",
     entryReason: "",
     exitReason: "",
+    entryRuleVersionId: "",
   };
 }
 
@@ -54,6 +56,7 @@ export function createTradeFormAfterSave(
     direction: previous.direction,
     quantity: previous.quantity,
     feesTotal: previous.feesTotal,
+    entryRuleVersionId: previous.entryRuleVersionId,
   };
 }
 
@@ -72,6 +75,8 @@ export function createTradeFormFromDetail(detail: TradeDetail): TradeFormState {
     feesTotal: String(detail.feesTotal),
     entryReason: detail.entryReason ?? "",
     exitReason: detail.exitReason ?? "",
+    entryRuleVersionId:
+      detail.entryRuleVersionId == null ? "" : String(detail.entryRuleVersionId),
   };
 }
 
@@ -129,6 +134,11 @@ export function buildCreateClosedTradeInput(
   );
   const quantity = parsePositiveInteger(form.quantity, "合约数", errors);
   const feesTotal = parseNonNegativeNumber(form.feesTotal, "手续费", errors);
+  const entryRuleVersionId = parseOptionalPositiveInteger(
+    form.entryRuleVersionId,
+    "入场规则",
+    errors,
+  );
 
   if (openedAt && closedAt && Date.parse(closedAt) < Date.parse(openedAt)) {
     errors.push("平仓时间不能早于开仓时间。");
@@ -172,6 +182,7 @@ export function buildCreateClosedTradeInput(
       feesTotal,
       entryReason: form.entryReason,
       exitReason: form.exitReason,
+      entryRuleVersionId,
     },
   };
 }
@@ -285,6 +296,18 @@ function parsePositiveInteger(
   }
 
   return parsed;
+}
+
+function parseOptionalPositiveInteger(
+  value: string,
+  label: string,
+  errors: string[],
+): number | null {
+  if (value.trim() === "") {
+    return null;
+  }
+
+  return parsePositiveInteger(value, label, errors);
 }
 
 function parseNonNegativeNumber(

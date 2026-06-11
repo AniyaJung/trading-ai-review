@@ -20,6 +20,7 @@ export type AttachmentPanelItem = {
   label: string;
   caption: string;
   filePath: string;
+  fileName: string;
 };
 
 export const attachmentImageTypeOptions: Array<{
@@ -49,6 +50,11 @@ export function getAttachmentPanelState(attachments: AttachmentSummary[]) {
       label: imageTypeLabelByValue.get(attachment.imageType) ?? attachment.imageType,
       caption: attachment.caption || "未填写备注",
       filePath: attachment.filePath,
+      fileName: getFileName(attachment.filePath),
     })),
   };
+}
+
+function getFileName(filePath: string) {
+  return filePath.split(/[\\/]/).pop() || filePath;
 }
