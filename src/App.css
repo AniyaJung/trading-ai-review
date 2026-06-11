@@ -680,6 +680,68 @@ textarea:hover {
   border-radius: 7px;
 }
 
+.rule-check-list {
+  display: grid;
+  gap: 8px;
+}
+
+.rule-check-result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 8px;
+  align-items: center;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.rule-check-result strong,
+.rule-check-result p,
+.rule-check-result small {
+  min-width: 0;
+}
+
+.rule-check-result p,
+.rule-check-result small {
+  grid-column: 2;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.rule-check-result small {
+  color: var(--muted);
+}
+
+.rule-check-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.rule-check-status.pass {
+  color: var(--positive);
+  background: #dff3e9;
+}
+
+.rule-check-status.fail {
+  color: var(--accent-strong);
+  background: #f8e5df;
+}
+
+.rule-check-status.unknown {
+  color: #5a615c;
+  background: #ecefea;
+}
+
 .rule-check-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

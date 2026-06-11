@@ -130,6 +130,7 @@ export function createReviewDraft(
         stringifyJson(input.rawResult ?? {}),
       );
 
+    createDefaultRuleChecks(db, input.tradeId);
     syncTradeReviewStatus(db, input.tradeId, "needs_review");
     db.exec("commit");
     return getReviewById(db, Number(result.lastInsertRowid));
@@ -294,6 +295,62 @@ function assertTradeExists(db: DatabaseSync, tradeId: number) {
 
   if (!row) {
     throw new Error(`Trade ${tradeId} was not found.`);
+  }
+}
+
+function createDefaultRuleChecks(db: DatabaseSync, tradeId: number) {
+  const ruleVersion = db
+    .prepare(
+      `select
+        entry_rule_version.id as entryRuleVersionId,
+        entry_rule_version.checklist_json as checklistJson
+      from trade
+      join entry_rule_version on entry_rule_version.id = trade.entry_rule_version_id
+      where trade.id = ?`,
+    )
+    .get(tradeId) as
+    | { entryRuleVersionId: number; checklistJson: string }
+    | undefined;
+
+  if (!ruleVersion) {
+    return;
+  }
+
+  const existingRow = db
+    .prepare(
+      `select count(*) as count
+       from trade_rule_check
+       where trade_id = ?
+         and entry_rule_version_id = ?`,
+    )
+    .get(tradeId, ruleVersion.entryRuleVersionId) as { count: number };
+
+  if (existingRow.count > 0) {
+    return;
+  }
+
+  const checklist = parseJsonArray(ruleVersion.checklistJson).filter(
+    (item): item is string => typeof item === "string" && item.trim().length > 0,
+  );
+  const insertCheck = db.prepare(
+    `insert into trade_rule_check (
+      trade_id,
+      entry_rule_version_id,
+      check_item,
+      result,
+      evidence,
+      comment,
+      score_delta
+    ) values (?, ?, ?, 'unknown', null, ?, null)`,
+  );
+
+  for (const item of checklist) {
+    insertCheck.run(
+      tradeId,
+      ruleVersion.entryRuleVersionId,
+      item,
+      "等待 AI 或人工确认。",
+    );
   }
 }
 

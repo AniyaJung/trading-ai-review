@@ -62,6 +62,17 @@ export type TradeExecutionDetail = {
   executionType: "entry" | "exit" | "add" | "reduce";
 };
 
+export type TradeRuleCheckDetail = {
+  id: number;
+  entryRuleVersionId: number;
+  checkItem: string;
+  result: "pass" | "fail" | "unknown";
+  evidence: string | null;
+  comment: string | null;
+  scoreDelta: number | null;
+  createdAt: string;
+};
+
 export type TradeDetail = TradeSummary & {
   stopLossPrice: number | null;
   takeProfitPrice: number | null;
@@ -72,6 +83,7 @@ export type TradeDetail = TradeSummary & {
   lessonNote: string | null;
   entryRuleContent: string | null;
   entryRuleChecklist: string[];
+  ruleChecks: TradeRuleCheckDetail[];
   executions: TradeExecutionDetail[];
 };
 
@@ -371,6 +383,22 @@ export function getTradeDetail(
       order by executed_at asc, id asc`,
     )
     .all(id) as unknown as TradeExecutionDetail[];
+  const ruleChecks = db
+    .prepare(
+      `select
+        id,
+        entry_rule_version_id as entryRuleVersionId,
+        check_item as checkItem,
+        result,
+        evidence,
+        comment,
+        score_delta as scoreDelta,
+        created_at as createdAt
+      from trade_rule_check
+      where trade_id = ?
+      order by id asc`,
+    )
+    .all(id) as unknown as TradeRuleCheckDetail[];
 
   const { entryRuleChecklistJson, ...tradeDetail } = trade;
 
@@ -379,6 +407,7 @@ export function getTradeDetail(
     entryRuleChecklist: entryRuleChecklistJson
       ? (JSON.parse(entryRuleChecklistJson) as string[])
       : [],
+    ruleChecks,
     executions,
   };
 }

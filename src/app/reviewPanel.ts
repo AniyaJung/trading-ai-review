@@ -41,10 +41,10 @@ export function getReviewPanelState(
         description: `${trade.symbol} 交易已保存，尚未生成 AI 复盘。`,
         bullets: [
           "当前只保存了交易事实和成交明细。",
-          "生成复盘前仍需接入截图、规则版本和 AI 服务。",
+          "可以先生成本地复盘草稿，规则 checklist 会进入待确认状态。",
           "未确认复盘不会进入统计分析。",
         ],
-        canGenerate: false,
+        canGenerate: true,
         canConfirm: false,
       };
     case "draft":

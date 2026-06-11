@@ -12,6 +12,7 @@ import {
   type CreateClosedTradeInput,
 } from "./tradeService";
 import { createEntryRule } from "./ruleService";
+import { createReviewDraft } from "./reviewService";
 
 const tempDirs: string[] = [];
 
@@ -260,6 +261,46 @@ describe("createClosedTrade", () => {
     db.close();
   });
 
+  it("returns generated rule check results with trade detail", () => {
+    const db = createTestDb();
+    const rule = createEntryRule(db, {
+      name: "Opening range pullback",
+      marketType: "index_futures",
+      content: "Break, retest, enter with defined risk.",
+      checklist: ["Break confirmed", "Retest held"],
+    });
+    const trade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        entryRuleVersionId: rule.latestVersion.id,
+      }),
+    );
+
+    createReviewDraft(db, {
+      tradeId: trade.id,
+      summary: "Draft summary",
+    });
+
+    expect(getTradeDetail(db, trade.id)).toEqual(
+      expect.objectContaining({
+        ruleChecks: [
+          expect.objectContaining({
+            checkItem: "Break confirmed",
+            result: "unknown",
+            comment: "等待 AI 或人工确认。",
+          }),
+          expect.objectContaining({
+            checkItem: "Retest held",
+            result: "unknown",
+            comment: "等待 AI 或人工确认。",
+          }),
+        ],
+      }),
+    );
+
+    db.close();
+  });
+
   it("rejects unknown entry rule versions before inserting", () => {
     const db = createTestDb();
 
@@ -356,6 +397,7 @@ describe("getTradeDetail", () => {
       lessonNote: "Wait for retest",
       entryRuleContent: null,
       entryRuleChecklist: [],
+      ruleChecks: [],
       executions: [
         {
           id: 1,

@@ -139,6 +139,7 @@ describe("trade form helpers", () => {
       entryRuleVersionNo: 2,
       entryRuleContent: "Trade continuation after pullback.",
       entryRuleChecklist: ["Higher low held"],
+      ruleChecks: [],
       aiReviewStatus: "not_generated",
       executions: [],
     };

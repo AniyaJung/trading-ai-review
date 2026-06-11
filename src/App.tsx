@@ -582,6 +582,54 @@ function App() {
     }
   };
 
+
+  const handleCreateReviewDraft = async () => {
+    if (!selectedTrade || !window.desktopApi) {
+      return;
+    }
+
+    setIsSavingReview(true);
+    try {
+      const detail =
+        selectedTradeDetail ??
+        (await window.desktopApi.trades.get(selectedTrade.id));
+      const review = await window.desktopApi.reviews.createDraft({
+        tradeId: selectedTrade.id,
+        model: "local-rule-check",
+        promptVersion: "local-rule-check-v1",
+        ruleVersionSnapshot: detail?.entryRuleContent ?? null,
+        summary: "本地复盘草稿已创建。规则 checklist 已进入待确认状态。",
+        facts: {
+          symbol: selectedTrade.symbol,
+          direction: selectedTrade.direction,
+          openedAt: selectedTrade.openedAt,
+          closedAt: selectedTrade.closedAt,
+          netPnl: selectedTrade.netPnl,
+          rMultiple: selectedTrade.rMultiple,
+        },
+        missingInfo:
+          detail && detail.ruleChecks.length > 0
+            ? []
+            : ["规则 checklist 为空或尚未绑定规则版本"],
+        strengths: [],
+        weaknesses: [],
+        suggestions: ["补充截图证据后，再由 AI 或人工逐项确认规则执行情况。"],
+        tags: [],
+        confidence: null,
+        rawResult: { source: "local-rule-check" },
+      });
+      await applyReviewMutation(selectedTrade.id, review);
+      setFormMessage("本地复盘草稿已生成，规则检查项已创建为待确认。");
+    } catch (error) {
+      setReviewErrorState({
+        tradeId: selectedTrade.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSavingReview(false);
+    }
+  };
+
   const handleCorrectReview = async () => {
     if (!selectedTrade || !latestReview || !window.desktopApi) {
       return;
@@ -1112,6 +1160,7 @@ function App() {
             attachmentImageDataUrls={attachmentImageDataUrls}
             onEditSelectedTrade={handleEditSelectedTrade}
             onDeleteSelectedTrade={handleDeleteSelectedTrade}
+            onCreateReviewDraft={() => void handleCreateReviewDraft()}
             onConfirmReview={() => void handleConfirmReview()}
             onCorrectReview={() => void handleCorrectReview()}
             onInvalidateReview={() => void handleInvalidateReview()}
@@ -1175,6 +1224,7 @@ function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
     lessonNote: null,
     entryRuleContent: null,
     entryRuleChecklist: [],
+    ruleChecks: [],
     executions: [
       {
         id: trade.id * 10 + 1,

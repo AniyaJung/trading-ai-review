@@ -35,7 +35,7 @@ describe("review panel state", () => {
         "AI 复盘服务尚未接入，统计不会使用占位内容。",
         "后续将从交易事实、截图和规则版本生成结构化草稿。",
       ],
-      canGenerate: false,
+      canGenerate: true,
       canConfirm: false,
     });
   });
@@ -45,7 +45,7 @@ describe("review panel state", () => {
       badge: "-",
       status: "not generated",
       description: "ES 交易已保存，尚未生成 AI 复盘。",
-      canGenerate: false,
+      canGenerate: true,
       canConfirm: false,
     });
   });

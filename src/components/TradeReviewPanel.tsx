@@ -49,6 +49,7 @@ type TradeReviewPanelProps = {
   attachmentImageDataUrls: Record<number, string>;
   onEditSelectedTrade: () => void;
   onDeleteSelectedTrade: () => void;
+  onCreateReviewDraft: () => void;
   onConfirmReview: () => void;
   onCorrectReview: () => void;
   onInvalidateReview: () => void;
@@ -79,6 +80,7 @@ export function TradeReviewPanel({
   attachmentImageDataUrls,
   onEditSelectedTrade,
   onDeleteSelectedTrade,
+  onCreateReviewDraft,
   onConfirmReview,
   onCorrectReview,
   onInvalidateReview,
@@ -89,6 +91,7 @@ export function TradeReviewPanel({
 }: TradeReviewPanelProps) {
   const hasRuleBinding = Boolean(selectedTradeDetail?.entryRuleVersionId);
   const checklistCount = selectedTradeDetail?.entryRuleChecklist.length ?? 0;
+  const ruleChecks = selectedTradeDetail?.ruleChecks ?? [];
   const evidenceCount = attachmentPanel.items.length;
 
   return (
@@ -199,6 +202,24 @@ export function TradeReviewPanel({
                   </ul>
                 ) : null}
               </div>
+              {ruleChecks.length > 0 ? (
+                <div className="rule-check-list">
+                  {ruleChecks.map((check) => (
+                    <div key={check.id} className="rule-check-result">
+                      <span className={`rule-check-status ${check.result}`}>
+                        {formatRuleCheckResult(check.result)}
+                      </span>
+                      <strong>{check.checkItem}</strong>
+                      {check.evidence ? <p>{check.evidence}</p> : null}
+                      {check.comment ? <small>{check.comment}</small> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : selectedTradeDetail.entryRuleChecklist.length > 0 ? (
+                <div className="detail-state">
+                  生成复盘草稿后会为 checklist 创建逐项规则检查。
+                </div>
+              ) : null}
             </div>
 
             <div className="detail-notes">
@@ -331,10 +352,11 @@ export function TradeReviewPanel({
         <button
           type="button"
           className="secondary-button"
-          disabled
-          title={reviewPanel.canGenerate ? "生成接口待接入" : "当前状态不能生成"}
+          onClick={onCreateReviewDraft}
+          disabled={!reviewPanel.canGenerate || !selectedTrade || isSavingReview}
+          title={reviewPanel.canGenerate ? "生成本地复盘草稿" : "当前状态不能生成"}
         >
-          生成待接入
+          {isSavingReview ? "生成中" : "生成本地草稿"}
         </button>
         <button
           type="button"
@@ -396,4 +418,17 @@ function formatOptionalR(value: number | null) {
 
 function formatPercent(value: number | null) {
   return value == null ? "-" : `${Math.round(value * 100)}%`;
+}
+
+
+function formatRuleCheckResult(result: TradeRuleCheckDetail["result"]) {
+  if (result === "pass") {
+    return "通过";
+  }
+
+  if (result === "fail") {
+    return "未通过";
+  }
+
+  return "待确认";
 }

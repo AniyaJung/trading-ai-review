@@ -72,6 +72,17 @@ type TradeExecutionDetail = {
   executionType: "entry" | "exit" | "add" | "reduce";
 };
 
+type TradeRuleCheckDetail = {
+  id: number;
+  entryRuleVersionId: number;
+  checkItem: string;
+  result: "pass" | "fail" | "unknown";
+  evidence: string | null;
+  comment: string | null;
+  scoreDelta: number | null;
+  createdAt: string;
+};
+
 type TradeDetail = TradeSummary & {
   stopLossPrice: number | null;
   takeProfitPrice: number | null;
@@ -82,6 +93,7 @@ type TradeDetail = TradeSummary & {
   lessonNote: string | null;
   entryRuleContent: string | null;
   entryRuleChecklist: string[];
+  ruleChecks: TradeRuleCheckDetail[];
   executions: TradeExecutionDetail[];
 };
 

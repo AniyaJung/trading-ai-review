@@ -34,6 +34,7 @@ const detail = {
   lessonNote: null,
   entryRuleContent: null,
   entryRuleChecklist: [],
+  ruleChecks: [],
   executions: [],
 } satisfies TradeDetail;
 
