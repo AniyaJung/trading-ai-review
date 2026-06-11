@@ -438,7 +438,7 @@ window.desktopApi.reviews.invalidate(id)
 window.desktopApi.reviews.updateRuleCheck(id, input)
 ```
 
-- UI 右侧复盘区已经能展示本地草稿状态，并提供确认、修正、标记无效入口。
+- UI 右侧复盘区已经能展示复盘草稿状态，并提供确认、修正、标记无效入口。
 - 交易列表和交易详情会随复盘状态变化刷新。
 - 创建本地复盘草稿时，会从交易绑定的 `entry_rule_version.checklist_json` 生成 `trade_rule_check` 记录。
 - 默认规则检查结果为 `unknown`，备注为“等待 AI 或人工确认。”。
@@ -581,21 +581,21 @@ latest trade id = 7
 
 ### 9.0 下一步推荐
 
-下个对话建议优先做 **统计规则筛选和下钻最小闭环**，并先整理/提交当前工作区改动。
+下个对话建议优先做 **备份恢复最小闭环**，或补 **设置页 AI Key/模型配置**。
 
 原因：
 
-- “记录 -> 复盘确认/修正 -> 进入统计 -> 按时间/品种筛选”的最小闭环已经成立。
+- “记录 -> 真实 AI 复盘草稿 -> 人工确认/修正 -> 进入统计 -> 按时间/品种/规则筛选 -> 下钻交易列表”的闭环已经成立。
 - 规则驱动复盘已经能生成 `trade_rule_check` 的 `unknown` 占位项，且已支持人工把单项检查改成 `pass` / `fail` / `unknown` 并补 evidence/comment。
-- 统计还不能回答“某套入场规则表现如何”，也不能从指标下钻回样本交易。
-- 当前工作区存在统计、规则检查、交易页 UI 和文档更新的未提交改动，应先按功能边界拆分提交，避免后续继续堆叠。
+- 统计已支持入场规则筛选，并可从统计页下钻到筛选后的交易列表；active rules 与历史交易中出现过的 archived/历史规则都可作为筛选选项。
+- 真实 AI 接入已走 Main Process OpenAI Responses API adapter，Renderer 不直接接触 API Key。
+- 备份恢复、设置页、AI Key 安全存储仍是 MVP 里较大的缺口。
 
 建议范围：
 
-- 给 `StatsService` 增加 `entryRuleVersionId` 或 `entryRuleId` 筛选参数。
-- 统计视图复用已加载的 active rules 作为规则筛选选项；历史已归档规则如何出现在筛选中需要单独设计。
-- 增加从按品种/规则聚合结果下钻到筛选后的交易列表的最小交互。
-- 若继续加筛选，建议先抽 `StatsOverviewFilters` 到 `shared/`，避免跨进程 DTO 继续重复。
+- 若做备份恢复：新增 `BackupService`，导出 SQLite + attachments + manifest，恢复前自动备份当前数据。
+- 若做设置页：先支持 `OPENAI_API_KEY` / `OPENAI_MODEL` 的可见配置状态，后续再迁入系统安全存储。
+- 若继续加统计：可补标签筛选、按规则聚合表或 ECharts，但建议先抽 `StatsOverviewFilters` 到 `shared/`，避免跨进程 DTO 继续重复。
 - 继续坚持先写 Vitest，再实现。
 
 视觉优化已完成第一轮，但仍可继续作为后续独立任务。若下个对话继续做视觉优化，用户曾指定可使用：
@@ -679,19 +679,18 @@ session_template
 当前状态：
 
 - 本地 `ReviewService`、IPC、preload 和 UI 草稿状态处理已完成。
-- 已支持本地草稿的读取、确认、修正摘要和标记无效。
-- 已支持本地草稿创建时按绑定规则 checklist 写入 `trade_rule_check` 默认 `unknown` 检查项。
+- 已支持复盘草稿的读取、确认、修正摘要和标记无效。
+- 已支持创建草稿时按绑定规则 checklist 写入 `trade_rule_check` 默认 `unknown` 检查项。
 - 已支持交易详情/复盘面板展示逐项规则检查结果。
-- 尚未接入真实 AI API，也尚未自动判断规则检查结果。
+- 已新增 `AIReviewService` 和 `OpenAIReviewAdapter`，通过 OpenAI Responses API 发送交易事实、规则 checklist 和附件 data URL，使用 Structured Outputs 解析结构化复盘。
+- Renderer 通过 `reviews:generateDraft(tradeId)` 触发真实 AI 生成；API Key 只在 Electron Main Process 读取，当前来源是 `OPENAI_API_KEY`，模型可用 `OPENAI_MODEL` 覆盖，默认 `gpt-5.5`。
+- AI 生成结果会写入 `ai_review`，并按 `checkItem` 回填 `trade_rule_check.result/evidence/comment/score_delta`。
 
 建议任务：
 
-- 设计 AI prompt 输入结构。
-- 组装交易事实、截图 data、规则版本和 checklist。
-- 接入远程多模态 AI API，并把模型/API key 做成本地设置。
-- 输出结构更新 `ai_review` 和 `trade_rule_check`。
-- UI 支持人工编辑规则检查结果、证据和评论。
-- UI 展示真实 AI 草稿、规则 checklist 判断和证据。
+- 补设置页里的 AI Key/模型配置和安全存储，不要长期只依赖环境变量。
+- 增加真实 API 调用的手动验收脚本或开发说明，避免测试中打远程 API。
+- 继续打磨 prompt/schema，必要时增加 fixture eval。
 - 只有 confirmed/corrected 数据进入统计。
 
 ### 9.6 统计面板
@@ -706,12 +705,13 @@ session_template
 - 核心指标：总交易数、已确认复盘数、总净盈亏、胜率、平均 R、profit factor、总手续费。
 - 时间范围筛选：全部、最近 7 天、最近 30 天、自定义起止日期。
 - 品种筛选：全部或指定 instrument symbol。
+- 入场规则筛选：支持 `entryRuleId`，选项来自 active rules 和历史交易中出现过的规则。
+- 从统计页“查看交易”或按品种聚合行可下钻到交易列表，交易列表显示下钻条件并可清除筛选。
 
 建议后续任务：
 
-- 增加规则和标签筛选。
+- 增加标签筛选。
 - 增加按时间、规则、标签聚合。
-- 从统计聚合下钻到筛选后的交易列表。
 - ECharts 放在筛选、聚合服务和数据口径稳定之后接入。
 
 当前阶段可优化项：
@@ -746,15 +746,17 @@ session_template
 
 /Users/juyu/IdeaProjects/trading-ai-review
 
-当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。当前“交易事实 + 附件截图 + 入场规则版本绑定 + 本地复盘草稿确认/修正 + 规则检查 unknown 占位 + 规则检查人工编辑 + 统计面板最小闭环 + 统计时间/品种筛选 + 交易页 UI 第一轮优化”链路已成型，表单预览已改为从 SQLite instrument 配置读取点值。建议下一步优先整理并提交当前工作区改动，然后做“统计规则筛选/下钻”，并保持测试通过。
+当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。当前“交易事实 + 附件截图 + 入场规则版本绑定 + 真实 AI 复盘草稿生成 + 本地复盘草稿确认/修正 + 规则检查 AI 回填/人工编辑 + 统计面板最小闭环 + 统计时间/品种/规则筛选 + 统计下钻交易列表 + 交易页 UI 第一轮优化”链路已成型，表单预览已改为从 SQLite instrument 配置读取点值。建议下一步优先做“备份恢复最小闭环”或“设置页 AI Key/模型配置”，并保持测试通过。
 
 当前历史应至少包含这个基线提交；如果本轮改动已经提交，最新提交会在其后：
 
-0f42747 feat: use instrument config for trade preview
+d70c783 feat: generate reviews with OpenAI adapter
+2e6d219 feat: add stats rule drilldown
 
-建议下一步优先整理提交边界，然后做“统计规则筛选/下钻”：
+建议下一步优先做“备份恢复最小闭环”：
 
-- 给 StatsService 增加规则筛选参数，统计视图增加规则筛选控件，注意 active/archived 历史规则的展示策略，并增加从统计聚合下钻到筛选后交易列表的最小交互。
+- 新增 `BackupService`，导出 SQLite + attachments + manifest，恢复前自动备份当前数据。
+- 如果先做设置页：支持 AI Key/模型配置状态，API Key 后续迁入系统安全存储。
 - 如果继续加统计筛选，可先把 StatsOverview / StatsOverviewFilters 等 DTO 迁移到 shared/，减少跨进程类型重复。
 - 如果涉及 AI 复盘口径，继续只纳入 ai_review_status 为 confirmed/corrected 的交易。
 - 先写 Vitest，再实现。
@@ -825,9 +827,9 @@ npm audit --cache .npm-cache
 
 高优先级未完成：
 
-- 真实 AI 接入：尚未调用远程多模态模型；当前本地草稿只是结构和状态闭环。
-- 统计规则筛选/下钻：统计目前支持时间和品种筛选，还不能按入场规则、规则版本或标签筛选，也不能从聚合指标跳回样本交易列表。
 - 备份恢复：左侧有入口，但 `BackupService`、导出 zip、恢复前自动备份、打开数据目录等尚未实现。
+- 设置页：尚未提供 AI Key/模型、本地路径、默认品种等配置 UI；OpenAI Key 当前依赖 `OPENAI_API_KEY` 环境变量。
+- 标签统计/筛选：数据模型已有 tag 表，但 UI 和统计尚未接入标签。
 
 中优先级待优化：
 
