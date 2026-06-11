@@ -85,9 +85,10 @@ docs/superpowers/2026-06-10-next-conversation-context.md
 
 当前分支：`codex/safe-attachment-preview`
 
-最近一次人工记录的提交序列：
+当前历史基线：
 
 ```text
+0f42747 feat: use instrument config for trade preview
 fdb2e1c feat: wire review draft resolution UI
 e00f085 feat: add local ai review service
 97ebcf7 feat: add rule binding review workspace
@@ -100,6 +101,8 @@ d7fc313 docs: add next conversation handoff
 
 继续开发前应运行 `git status --short --branch` 和 `git log --oneline -8` 确认最新提交与工作区状态。
 
+2026-06-11 交接时，工作区存在未提交改动，主要来自本轮统计、规则检查和 UI 优化。不要重置或回退这些改动；新对话应先读 diff 并继续在当前工作区上开发。
+
 2026-06-11 本轮开发内容：
 
 - 修复无选中交易时 `selectedTradeDetailState?.tradeId === selectedTrade?.id` 误判为 true 的运行时问题，避免桌面应用空状态启动时报 `Cannot read properties of undefined`。
@@ -107,6 +110,20 @@ d7fc313 docs: add next conversation handoff
 - 新增 `database:listInstruments` IPC / preload API，Renderer 启动时从 SQLite 读取 ES/MES/NQ/MNQ 品种配置。
 - 移除 `src/app/tradeForm.ts` 内的前端 `pointValueBySymbol`，实时预览改用 `instrument.point_value`，保证表单预览和服务端保存计算使用同一个点值来源。
 - 补充 `electron/ipc/databaseIpc.test.ts`、`src/app/tradeForm.test.ts` 和 `src/app/tradeDetailSelection.test.ts` 覆盖上述行为。
+- 新增 `StatsService`，基于 SQLite 聚合统计总览和按品种统计。
+- 新增 `stats:getOverview` IPC / preload API，Renderer 可通过 `window.desktopApi.stats.getOverview()` 读取统计总览。
+- 新增统计视图，展示总交易数、已确认复盘数、总净盈亏、胜率、平均 R、profit factor、总手续费和按品种聚合。
+- 统计口径：总交易数统计全部已平仓交易；盈亏、胜率、平均 R、profit factor、手续费和按品种聚合只纳入 `ai_review_status in ('confirmed', 'corrected')` 的交易。
+- 补充 `electron/services/statsService.test.ts`、`electron/ipc/statsIpc.test.ts` 和 `src/app/statsPanel.test.ts` 覆盖统计聚合、IPC handler 和 Renderer 统计 helper。
+- 完成统计筛选最小闭环：`StatsService`、IPC/preload 和统计视图支持时间范围与品种筛选。
+- 时间筛选支持全部、最近 7 天、最近 30 天和自定义起止日期；当前基于 `trade.opened_at` 做 UTC 边界过滤。
+- 浏览器预览统计也会使用相同筛选 helper 基于 sample trades 过滤。
+- 完成规则驱动复盘最小闭环：创建本地复盘草稿时，从绑定规则版本 checklist 生成 `trade_rule_check` 的 `unknown` 检查项。
+- 交易详情和复盘面板已展示逐项规则检查结果；重复创建草稿不会重复插入同一交易/规则版本的检查项。
+- 完成交易页 UI 第一轮优化：交易列表更紧凑，展示中文方向、净盈亏、R 倍数和中文复盘状态，不再直接暴露 `not_generated` 等内部枚举。
+- 调整交易页响应式布局：宽桌面保留三列，中等宽度优先展示“交易列表 + 复盘面板”，表单下移；移动端顺序为交易列表、复盘面板、交易表单。
+- 压缩交易表单和复盘面板视觉密度，数字输入右对齐，禁用尚未接入的复制按钮，避免误导用户。
+- 使用本机 Chrome/Playwright 对 `1440 / 1280 / 390` 三档宽度做视觉冒烟检查，确认复盘面板在第一视野内，交易行状态徽标未溢出。
 
 ## 6. 已完成能力
 
@@ -373,12 +390,20 @@ src/vite-env.d.ts
   - `RulesView`
 - 交易列表、交易表单、交易详情/复盘区、附件区、规则库页面都已经从 `App.tsx` 移出。
 - 当前拆分保持行为等价，未引入新 UI 框架，也没有大改视觉主题。
+- 交易页完成第一轮工作台式 UI 优化：
+  - 交易列表行更紧凑，优先展示品种、时间、方向、净盈亏、R 倍数和复盘状态。
+  - 复盘状态显示为中文文案，例如“未生成”“待确认”“已确认”“已修正”“已作废”。
+  - 中等宽度布局优先让复盘面板出现在第一视野，表单下移。
+  - 移动端布局顺序改为交易列表、复盘面板、交易表单，更贴近复盘工作流。
+  - 表单数字输入右对齐，复盘流程卡片和详情区压缩密度。
+  - 顶栏复制按钮已禁用并标注待接入，避免用户误以为功能可用。
 
 当前限制：
 
 - `App.tsx` 仍然较长，因为状态管理和 Electron runtime 副作用仍集中在一个组件中。
 - 组件 props 仍偏多，后续接 AI 复盘时可以继续拆服务 hooks 或 view model。
-- 视觉效果还没有系统优化；当前只是结构拆分后的原样式迁移。
+- UI 仍是 MVP 工作台风格，不是最终视觉系统；规则页、统计页、备份页、设置页还没有统一做深度体验打磨。
+- 交易页三列布局在 1440px 左右已经可用，但真实用户数据较长时仍需继续观察长规则名、长备注、长品种名和多附件场景。
 
 关键文件：
 
@@ -391,6 +416,7 @@ src/components/TradeReviewPanel.tsx
 src/components/AttachmentSection.tsx
 src/components/RulesView.tsx
 src/App.tsx
+src/App.css
 ```
 
 ### 6.8 本地 AI 复盘草稿闭环
@@ -409,16 +435,21 @@ window.desktopApi.reviews.getLatestForTrade(tradeId)
 window.desktopApi.reviews.confirm(id)
 window.desktopApi.reviews.correct(id, input)
 window.desktopApi.reviews.invalidate(id)
+window.desktopApi.reviews.updateRuleCheck(id, input)
 ```
 
 - UI 右侧复盘区已经能展示本地草稿状态，并提供确认、修正、标记无效入口。
 - 交易列表和交易详情会随复盘状态变化刷新。
+- 创建本地复盘草稿时，会从交易绑定的 `entry_rule_version.checklist_json` 生成 `trade_rule_check` 记录。
+- 默认规则检查结果为 `unknown`，备注为“等待 AI 或人工确认。”。
+- UI 右侧复盘区会展示逐项规则检查结果。
+- UI 右侧复盘区已支持人工编辑单条规则检查，可修改 `pass` / `fail` / `unknown`、证据和备注。
 
 当前限制：
 
 - 还没有真正接入远程多模态 AI API。
 - 目前草稿创建能力主要服务于本地状态闭环，尚未从截图、规则和交易事实自动生成结构化内容。
-- `trade_rule_check` 表已存在，但规则逐项检查结果的写入和展示还没有完成。
+- `trade_rule_check` 已支持人工编辑，但尚未支持 AI 自动判断 `pass` / `fail`。
 
 关键文件：
 
@@ -456,21 +487,65 @@ src/components/TradeFormPanel.tsx
 src/vite-env.d.ts
 ```
 
+### 6.10 统计面板最小闭环
+
+已完成：
+
+- `StatsService` 可读取 SQLite 中的已平仓交易并返回统计总览。
+- Preload 暴露 `window.desktopApi.stats.getOverview(filters)`。
+- Electron Main Process 注册 `stats:getOverview` 只读 IPC。
+- Renderer 启动时会加载统计总览，交易新增/编辑/删除和复盘确认/修正/标记无效后会刷新统计。
+- 统计视图已经接入左侧“统计”导航。
+- 统计视图支持时间范围筛选：全部、最近 7 天、最近 30 天、自定义起止日期。
+- 统计视图支持按品种筛选，品种选项来自 SQLite `instrument` 配置；浏览器预览模式会从 sample trades 派生选项。
+- 浏览器预览模式会基于 sample trades 生成预览统计，并明确显示“预览数据”。
+- 移动端统计卡片单列展示，按品种表格在自身区域横向滚动，避免页面整体横向溢出。
+
+当前统计口径：
+
+- `totalTradeCount` 统计全部已平仓交易。
+- `confirmedReviewCount` 统计 `confirmed` / `corrected` 复盘交易数。
+- 总净盈亏、胜率、平均 R、profit factor、总手续费和按品种聚合只纳入 `confirmed` / `corrected` 复盘交易。
+- 时间和品种筛选会同时影响 `totalTradeCount` 和已确认复盘绩效指标。
+- 没有亏损交易时，profit factor 返回 `null`，UI 显示 `--`。
+
+当前限制：
+
+- 暂无规则或标签筛选。
+- 暂无按时间、规则、标签聚合。
+- 暂未接 ECharts；建议等筛选和统计口径稳定后再做图表。
+- 当前日期筛选基于 `opened_at` 和 UTC 日边界；美股期货最终应补“用户本地日 + 市场会话日”的统计字段或映射策略。
+
+关键文件：
+
+```text
+electron/services/statsService.ts
+electron/ipc/statsIpc.ts
+electron/preload.ts
+src/app/statsPanel.ts
+src/components/StatsView.tsx
+src/App.tsx
+```
+
 ## 7. 当前验证状态
 
 最近一次完整验证通过：
 
 ```bash
-npm run test -- --run
-npm run build
+npm test -- --run
 npm run lint
+npm run build
 ```
 
 结果：
 
-- Vitest：20 files / 80 tests passed。
-- Build：passed。
+- Vitest：23 files / 101 tests passed。
 - Lint：passed。
+- Build：passed。
+- 视觉冒烟：使用本机 Google Chrome + Playwright 打开 `http://127.0.0.1:5173`，检查 `1440x1000`、`1280x1000`、`390x900` 三档宽度。
+  - 三档宽度均无 page error。
+  - 复盘面板均在第一视野内。
+  - 交易列表第一行状态徽标未溢出行容器。
 
 注意：测试和临时 Node 脚本中会出现 `node:sqlite` ExperimentalWarning，这是当前技术选型的已知现象。
 
@@ -506,25 +581,24 @@ latest trade id = 7
 
 ### 9.0 下一步推荐
 
-下个对话建议优先做 **统计面板最小闭环**。
+下个对话建议优先做 **统计规则筛选和下钻最小闭环**，并先整理/提交当前工作区改动。
 
 原因：
 
-- 交易事实、附件截图、规则绑定和本地复盘草稿确认/修正流程已经基本成型。
-- `confirmed` / `corrected` 复盘状态已经有明确统计口径。
-- 左侧已有“统计”入口，但还没有真实统计服务和 UI。
-- 先做最小统计面板可以验证“记录 -> 复盘确认 -> 进入统计”的 MVP 闭环是否成立。
+- “记录 -> 复盘确认/修正 -> 进入统计 -> 按时间/品种筛选”的最小闭环已经成立。
+- 规则驱动复盘已经能生成 `trade_rule_check` 的 `unknown` 占位项，且已支持人工把单项检查改成 `pass` / `fail` / `unknown` 并补 evidence/comment。
+- 统计还不能回答“某套入场规则表现如何”，也不能从指标下钻回样本交易。
+- 当前工作区存在统计、规则检查、交易页 UI 和文档更新的未提交改动，应先按功能边界拆分提交，避免后续继续堆叠。
 
-建议范围保持小：
+建议范围：
 
-- 新增 `StatsService`，只统计已平仓交易中的基础交易指标；如果涉及复盘口径，则只纳入 `ai_review_status in ('confirmed', 'corrected')` 的复盘指标。
-- 先实现总览卡片：总交易数、已确认复盘数、总净盈亏、胜率、平均 R、profit factor、总手续费。
-- 增加按品种聚合的简单列表，先不接 ECharts。
-- 通过 IPC / preload 暴露只读统计 API。
-- 在当前“统计”视图接入真实数据，空状态要明确说明“需要确认复盘后才进入 AI 复盘口径”。
-- 新功能先补 Vitest，再实现。
+- 给 `StatsService` 增加 `entryRuleVersionId` 或 `entryRuleId` 筛选参数。
+- 统计视图复用已加载的 active rules 作为规则筛选选项；历史已归档规则如何出现在筛选中需要单独设计。
+- 增加从按品种/规则聚合结果下钻到筛选后的交易列表的最小交互。
+- 若继续加筛选，建议先抽 `StatsOverviewFilters` 到 `shared/`，避免跨进程 DTO 继续重复。
+- 继续坚持先写 Vitest，再实现。
 
-视觉优化仍然重要，但建议放到统计面板最小闭环之后。若下个对话改做视觉优化，用户曾指定可使用：
+视觉优化已完成第一轮，但仍可继续作为后续独立任务。若下个对话继续做视觉优化，用户曾指定可使用：
 
 ```text
 /Users/juyu/.agents/skills/ui-ux-pro-max/SKILL.md
@@ -606,14 +680,17 @@ session_template
 
 - 本地 `ReviewService`、IPC、preload 和 UI 草稿状态处理已完成。
 - 已支持本地草稿的读取、确认、修正摘要和标记无效。
-- 尚未接入真实 AI API，也尚未写入 `trade_rule_check`。
+- 已支持本地草稿创建时按绑定规则 checklist 写入 `trade_rule_check` 默认 `unknown` 检查项。
+- 已支持交易详情/复盘面板展示逐项规则检查结果。
+- 尚未接入真实 AI API，也尚未自动判断规则检查结果。
 
 建议任务：
 
 - 设计 AI prompt 输入结构。
 - 组装交易事实、截图 data、规则版本和 checklist。
 - 接入远程多模态 AI API，并把模型/API key 做成本地设置。
-- 输出结构写入 `ai_review` 和 `trade_rule_check`。
+- 输出结构更新 `ai_review` 和 `trade_rule_check`。
+- UI 支持人工编辑规则检查结果、证据和评论。
 - UI 展示真实 AI 草稿、规则 checklist 判断和证据。
 - 只有 confirmed/corrected 数据进入统计。
 
@@ -621,19 +698,28 @@ session_template
 
 目标：基于已确认数据做基础统计。
 
-建议任务：
+已完成：
 
 - `StatsService`。
-- 先做总览指标和按品种聚合，再扩展按时间、规则、标签聚合。
-- ECharts 放在基础服务和数据口径稳定之后接入。
-- 核心指标：
-  - 总交易数
-  - 胜率
-  - 总净盈亏
-  - 平均 R
-  - profit factor
-  - 按规则的表现
-  - 按标签的表现
+- 统计 IPC / preload API。
+- 总览指标和按品种聚合。
+- 核心指标：总交易数、已确认复盘数、总净盈亏、胜率、平均 R、profit factor、总手续费。
+- 时间范围筛选：全部、最近 7 天、最近 30 天、自定义起止日期。
+- 品种筛选：全部或指定 instrument symbol。
+
+建议后续任务：
+
+- 增加规则和标签筛选。
+- 增加按时间、规则、标签聚合。
+- 从统计聚合下钻到筛选后的交易列表。
+- ECharts 放在筛选、聚合服务和数据口径稳定之后接入。
+
+当前阶段可优化项：
+
+- `src/App.tsx` 已经承担较多状态和业务动作；后续继续加筛选、备份、设置前，建议逐步拆出 `useTradesState`、`useStatsState`、`useRulesState` 等 hook。
+- `StatsOverview` 类型目前在 Electron service、Renderer helper 和 `src/vite-env.d.ts` 中存在重复定义；后续可迁移到 `shared/` 作为跨进程 DTO，减少字段漂移风险。
+- 当前日期筛选使用 `opened_at` UTC 边界，尚未处理“用户本地日 + 市场会话日”；美股期货跨自然日场景需要单独建模。
+- 当前统计视图以数字面板为主，暂未接图表；建议等筛选闭环和统计口径稳定后再引入 ECharts。
 
 ### 9.7 备份恢复
 
@@ -660,18 +746,17 @@ session_template
 
 /Users/juyu/IdeaProjects/trading-ai-review
 
-当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。当前“交易事实 + 附件截图 + 入场规则版本绑定 + 本地复盘草稿确认/修正”链路已成型，表单预览已改为从 SQLite instrument 配置读取点值。建议下一步优先做“统计面板最小闭环”，并保持测试通过。
+当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。当前“交易事实 + 附件截图 + 入场规则版本绑定 + 本地复盘草稿确认/修正 + 规则检查 unknown 占位 + 规则检查人工编辑 + 统计面板最小闭环 + 统计时间/品种筛选 + 交易页 UI 第一轮优化”链路已成型，表单预览已改为从 SQLite instrument 配置读取点值。建议下一步优先整理并提交当前工作区改动，然后做“统计规则筛选/下钻”，并保持测试通过。
 
 当前历史应至少包含这个基线提交；如果本轮改动已经提交，最新提交会在其后：
 
-fdb2e1c feat: wire review draft resolution UI
+0f42747 feat: use instrument config for trade preview
 
-建议下一步优先做“统计面板最小闭环”：
+建议下一步优先整理提交边界，然后做“统计规则筛选/下钻”：
 
-- 新增 StatsService。
-- 新增统计 IPC / preload 只读 API。
-- 统计视图展示总交易数、已确认复盘数、总净盈亏、胜率、平均 R、profit factor、总手续费和按品种聚合。
-- 如果涉及 AI 复盘口径，只纳入 ai_review_status 为 confirmed/corrected 的交易。
+- 给 StatsService 增加规则筛选参数，统计视图增加规则筛选控件，注意 active/archived 历史规则的展示策略，并增加从统计聚合下钻到筛选后交易列表的最小交互。
+- 如果继续加统计筛选，可先把 StatsOverview / StatsOverviewFilters 等 DTO 迁移到 shared/，减少跨进程类型重复。
+- 如果涉及 AI 复盘口径，继续只纳入 ai_review_status 为 confirmed/corrected 的交易。
 - 先写 Vitest，再实现。
 - 不要删除或重置本地数据库。
 ```
@@ -730,5 +815,30 @@ npm audit --cache .npm-cache
 - Preload 只暴露窄 API。
 - 交易计算必须保持前后端一致，优先复用 `shared/trading/`。
 - 品种点值必须以 SQLite `instrument.point_value` 为权威来源，不要在 Renderer 重新硬编码 ES/MES/NQ/MNQ 点值表。
+- 统计总览当前只纳入 `confirmed` / `corrected` 的复盘交易；新增筛选或图表时不要悄悄改变这个口径。
+- 跨进程 DTO 类型后续建议放入 `shared/`，避免 Electron service、Renderer helper 和 `vite-env.d.ts` 重复定义后漂移。
+- `src/App.tsx` 已经偏大；继续增加统计筛选、备份、设置时，优先考虑拆分局部 state hook，而不是继续堆在单个组件里。
 - UI 目前是早期工作台，不要过早做复杂营销式页面。
 - MVP 当前不支持 open trade，但文档必须持续说明这个边界。
+
+## 13. 未完成和待优化汇总
+
+高优先级未完成：
+
+- 真实 AI 接入：尚未调用远程多模态模型；当前本地草稿只是结构和状态闭环。
+- 统计规则筛选/下钻：统计目前支持时间和品种筛选，还不能按入场规则、规则版本或标签筛选，也不能从聚合指标跳回样本交易列表。
+- 备份恢复：左侧有入口，但 `BackupService`、导出 zip、恢复前自动备份、打开数据目录等尚未实现。
+
+中优先级待优化：
+
+- 跨进程 DTO：`StatsOverview`、`StatsOverviewFilters`、附件和复盘相关类型仍散落在 Electron service、Renderer helper 和 `src/vite-env.d.ts`，后续建议迁移到 `shared/`。
+- `src/App.tsx` 状态和副作用仍偏集中；继续扩展前可逐步拆 `useTradesState`、`useStatsState`、`useRulesState`、`useReviewState`。
+- 日期口径：统计筛选仍基于 `opened_at` UTC 边界，尚未建模用户本地日和市场会话日。
+- 品种配置管理：ES/MES/NQ/MNQ 来自 seed，尚无 UI 管理和修改品种配置。
+- UI 深度打磨：交易页已完成第一轮优化；规则页、统计页、备份页、设置页仍是 MVP 形态。
+
+低优先级或暂缓：
+
+- ECharts 图表：建议等规则/标签筛选、下钻和统计口径稳定后再接。
+- 在线图片标注：MVP 暂时接收用户外部标注后的图片。
+- CSV/券商导入、云同步、账号、多设备、移动端、open trade、回测：均不在当前 MVP 范围。
