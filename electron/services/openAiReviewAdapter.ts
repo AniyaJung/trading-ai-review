@@ -22,6 +22,12 @@ export type FetchLike = (
 type OpenAIReviewAdapterOptions = {
   apiKey?: string;
   model?: string;
+  promptVersion?: string;
+  getConfig?: () => {
+    apiKey?: string;
+    model?: string;
+    promptVersion?: string;
+  };
   fetch?: FetchLike;
 };
 
@@ -34,13 +40,18 @@ export function createOpenAIReviewAdapter(
 ): AIReviewAdapter {
   return {
     generate: async (input) => {
-      const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY ?? "";
+      const config = options.getConfig?.() ?? {};
+      const apiKey =
+        config.apiKey ?? options.apiKey ?? process.env.OPENAI_API_KEY ?? "";
 
       if (!apiKey.trim()) {
         throw new Error("OPENAI_API_KEY is required to generate AI reviews.");
       }
 
-      const model = options.model ?? process.env.OPENAI_MODEL ?? defaultModel;
+      const model =
+        config.model ?? options.model ?? process.env.OPENAI_MODEL ?? defaultModel;
+      const activePromptVersion =
+        config.promptVersion ?? options.promptVersion ?? promptVersion;
       const fetchImpl =
         options.fetch ?? (globalThis.fetch as unknown as FetchLike | undefined);
 
@@ -67,6 +78,7 @@ export function createOpenAIReviewAdapter(
       const generated = normalizeGeneratedReview(
         parseJsonObject(outputText),
         model,
+        activePromptVersion,
         payload,
       );
 
@@ -229,11 +241,12 @@ function extractOutputText(payload: JsonObject) {
 function normalizeGeneratedReview(
   value: JsonObject,
   model: string,
+  activePromptVersion: string,
   payload: JsonObject,
 ): GeneratedAIReviewDraft {
   return {
     model,
-    promptVersion,
+    promptVersion: activePromptVersion,
     scoreTotal: nullableNumber(value.scoreTotal),
     summary: nullableString(value.summary),
     facts: isJsonObject(value.facts) ? value.facts : {},

@@ -3,9 +3,11 @@ import path from "node:path";
 import { ensureAppDataDirectories, resolveAppDataPaths } from "./data/appData.js";
 import { initializeAppDatabase } from "./data/database.js";
 import { registerAttachmentIpc } from "./ipc/attachmentIpc.js";
+import { registerBackupIpc } from "./ipc/backupIpc.js";
 import { registerDatabaseIpc } from "./ipc/databaseIpc.js";
 import { registerReviewIpc } from "./ipc/reviewIpc.js";
 import { registerRuleIpc } from "./ipc/ruleIpc.js";
+import { registerSettingsIpc } from "./ipc/settingsIpc.js";
 import { registerStatsIpc } from "./ipc/statsIpc.js";
 import { resolveRuntimePaths } from "./runtimePaths.js";
 import { registerTradeIpc } from "./ipc/tradeIpc.js";
@@ -50,6 +52,8 @@ app.whenReady().then(() => {
   registerReviewIpc(db);
   registerStatsIpc(db);
   registerAttachmentIpc(db, appDataPaths.attachmentsDir);
+  registerBackupIpc(db, appDataPaths);
+  registerSettingsIpc(db, appDataPaths);
 
   void createMainWindow();
 

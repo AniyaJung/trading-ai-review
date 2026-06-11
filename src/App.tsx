@@ -39,9 +39,17 @@ import {
   type StatsFilterState,
   type StatsOverviewFilters,
 } from "./app/statsPanel";
+import type { BackupResult, RestoreBackupResult } from "./app/backupPanel";
+import {
+  buildAISettingsInput,
+  createSettingsDraft,
+  type SettingsDraft,
+} from "./app/settingsPanel";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppTopbar } from "./components/AppTopbar";
+import { BackupView } from "./components/BackupView";
 import { RulesView } from "./components/RulesView";
+import { SettingsView } from "./components/SettingsView";
 import { StatsView } from "./components/StatsView";
 import { TradeFormPanel } from "./components/TradeFormPanel";
 import { TradeListPanel } from "./components/TradeListPanel";
@@ -225,6 +233,23 @@ function App() {
   );
   const [tradeDrilldownFilters, setTradeDrilldownFilters] =
     useState<StatsOverviewFilters | null>(null);
+  const [isBackupBusy, setIsBackupBusy] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const [lastBackup, setLastBackup] = useState<BackupResult | null>(null);
+  const [lastRestore, setLastRestore] = useState<RestoreBackupResult | null>(
+    null,
+  );
+  const [settingsSummary, setSettingsSummary] =
+    useState<SettingsSummary | null>(null);
+  const [settingsDraft, setSettingsDraft] = useState<SettingsDraft>(() =>
+    createSettingsDraft(null),
+  );
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [settingsMessage, setSettingsMessage] = useState(
+    "AI Key 不会回显；留空保存会保持当前 Key 不变。",
+  );
   const statsOverviewFilters = useMemo(
     () => buildStatsOverviewFilters(statsFilters),
     [statsFilters],
@@ -241,6 +266,7 @@ function App() {
       setIsLoadingTrades(true);
       setIsLoadingRules(true);
       setIsLoadingStats(true);
+      setIsLoadingSettings(true);
       try {
         const [
           status,
@@ -248,6 +274,7 @@ function App() {
           activeRules,
           instrumentConfigs,
           desktopStatsOverview,
+          desktopSettingsSummary,
         ] =
           await Promise.all([
             window.desktopApi.database.getStatus(),
@@ -255,6 +282,7 @@ function App() {
             window.desktopApi.rules.listActive(),
             window.desktopApi.database.listInstruments(),
             window.desktopApi.stats.getOverview({}),
+            window.desktopApi.settings.getSummary(),
           ]);
 
         if (!cancelled) {
@@ -265,10 +293,13 @@ function App() {
           setTrades(desktopTrades);
           setEntryRules(activeRules);
           setStatsOverview(desktopStatsOverview);
+          setSettingsSummary(desktopSettingsSummary);
+          setSettingsDraft(createSettingsDraft(desktopSettingsSummary));
           setSelectedTradeId((current) => current ?? desktopTrades[0]?.id ?? null);
           setTradeLoadError(null);
           setRuleErrors([]);
           setStatsError(null);
+          setSettingsError(null);
         }
       } catch (error) {
         if (!cancelled) {
@@ -276,12 +307,14 @@ function App() {
           setTradeLoadError(message);
           setRuleErrors([message]);
           setStatsError(message);
+          setSettingsError(message);
         }
       } finally {
         if (!cancelled) {
           setIsLoadingTrades(false);
           setIsLoadingRules(false);
           setIsLoadingStats(false);
+          setIsLoadingSettings(false);
         }
       }
     }
@@ -351,6 +384,109 @@ function App() {
     setSelectedTradeId(nextTrades[0]?.id ?? null);
     setActiveAttachmentPreviewId(null);
     handleCancelRuleCheckEdit();
+  };
+
+  const handleCreateBackup = async () => {
+    if (!window.desktopApi) {
+      setBackupError("浏览器预览不会访问本地数据目录；请在 Electron 桌面运行时操作。");
+      return;
+    }
+
+    setIsBackupBusy(true);
+    setBackupError(null);
+    try {
+      setLastBackup(await window.desktopApi.backup.create());
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsBackupBusy(false);
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    if (!window.desktopApi) {
+      setBackupError("浏览器预览不会访问本地数据目录；请在 Electron 桌面运行时操作。");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "从备份恢复会完整替换当前本地数据库和截图目录。恢复前会自动备份当前数据，恢复后应用会重启。继续？",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsBackupBusy(true);
+    setBackupError(null);
+    try {
+      const restored = await window.desktopApi.backup.chooseAndRestore();
+      if (restored) {
+        setLastRestore(restored);
+      }
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsBackupBusy(false);
+    }
+  };
+
+  const handleOpenDataDirectory = async () => {
+    try {
+      const error = await window.desktopApi?.backup.openDataDirectory();
+      setBackupError(error || null);
+    } catch (openError) {
+      setBackupError(openError instanceof Error ? openError.message : String(openError));
+    }
+  };
+
+  const handleOpenBackupsDirectory = async () => {
+    try {
+      const error = await window.desktopApi?.backup.openBackupsDirectory();
+      setBackupError(error || null);
+    } catch (openError) {
+      setBackupError(openError instanceof Error ? openError.message : String(openError));
+    }
+  };
+
+  const handleSaveAISettings = async () => {
+    if (!window.desktopApi) {
+      setSettingsError("浏览器预览不会写入设置；请在 Electron 桌面运行时操作。");
+      return;
+    }
+
+    setIsSavingSettings(true);
+    setSettingsError(null);
+    try {
+      const summary = await window.desktopApi.settings.saveAI(
+        buildAISettingsInput(settingsDraft),
+      );
+      setSettingsSummary(summary);
+      setSettingsDraft(createSettingsDraft(summary));
+      setSettingsMessage("AI 设置已保存。");
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleOpenSettingsDataDirectory = async () => {
+    try {
+      const error = await window.desktopApi?.settings.openDataDirectory();
+      setSettingsError(error || null);
+    } catch (openError) {
+      setSettingsError(openError instanceof Error ? openError.message : String(openError));
+    }
+  };
+
+  const handleOpenSettingsBackupsDirectory = async () => {
+    try {
+      const error = await window.desktopApi?.settings.openBackupsDirectory();
+      setSettingsError(error || null);
+    } catch (openError) {
+      setSettingsError(openError instanceof Error ? openError.message : String(openError));
+    }
   };
 
   const handleCreateRule = async () => {
@@ -1187,6 +1323,34 @@ function App() {
             onFiltersChange={handleStatsFiltersChange}
             onDrillDown={handleStatsDrillDown}
             onRefresh={() => void refreshStats()}
+          />
+        ) : currentView === "backup" ? (
+          <BackupView
+            runtime={desktopRuntime}
+            isBusy={isBackupBusy}
+            error={backupError}
+            lastBackup={lastBackup}
+            lastRestore={lastRestore}
+            onCreateBackup={() => void handleCreateBackup()}
+            onRestoreBackup={() => void handleRestoreBackup()}
+            onOpenDataDirectory={() => void handleOpenDataDirectory()}
+            onOpenBackupsDirectory={() => void handleOpenBackupsDirectory()}
+          />
+        ) : currentView === "settings" ? (
+          <SettingsView
+            runtime={desktopRuntime}
+            summary={settingsSummary}
+            draft={settingsDraft}
+            isLoading={isLoadingSettings}
+            isSaving={isSavingSettings}
+            error={settingsError}
+            message={settingsMessage}
+            onDraftChange={setSettingsDraft}
+            onSaveAI={() => void handleSaveAISettings()}
+            onOpenDataDirectory={() => void handleOpenSettingsDataDirectory()}
+            onOpenBackupsDirectory={() =>
+              void handleOpenSettingsBackupsDirectory()
+            }
           />
         ) : (
         <section className="desk-grid">

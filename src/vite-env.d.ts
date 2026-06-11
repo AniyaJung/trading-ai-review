@@ -243,6 +243,56 @@ type StatsOverviewFilters = {
   openedBefore?: string;
 };
 
+type BackupManifestFile = {
+  path: string;
+  sha256: string;
+  bytes: number;
+};
+
+type BackupManifest = {
+  backupSchemaVersion: number;
+  appVersion: string;
+  exportedAt: string;
+  databaseFile: string;
+  attachments: BackupManifestFile[];
+  files: BackupManifestFile[];
+};
+
+type BackupResult = {
+  filePath: string;
+  manifest: BackupManifest;
+};
+
+type RestoreBackupResult = {
+  restoredFromFilePath: string;
+  safetyBackupFilePath: string;
+  manifest: BackupManifest;
+};
+
+type SettingsSummary = {
+  openAi: {
+    apiKeyConfigured: boolean;
+    apiKeySource: "local" | "environment" | "missing";
+    model: string;
+    modelSource: "local" | "environment" | "default";
+    promptVersion: string;
+    promptVersionSource: "local" | "default";
+  };
+  paths: {
+    appDataDir: string;
+    databasePath: string;
+    attachmentsDir: string;
+    backupsDir: string;
+  };
+};
+
+type AISettingsInput = {
+  apiKey?: string | null;
+  clearApiKey?: boolean;
+  model?: string | null;
+  promptVersion?: string | null;
+};
+
 type AttachExistingFileInput = {
   tradeId: number;
   sourceFilePath: string;
@@ -299,6 +349,18 @@ type DesktopApi = {
   };
   stats: {
     getOverview: (filters?: StatsOverviewFilters) => Promise<StatsOverview>;
+  };
+  backup: {
+    create: () => Promise<BackupResult>;
+    chooseAndRestore: () => Promise<RestoreBackupResult | undefined>;
+    openDataDirectory: () => Promise<string>;
+    openBackupsDirectory: () => Promise<string>;
+  };
+  settings: {
+    getSummary: () => Promise<SettingsSummary>;
+    saveAI: (input: AISettingsInput) => Promise<SettingsSummary>;
+    openDataDirectory: () => Promise<string>;
+    openBackupsDirectory: () => Promise<string>;
   };
   attachments: {
     listByTrade: (tradeId: number) => Promise<TradeAttachment[]>;

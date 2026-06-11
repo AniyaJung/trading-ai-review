@@ -180,4 +180,82 @@ describe("createOpenAIReviewAdapter", () => {
       }),
     ).rejects.toThrow("OPENAI_API_KEY is required");
   });
+
+  it("reads dynamic AI settings when generating a review", async () => {
+    const requests: Array<{ url: string; init: Parameters<FetchLike>[1] }> = [];
+    const fetch: FetchLike = async (url, init) => {
+      requests.push({ url, init });
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            output_text: JSON.stringify({
+              summary: "Configured summary",
+              scoreTotal: null,
+              facts: {},
+              missingInfo: [],
+              imageObservations: [],
+              strengths: [],
+              weaknesses: [],
+              suggestions: [],
+              tags: [],
+              confidence: null,
+              ruleChecks: [],
+            }),
+          }),
+      };
+    };
+    const adapter = createOpenAIReviewAdapter({
+      fetch,
+      getConfig: () => ({
+        apiKey: "sk-configured",
+        model: "gpt-configured",
+        promptVersion: "configured-prompt-v2",
+      }),
+    });
+
+    const result = await adapter.generate({
+      trade: {
+        id: 1,
+        symbol: "ES",
+        instrumentName: "E-mini S&P 500",
+        direction: "long",
+        status: "closed",
+        openedAt: "2026-06-08T14:41:00.000Z",
+        closedAt: "2026-06-08T15:20:00.000Z",
+        entryPriceAvg: 5300,
+        exitPriceAvg: 5304.5,
+        quantity: 2,
+        stopLossPrice: 5298,
+        takeProfitPrice: null,
+        feesTotal: 5,
+        grossPnl: 450,
+        netPnl: 445,
+        riskAmount: 200,
+        rMultiple: 2.225,
+        entryRuleId: null,
+        entryRuleVersionId: null,
+        entryRuleName: null,
+        entryRuleVersionNo: null,
+        entryRuleContent: null,
+        entryRuleChecklist: [],
+        backgroundNote: null,
+        entryReason: null,
+        exitReason: null,
+        emotionNote: null,
+        lessonNote: null,
+        aiReviewStatus: "not_generated",
+        ruleChecks: [],
+        executions: [],
+      },
+      attachments: [],
+    });
+
+    expect(requests[0].init.headers.Authorization).toBe("Bearer sk-configured");
+    expect(JSON.parse(String(requests[0].init.body)).model).toBe(
+      "gpt-configured",
+    );
+    expect(result.promptVersion).toBe("configured-prompt-v2");
+  });
 });

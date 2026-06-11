@@ -5,6 +5,8 @@ import {
   type AIReviewAdapter,
 } from "../services/aiReviewService.js";
 import { createOpenAIReviewAdapter } from "../services/openAiReviewAdapter.js";
+import { createSafeStorageSecretCodec } from "../services/secretCodec.js";
+import { getOpenAIAdapterConfig } from "../services/settingsService.js";
 import {
   confirmReview,
   correctReview,
@@ -36,7 +38,15 @@ export function createReviewIpcHandlers(
 }
 
 export function registerReviewIpc(db: DatabaseSync) {
-  const handlers = createReviewIpcHandlers(db);
+  const handlers = createReviewIpcHandlers(
+    db,
+    createOpenAIReviewAdapter({
+      getConfig: () =>
+        getOpenAIAdapterConfig(db, {
+          secretCodec: createSafeStorageSecretCodec(),
+        }),
+    }),
+  );
 
   ipcMain.handle("reviews:createDraft", (_event, input: CreateReviewDraftInput) =>
     handlers.createDraft(input),

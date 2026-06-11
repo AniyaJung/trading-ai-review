@@ -46,6 +46,19 @@ const desktopApi = {
     getOverview: (filters?: unknown) =>
       ipcRenderer.invoke("stats:getOverview", filters),
   },
+  backup: {
+    create: () => ipcRenderer.invoke("backup:create"),
+    chooseAndRestore: () => ipcRenderer.invoke("backup:chooseAndRestore"),
+    openDataDirectory: () => ipcRenderer.invoke("backup:openDataDirectory"),
+    openBackupsDirectory: () => ipcRenderer.invoke("backup:openBackupsDirectory"),
+  },
+  settings: {
+    getSummary: () => ipcRenderer.invoke("settings:getSummary"),
+    saveAI: (input: unknown) => ipcRenderer.invoke("settings:saveAI", input),
+    openDataDirectory: () => ipcRenderer.invoke("settings:openDataDirectory"),
+    openBackupsDirectory: () =>
+      ipcRenderer.invoke("settings:openBackupsDirectory"),
+  },
   attachments: {
     listByTrade: (tradeId: number) =>
       ipcRenderer.invoke("attachments:listByTrade", tradeId),
