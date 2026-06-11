@@ -6,8 +6,10 @@ import {
   createReviewDraft,
   getLatestReviewForTrade,
   invalidateReview,
+  updateRuleCheck,
   type CorrectReviewInput,
   type CreateReviewDraftInput,
+  type UpdateRuleCheckInput,
 } from "../services/reviewService.js";
 
 export function createReviewIpcHandlers(db: DatabaseSync) {
@@ -18,6 +20,8 @@ export function createReviewIpcHandlers(db: DatabaseSync) {
     correct: (id: number, input: CorrectReviewInput) =>
       correctReview(db, id, input),
     invalidate: (id: number) => invalidateReview(db, id),
+    updateRuleCheck: (id: number, input: UpdateRuleCheckInput) =>
+      updateRuleCheck(db, id, input),
   };
 }
 
@@ -38,5 +42,10 @@ export function registerReviewIpc(db: DatabaseSync) {
   );
   ipcMain.handle("reviews:invalidate", (_event, id: number) =>
     handlers.invalidate(id),
+  );
+  ipcMain.handle(
+    "reviews:updateRuleCheck",
+    (_event, id: number, input: UpdateRuleCheckInput) =>
+      handlers.updateRuleCheck(id, input),
   );
 }

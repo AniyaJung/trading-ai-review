@@ -20,7 +20,14 @@ import {
   getSelectedTradeDetail,
   getTradeScopedStateValue,
 } from "./app/tradeDetailSelection";
-import { getReviewActionState, getReviewPanelState } from "./app/reviewPanel";
+import {
+  buildRuleCheckUpdateInput,
+  canSaveRuleCheckEdit,
+  createRuleCheckEditDraft,
+  getReviewActionState,
+  getReviewPanelState,
+  type RuleCheckEditDraft,
+} from "./app/reviewPanel";
 import { parseChecklistText } from "./app/rulePanel";
 import {
   buildStatsOverviewFilters,
@@ -193,6 +200,16 @@ function App() {
     error: string;
   }>();
   const [isSavingReview, setIsSavingReview] = useState(false);
+  const [editingRuleCheckId, setEditingRuleCheckId] = useState<number | null>(
+    null,
+  );
+  const [ruleCheckEditDraft, setRuleCheckEditDraft] =
+    useState<RuleCheckEditDraft>({
+      result: "unknown",
+      evidence: "",
+      comment: "",
+    });
+  const [savingRuleCheckId, setSavingRuleCheckId] = useState<number | null>(null);
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
@@ -295,7 +312,6 @@ function App() {
       setIsLoadingRules(false);
     }
   };
-
 
   const refreshStats = async (filters = statsOverviewFilters) => {
     if (!window.desktopApi) {
@@ -582,7 +598,6 @@ function App() {
     }
   };
 
-
   const handleCreateReviewDraft = async () => {
     if (!selectedTrade || !window.desktopApi) {
       return;
@@ -684,6 +699,51 @@ function App() {
       });
     } finally {
       setIsSavingReview(false);
+    }
+  };
+
+  const handleStartRuleCheckEdit = (check: TradeRuleCheckDetail) => {
+    setEditingRuleCheckId(check.id);
+    setRuleCheckEditDraft(createRuleCheckEditDraft(check));
+    setReviewErrorState(undefined);
+  };
+
+  const handleCancelRuleCheckEdit = () => {
+    setEditingRuleCheckId(null);
+    setRuleCheckEditDraft({
+      result: "unknown",
+      evidence: "",
+      comment: "",
+    });
+  };
+
+  const handleRuleCheckDraftChange = (draft: RuleCheckEditDraft) => {
+    setRuleCheckEditDraft(draft);
+  };
+
+  const handleSaveRuleCheck = async (checkId: number) => {
+    if (!selectedTrade || !window.desktopApi) {
+      return;
+    }
+
+    setSavingRuleCheckId(checkId);
+    try {
+      await window.desktopApi.reviews.updateRuleCheck(
+        checkId,
+        buildRuleCheckUpdateInput(ruleCheckEditDraft),
+      );
+      const detail = await window.desktopApi.trades.get(selectedTrade.id);
+      setSelectedTradeDetailState({ tradeId: selectedTrade.id, detail });
+      setEditingRuleCheckId(null);
+      setReviewErrorState(undefined);
+      setFormMessage("规则检查已保存。");
+    } catch (error) {
+      setReviewErrorState({
+        tradeId: selectedTrade.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setSavingRuleCheckId(null);
     }
   };
 
@@ -899,6 +959,11 @@ function App() {
     latestReview,
     hasDesktopRuntime: Boolean(window.desktopApi),
     isSavingReview,
+  });
+  const canSaveRuleCheck = canSaveRuleCheckEdit({
+    selectedTrade,
+    hasDesktopRuntime: Boolean(window.desktopApi),
+    isSavingRuleCheck: savingRuleCheckId != null,
   });
   const previewTradeDetail =
     selectedTrade && !window.desktopApi
@@ -1125,6 +1190,7 @@ function App() {
             onSelectTrade={(tradeId) => {
               setSelectedTradeId(tradeId);
               setActiveAttachmentPreviewId(null);
+              handleCancelRuleCheckEdit();
             }}
           />
 
@@ -1151,6 +1217,10 @@ function App() {
             reviewError={reviewError}
             isSavingReview={isSavingReview}
             isDeletingTrade={isDeletingTrade}
+            editingRuleCheckId={editingRuleCheckId}
+            ruleCheckEditDraft={ruleCheckEditDraft}
+            canSaveRuleCheck={canSaveRuleCheck}
+            savingRuleCheckId={savingRuleCheckId}
             attachmentPanel={attachmentPanel}
             attachmentDraft={attachmentDraft}
             isLoadingAttachments={isLoadingAttachments}
@@ -1164,6 +1234,10 @@ function App() {
             onConfirmReview={() => void handleConfirmReview()}
             onCorrectReview={() => void handleCorrectReview()}
             onInvalidateReview={() => void handleInvalidateReview()}
+            onStartRuleCheckEdit={handleStartRuleCheckEdit}
+            onRuleCheckDraftChange={handleRuleCheckDraftChange}
+            onCancelRuleCheckEdit={handleCancelRuleCheckEdit}
+            onSaveRuleCheck={(checkId) => void handleSaveRuleCheck(checkId)}
             onAttachmentDraftChange={setAttachmentDraft}
             onChooseAndAttach={() => void handleChooseAndAttach()}
             onDeleteAttachment={(attachmentId) =>

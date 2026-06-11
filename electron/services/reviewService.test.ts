@@ -11,6 +11,7 @@ import {
   createReviewDraft,
   getLatestReviewForTrade,
   invalidateReview,
+  updateRuleCheck,
 } from "./reviewService";
 
 const tempDirs: string[] = [];
@@ -151,6 +152,7 @@ describe("reviewService", () => {
 
     db.close();
   });
+
   it("creates default unknown rule checks from the bound rule checklist without duplicating them", () => {
     const { db, rule, trade } = createTradeReadyForReview();
 
@@ -232,5 +234,93 @@ describe("reviewService", () => {
     db.close();
   });
 
+  it("updates a rule check result with human evidence and comment", () => {
+    const { db, trade } = createTradeReadyForReview();
 
+    createReviewDraft(db, {
+      tradeId: trade.id,
+      summary: "Draft summary",
+    });
+
+    const check = db
+      .prepare("select id from trade_rule_check where trade_id = ? order by id limit 1")
+      .get(trade.id) as { id: number };
+
+    const updated = updateRuleCheck(db, check.id, {
+      result: "pass",
+      evidence: "Entry screenshot shows the opening range break.",
+      comment: "Manually confirmed after reviewing chart.",
+    });
+
+    expect(updated).toEqual({
+      id: check.id,
+      tradeId: trade.id,
+      entryRuleVersionId: expect.any(Number),
+      checkItem: "Break confirmed",
+      result: "pass",
+      evidence: "Entry screenshot shows the opening range break.",
+      comment: "Manually confirmed after reviewing chart.",
+      scoreDelta: null,
+      createdAt: expect.any(String),
+    });
+
+    expect(
+      db
+        .prepare(
+          `select result, evidence, comment
+           from trade_rule_check
+           where id = ?`,
+        )
+        .get(check.id),
+    ).toEqual({
+      result: "pass",
+      evidence: "Entry screenshot shows the opening range break.",
+      comment: "Manually confirmed after reviewing chart.",
+    });
+
+    db.close();
+  });
+
+  it("normalizes blank optional rule check text to null", () => {
+    const { db, trade } = createTradeReadyForReview();
+
+    createReviewDraft(db, {
+      tradeId: trade.id,
+      summary: "Draft summary",
+    });
+
+    const check = db
+      .prepare("select id from trade_rule_check where trade_id = ? order by id limit 1")
+      .get(trade.id) as { id: number };
+
+    const updated = updateRuleCheck(db, check.id, {
+      result: "unknown",
+      evidence: "   ",
+      comment: "",
+    });
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        result: "unknown",
+        evidence: null,
+        comment: null,
+      }),
+    );
+
+    db.close();
+  });
+
+  it("rejects rule check updates for missing checks", () => {
+    const db = createTestDb();
+
+    expect(() =>
+      updateRuleCheck(db, 999, {
+        result: "fail",
+        evidence: "No retest.",
+        comment: "Manual check.",
+      }),
+    ).toThrow("Rule check 999 was not found.");
+
+    db.close();
+  });
 });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { getReviewActionState, getReviewPanelState } from "./reviewPanel";
+import {
+  buildRuleCheckUpdateInput,
+  canSaveRuleCheckEdit,
+  createRuleCheckEditDraft,
+  getReviewActionState,
+  getReviewPanelState,
+} from "./reviewPanel";
 
 const baseTrade: TradeSummary = {
   id: 1,
@@ -35,7 +41,7 @@ describe("review panel state", () => {
         "AI 复盘服务尚未接入，统计不会使用占位内容。",
         "后续将从交易事实、截图和规则版本生成结构化草稿。",
       ],
-      canGenerate: true,
+      canGenerate: false,
       canConfirm: false,
     });
   });
@@ -166,5 +172,72 @@ describe("review action state", () => {
         confirmLabel: "处理中",
       }),
     );
+  });
+});
+
+describe("rule check edit state", () => {
+  const ruleCheck: TradeRuleCheckDetail = {
+    id: 44,
+    entryRuleVersionId: 8,
+    checkItem: "Break confirmed",
+    result: "unknown",
+    evidence: null,
+    comment: "等待 AI 或人工确认。",
+    scoreDelta: null,
+    createdAt: "2026-06-08T16:00:00.000Z",
+  };
+
+  it("creates an edit draft from the persisted rule check", () => {
+    expect(createRuleCheckEditDraft(ruleCheck)).toEqual({
+      result: "unknown",
+      evidence: "",
+      comment: "等待 AI 或人工确认。",
+    });
+  });
+
+  it("builds a trimmed update input while preserving intentionally blank text", () => {
+    expect(
+      buildRuleCheckUpdateInput({
+        result: "pass",
+        evidence: "  screenshot confirms trigger  ",
+        comment: "  ",
+      }),
+    ).toEqual({
+      result: "pass",
+      evidence: "screenshot confirms trigger",
+      comment: null,
+    });
+  });
+
+  it("only enables saving when desktop runtime is available and no save is running", () => {
+    expect(
+      canSaveRuleCheckEdit({
+        selectedTrade: baseTrade,
+        hasDesktopRuntime: true,
+        isSavingRuleCheck: false,
+      }),
+    ).toBe(true);
+
+    expect(
+      canSaveRuleCheckEdit({
+        selectedTrade: undefined,
+        hasDesktopRuntime: true,
+        isSavingRuleCheck: false,
+      }),
+    ).toBe(false);
+    expect(
+      canSaveRuleCheckEdit({
+        selectedTrade: baseTrade,
+        hasDesktopRuntime: false,
+        isSavingRuleCheck: false,
+      }),
+    ).toBe(false);
+    expect(
+      canSaveRuleCheckEdit({
+        selectedTrade: baseTrade,
+        hasDesktopRuntime: true,
+        isSavingRuleCheck: true,
+      }),
+    ).toBe(false);
   });
 });

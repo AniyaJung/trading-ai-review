@@ -37,6 +37,8 @@ const desktopApi = {
     correct: (id: number, input: unknown) =>
       ipcRenderer.invoke("reviews:correct", id, input),
     invalidate: (id: number) => ipcRenderer.invoke("reviews:invalidate", id),
+    updateRuleCheck: (id: number, input: unknown) =>
+      ipcRenderer.invoke("reviews:updateRuleCheck", id, input),
   },
   stats: {
     getOverview: (filters?: unknown) =>

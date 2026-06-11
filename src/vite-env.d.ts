@@ -191,6 +191,12 @@ type CorrectReviewInput = {
   rawResult?: Record<string, unknown>;
 };
 
+type UpdateRuleCheckInput = {
+  result: TradeRuleCheckDetail["result"];
+  evidence?: string | null;
+  comment?: string | null;
+};
+
 type AttachmentImageType =
   | "before_entry"
   | "entry"
@@ -284,6 +290,10 @@ type DesktopApi = {
     confirm: (id: number) => Promise<AIReview>;
     correct: (id: number, input: CorrectReviewInput) => Promise<AIReview>;
     invalidate: (id: number) => Promise<AIReview>;
+    updateRuleCheck: (
+      id: number,
+      input: UpdateRuleCheckInput,
+    ) => Promise<TradeRuleCheckDetail & { tradeId: number }>;
   };
   stats: {
     getOverview: (filters?: StatsOverviewFilters) => Promise<StatsOverview>;

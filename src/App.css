@@ -687,7 +687,7 @@ textarea:hover {
 
 .rule-check-result {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 6px 8px;
   align-items: center;
   padding: 10px;
@@ -704,7 +704,7 @@ textarea:hover {
 
 .rule-check-result p,
 .rule-check-result small {
-  grid-column: 2;
+  grid-column: 2 / 4;
   margin: 0;
   color: var(--ink-soft);
   font-size: 12px;
@@ -713,6 +713,61 @@ textarea:hover {
 
 .rule-check-result small {
   color: var(--muted);
+}
+
+.rule-check-edit-button {
+  width: 30px;
+  min-height: 30px;
+}
+
+.rule-check-editor {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.rule-check-editor label {
+  display: grid;
+  gap: 5px;
+}
+
+.rule-check-editor span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.rule-check-editor select,
+.rule-check-editor textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fff;
+}
+
+.rule-check-editor select {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.rule-check-editor textarea {
+  min-height: 58px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.rule-check-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.rule-check-editor-actions .primary-button,
+.rule-check-editor-actions .secondary-button {
+  min-height: 34px;
 }
 
 .rule-check-status {

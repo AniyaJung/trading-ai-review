@@ -80,6 +80,25 @@ describe("createReviewIpcHandlers", () => {
         summary: "Corrected summary",
       }),
     );
+    const check = db
+      .prepare("select id from trade_rule_check where trade_id = ?")
+      .get(trade.id) as { id: number };
+
+    expect(
+      handlers.updateRuleCheck(check.id, {
+        result: "fail",
+        evidence: "Chart never retested the breakout.",
+        comment: "Manual review from screenshot.",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        id: check.id,
+        tradeId: trade.id,
+        result: "fail",
+        evidence: "Chart never retested the breakout.",
+        comment: "Manual review from screenshot.",
+      }),
+    );
     expect(handlers.invalidate(draft.id)).toEqual(
       expect.objectContaining({
         id: draft.id,

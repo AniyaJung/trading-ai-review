@@ -2,13 +2,16 @@ import {
   Camera,
   CheckCircle2,
   FileText,
+  Pencil,
   RotateCcw,
+  Save,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import { AttachmentSection } from "./AttachmentSection";
 import type { AttachmentImageType, AttachmentPanelItem } from "../app/attachmentPanel";
-import type { ReviewActionState } from "../app/reviewPanel";
+import type { ReviewActionState, RuleCheckEditDraft } from "../app/reviewPanel";
 
 type ReviewPanelState = {
   badge: string;
@@ -36,6 +39,10 @@ type TradeReviewPanelProps = {
   reviewError: string | null;
   isSavingReview: boolean;
   isDeletingTrade: boolean;
+  editingRuleCheckId: number | null;
+  ruleCheckEditDraft: RuleCheckEditDraft;
+  canSaveRuleCheck: boolean;
+  savingRuleCheckId: number | null;
   attachmentPanel: {
     countLabel: string;
     emptyText: string | null;
@@ -53,6 +60,10 @@ type TradeReviewPanelProps = {
   onConfirmReview: () => void;
   onCorrectReview: () => void;
   onInvalidateReview: () => void;
+  onStartRuleCheckEdit: (check: TradeRuleCheckDetail) => void;
+  onRuleCheckDraftChange: (draft: RuleCheckEditDraft) => void;
+  onCancelRuleCheckEdit: () => void;
+  onSaveRuleCheck: (checkId: number) => void;
   onAttachmentDraftChange: (draft: AttachmentDraft) => void;
   onChooseAndAttach: () => void;
   onDeleteAttachment: (attachmentId: number) => void;
@@ -71,6 +82,10 @@ export function TradeReviewPanel({
   reviewError,
   isSavingReview,
   isDeletingTrade,
+  editingRuleCheckId,
+  ruleCheckEditDraft,
+  canSaveRuleCheck,
+  savingRuleCheckId,
   attachmentPanel,
   attachmentDraft,
   isLoadingAttachments,
@@ -84,6 +99,10 @@ export function TradeReviewPanel({
   onConfirmReview,
   onCorrectReview,
   onInvalidateReview,
+  onStartRuleCheckEdit,
+  onRuleCheckDraftChange,
+  onCancelRuleCheckEdit,
+  onSaveRuleCheck,
   onAttachmentDraftChange,
   onChooseAndAttach,
   onDeleteAttachment,
@@ -204,16 +223,98 @@ export function TradeReviewPanel({
               </div>
               {ruleChecks.length > 0 ? (
                 <div className="rule-check-list">
-                  {ruleChecks.map((check) => (
-                    <div key={check.id} className="rule-check-result">
-                      <span className={`rule-check-status ${check.result}`}>
-                        {formatRuleCheckResult(check.result)}
-                      </span>
-                      <strong>{check.checkItem}</strong>
-                      {check.evidence ? <p>{check.evidence}</p> : null}
-                      {check.comment ? <small>{check.comment}</small> : null}
-                    </div>
-                  ))}
+                  {ruleChecks.map((check) => {
+                    const isEditing = editingRuleCheckId === check.id;
+                    const isSavingThisCheck = savingRuleCheckId === check.id;
+
+                    return (
+                      <div key={check.id} className="rule-check-result">
+                        <span className={`rule-check-status ${check.result}`}>
+                          {formatRuleCheckResult(check.result)}
+                        </span>
+                        <strong>{check.checkItem}</strong>
+                        <button
+                          type="button"
+                          className="icon-button rule-check-edit-button"
+                          onClick={() => onStartRuleCheckEdit(check)}
+                          disabled={isSavingThisCheck}
+                          title="编辑规则检查"
+                          aria-label={`编辑规则检查：${check.checkItem}`}
+                        >
+                          <Pencil aria-hidden="true" size={14} />
+                        </button>
+                        {check.evidence ? <p>{check.evidence}</p> : null}
+                        {check.comment ? <small>{check.comment}</small> : null}
+                        {isEditing ? (
+                          <div className="rule-check-editor">
+                            <label>
+                              <span>结果</span>
+                              <select
+                                value={ruleCheckEditDraft.result}
+                                onChange={(event) =>
+                                  onRuleCheckDraftChange({
+                                    ...ruleCheckEditDraft,
+                                    result: event.target
+                                      .value as RuleCheckEditDraft["result"],
+                                  })
+                                }
+                              >
+                                <option value="pass">通过</option>
+                                <option value="fail">未通过</option>
+                                <option value="unknown">待确认</option>
+                              </select>
+                            </label>
+                            <label>
+                              <span>证据</span>
+                              <textarea
+                                rows={2}
+                                value={ruleCheckEditDraft.evidence}
+                                onChange={(event) =>
+                                  onRuleCheckDraftChange({
+                                    ...ruleCheckEditDraft,
+                                    evidence: event.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>备注</span>
+                              <textarea
+                                rows={2}
+                                value={ruleCheckEditDraft.comment}
+                                onChange={(event) =>
+                                  onRuleCheckDraftChange({
+                                    ...ruleCheckEditDraft,
+                                    comment: event.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                            <div className="rule-check-editor-actions">
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={onCancelRuleCheckEdit}
+                                disabled={isSavingThisCheck}
+                              >
+                                <X aria-hidden="true" size={14} />
+                                取消
+                              </button>
+                              <button
+                                type="button"
+                                className="primary-button"
+                                onClick={() => onSaveRuleCheck(check.id)}
+                                disabled={!canSaveRuleCheck}
+                              >
+                                <Save aria-hidden="true" size={14} />
+                                {isSavingThisCheck ? "保存中" : "保存"}
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : selectedTradeDetail.entryRuleChecklist.length > 0 ? (
                 <div className="detail-state">
@@ -419,7 +520,6 @@ function formatOptionalR(value: number | null) {
 function formatPercent(value: number | null) {
   return value == null ? "-" : `${Math.round(value * 100)}%`;
 }
-
 
 function formatRuleCheckResult(result: TradeRuleCheckDetail["result"]) {
   if (result === "pass") {

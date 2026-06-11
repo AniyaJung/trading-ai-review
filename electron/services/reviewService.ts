@@ -62,6 +62,26 @@ export type CorrectReviewInput = {
   rawResult?: JsonObject;
 };
 
+export type RuleCheckResult = "pass" | "fail" | "unknown";
+
+export type UpdateRuleCheckInput = {
+  result: RuleCheckResult;
+  evidence?: string | null;
+  comment?: string | null;
+};
+
+export type UpdatedRuleCheck = {
+  id: number;
+  tradeId: number;
+  entryRuleVersionId: number;
+  checkItem: string;
+  result: RuleCheckResult;
+  evidence: string | null;
+  comment: string | null;
+  scoreDelta: number | null;
+  createdAt: string;
+};
+
 type AIReviewRow = Omit<
   AIReview,
   | "facts"
@@ -230,6 +250,30 @@ export function invalidateReview(db: DatabaseSync, id: number): AIReview {
   return updateReviewStatus(db, id, "invalid", { confirmedAt: false });
 }
 
+export function updateRuleCheck(
+  db: DatabaseSync,
+  id: number,
+  input: UpdateRuleCheckInput,
+): UpdatedRuleCheck {
+  assertRuleCheckResult(input.result);
+  assertRuleCheckExists(db, id);
+
+  db.prepare(
+    `update trade_rule_check
+     set result = ?,
+         evidence = ?,
+         comment = ?
+     where id = ?`,
+  ).run(
+    input.result,
+    normalizeOptionalText(input.evidence),
+    normalizeOptionalText(input.comment),
+    id,
+  );
+
+  return getRuleCheckById(db, id);
+}
+
 function updateReviewStatus(
   db: DatabaseSync,
   id: number,
@@ -253,6 +297,31 @@ function updateReviewStatus(
     db.exec("rollback");
     throw error;
   }
+}
+
+function getRuleCheckById(db: DatabaseSync, id: number): UpdatedRuleCheck {
+  const row = db
+    .prepare(
+      `select
+        id,
+        trade_id as tradeId,
+        entry_rule_version_id as entryRuleVersionId,
+        check_item as checkItem,
+        result,
+        evidence,
+        comment,
+        score_delta as scoreDelta,
+        created_at as createdAt
+       from trade_rule_check
+       where id = ?`,
+    )
+    .get(id) as UpdatedRuleCheck | undefined;
+
+  if (!row) {
+    throw new Error(`Rule check ${id} was not found.`);
+  }
+
+  return row;
 }
 
 function getReviewById(db: DatabaseSync, id: number): AIReview {
@@ -288,6 +357,16 @@ function getReviewById(db: DatabaseSync, id: number): AIReview {
   }
 
   return mapReviewRow(row);
+}
+
+function assertRuleCheckExists(db: DatabaseSync, id: number) {
+  getRuleCheckById(db, id);
+}
+
+function assertRuleCheckResult(result: string): asserts result is RuleCheckResult {
+  if (result !== "pass" && result !== "fail" && result !== "unknown") {
+    throw new Error("Rule check result must be pass, fail, or unknown.");
+  }
 }
 
 function assertTradeExists(db: DatabaseSync, tradeId: number) {
@@ -383,6 +462,11 @@ function mapReviewRow(row: AIReviewRow): AIReview {
 
 function stringifyJson(value: unknown): string {
   return JSON.stringify(value);
+}
+
+function normalizeOptionalText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function parseJsonObject(value: string): JsonObject {

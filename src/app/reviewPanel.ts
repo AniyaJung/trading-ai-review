@@ -15,6 +15,12 @@ export type ReviewActionState = {
   disabledReason: string | null;
 };
 
+export type RuleCheckEditDraft = {
+  result: TradeRuleCheckDetail["result"];
+  evidence: string;
+  comment: string;
+};
+
 export function getReviewPanelState(
   trade: TradeSummary | undefined,
 ): ReviewPanelState {
@@ -161,4 +167,41 @@ export function getReviewActionState({
 
 function isDraftReviewStatus(status: ReviewStatus) {
   return status === "draft" || status === "needs_review";
+}
+
+export function createRuleCheckEditDraft(
+  check: TradeRuleCheckDetail,
+): RuleCheckEditDraft {
+  return {
+    result: check.result,
+    evidence: check.evidence ?? "",
+    comment: check.comment ?? "",
+  };
+}
+
+export function buildRuleCheckUpdateInput(
+  draft: RuleCheckEditDraft,
+): UpdateRuleCheckInput {
+  return {
+    result: draft.result,
+    evidence: normalizeOptionalText(draft.evidence),
+    comment: normalizeOptionalText(draft.comment),
+  };
+}
+
+export function canSaveRuleCheckEdit({
+  selectedTrade,
+  hasDesktopRuntime,
+  isSavingRuleCheck,
+}: {
+  selectedTrade: TradeSummary | undefined;
+  hasDesktopRuntime: boolean;
+  isSavingRuleCheck: boolean;
+}) {
+  return Boolean(selectedTrade && hasDesktopRuntime && !isSavingRuleCheck);
+}
+
+function normalizeOptionalText(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
