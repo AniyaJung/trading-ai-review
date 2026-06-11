@@ -31,7 +31,12 @@ export function AppTopbar({
       <div className="toolbar">
         {currentView === "trades" ? (
           <>
-            <button type="button" className="icon-button" title="复制当前交易">
+            <button
+              type="button"
+              className="icon-button"
+              title="复制当前交易待接入"
+              disabled
+            >
               <Copy aria-hidden="true" size={18} />
             </button>
             <button

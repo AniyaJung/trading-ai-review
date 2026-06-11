@@ -52,13 +52,15 @@ export function TradeListPanel({
                 ) : (
                   <ArrowDownRight aria-hidden="true" size={16} />
                 )}
-                {trade.direction}
+                {formatDirection(trade.direction)}
               </span>
-              <span>{trade.quantity}</span>
-              <span>{trade.entryPriceAvg}</span>
-              <span>{trade.exitPriceAvg}</span>
+              <span className={trade.netPnl >= 0 ? "pnl positive" : "pnl negative"}>
+                {formatCurrency(trade.netPnl)}
+              </span>
+              <span className="trade-r">{formatRMultiple(trade.rMultiple)}</span>
+              <span className="quantity">{trade.quantity} 手</span>
               <span className={`status ${trade.aiReviewStatus}`}>
-                {trade.aiReviewStatus}
+                {formatReviewStatus(trade.aiReviewStatus)}
               </span>
             </button>
           ))
@@ -75,4 +77,33 @@ function formatTradeTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatDirection(direction: TradeDirection) {
+  return direction === "long" ? "做多" : "做空";
+}
+
+function formatCurrency(value: number) {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}$${value.toFixed(2)}`;
+}
+
+function formatRMultiple(value: number | null) {
+  return value == null ? "-R" : `${value.toFixed(2)}R`;
+}
+
+function formatReviewStatus(status: TradeSummary["aiReviewStatus"]) {
+  switch (status) {
+    case "not_generated":
+      return "未生成";
+    case "draft":
+    case "needs_review":
+      return "待确认";
+    case "confirmed":
+      return "已确认";
+    case "corrected":
+      return "已修正";
+    case "invalid":
+      return "已作废";
+  }
 }

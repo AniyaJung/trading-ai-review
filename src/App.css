@@ -181,6 +181,11 @@
   border: 1px solid var(--line);
 }
 
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .primary-button {
   padding: 0 14px;
   color: #fff;
@@ -215,12 +220,26 @@
 
 .desk-grid {
   display: grid;
-  grid-template-columns: minmax(420px, 1.08fr) minmax(360px, 0.94fr) minmax(
+  grid-template-areas: "list form review";
+  grid-template-columns: minmax(420px, 1.05fr) minmax(340px, 0.82fr) minmax(
       360px,
-      0.98fr
+      0.9fr
     );
+  align-items: start;
   gap: 16px;
   padding: 18px;
+}
+
+.trade-list-panel {
+  grid-area: list;
+}
+
+.form-panel {
+  grid-area: form;
+}
+
+.review-panel {
+  grid-area: review;
 }
 
 .panel {
@@ -280,13 +299,13 @@
 }
 
 .trade-row {
-  min-height: 68px;
+  min-height: 64px;
   display: grid;
-  grid-template-columns: minmax(124px, 1.1fr) 86px 48px 78px 78px 104px;
+  grid-template-columns: minmax(104px, 1.1fr) 76px 92px 66px 62px 78px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 0 18px;
+  padding: 0 16px;
   color: var(--ink);
   text-align: left;
   background: transparent;
@@ -318,10 +337,32 @@
 }
 
 .direction,
+.pnl,
+.trade-r,
 .status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.pnl,
+.trade-r {
+  justify-content: flex-end;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.pnl.positive {
+  color: var(--positive);
+}
+
+.pnl.negative {
+  color: var(--accent-strong);
+}
+
+.trade-r {
+  color: var(--ink-soft);
 }
 
 .status {
@@ -358,8 +399,8 @@
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding: 16px;
+  gap: 11px 12px;
+  padding: 14px;
 }
 
 .trade-form-grid {
@@ -390,6 +431,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 6px;
   font: inherit;
+  font-weight: 650;
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -398,7 +440,12 @@ textarea {
 
 input,
 select {
-  height: 36px;
+  height: 38px;
+}
+
+input[inputmode="decimal"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 textarea {
@@ -416,7 +463,7 @@ textarea:hover {
 .notes-grid {
   display: grid;
   gap: 12px;
-  padding: 0 16px 16px;
+  padding: 0 14px 14px;
 }
 
 .metric-strip {
@@ -429,7 +476,7 @@ textarea:hover {
 .metric-strip div {
   display: grid;
   gap: 4px;
-  padding: 16px;
+  padding: 13px 14px;
   border-right: 1px solid var(--line);
 }
 
@@ -474,18 +521,18 @@ textarea:hover {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 18px;
+  padding: 16px 18px 14px;
 }
 
 .review-score > span {
-  width: 64px;
-  height: 64px;
+  width: 54px;
+  height: 54px;
   display: grid;
   place-items: center;
   color: #f7f1de;
   background: #275247;
   border-radius: 8px;
-  font-size: 27px;
+  font-size: 22px;
   font-weight: 900;
 }
 
@@ -502,9 +549,9 @@ textarea:hover {
 
 .review-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
-  padding: 0 18px 16px;
+  padding: 0 18px 14px;
   list-style: none;
 }
 
@@ -526,14 +573,14 @@ textarea:hover {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  padding: 0 18px 18px;
+  padding: 0 18px 14px;
 }
 
 .workflow-step {
   min-width: 0;
   display: grid;
   gap: 4px;
-  padding: 10px;
+  padding: 9px;
   color: var(--muted);
   background: var(--panel-subtle);
   border: 1px solid var(--line);
@@ -1381,6 +1428,10 @@ textarea:hover {
   }
 
   .desk-grid {
+    grid-template-areas:
+      "list"
+      "review"
+      "form";
     grid-template-columns: 1fr;
   }
 
@@ -1417,7 +1468,10 @@ textarea:hover {
 
 @media (min-width: 1181px) and (max-width: 1420px) {
   .desk-grid {
-    grid-template-columns: minmax(620px, 1fr) minmax(320px, 0.8fr);
+    grid-template-areas:
+      "list review"
+      "form review";
+    grid-template-columns: minmax(520px, 1fr) minmax(380px, 0.82fr);
     padding: 12px;
   }
 
@@ -1430,10 +1484,6 @@ textarea:hover {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .review-panel {
-    grid-column: 1 / -1;
-  }
-
   .rule-list-panel {
     grid-column: 1 / -1;
   }
@@ -1441,11 +1491,12 @@ textarea:hover {
 
 @media (max-width: 1560px) {
   .trade-row {
-    grid-template-columns: minmax(78px, 1fr) 74px 42px 98px;
+    grid-template-columns: minmax(82px, 1fr) 54px 78px 52px 62px;
+    gap: 6px;
+    padding: 0 12px;
   }
 
-  .trade-row > span:nth-child(4),
-  .trade-row > span:nth-child(5) {
+  .trade-row .quantity {
     display: none;
   }
 }
@@ -1518,13 +1569,36 @@ textarea:hover {
   }
 
   .trade-row {
-    grid-template-columns: 1fr 76px;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 6px;
     padding: 10px 12px;
   }
 
-  .trade-row > span:nth-child(n + 3):nth-child(-n + 5) {
+  .trade-row .direction,
+  .trade-row .quantity {
     display: none;
+  }
+
+  .trade-row .trade-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .trade-row .pnl {
+    grid-column: 1;
+    grid-row: 2;
+    justify-content: flex-start;
+  }
+
+  .trade-row .trade-r {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .trade-row .status {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
   }
 
   .form-grid,
