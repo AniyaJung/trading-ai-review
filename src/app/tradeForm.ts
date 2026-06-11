@@ -21,13 +21,6 @@ type TradeFormBuildResult =
   | { ok: true; input: CreateClosedTradeInput }
   | { ok: false; errors: string[] };
 
-const pointValueBySymbol: Record<TradeFormState["symbol"], number> = {
-  ES: 50,
-  MES: 5,
-  NQ: 20,
-  MNQ: 2,
-};
-
 export function createInitialTradeForm(now = new Date()): TradeFormState {
   return {
     symbol: "ES",
@@ -82,14 +75,17 @@ export function createTradeFormFromDetail(detail: TradeDetail): TradeFormState {
 
 export function calculateTradeFormPreview(
   form: TradeFormState,
+  instruments: InstrumentConfig[],
 ): ClosedFuturesTradeCalculation | null {
   const entryPrice = Number(form.entryPrice);
   const exitPrice = Number(form.exitPrice);
   const stopLossPrice = Number(form.stopLossPrice);
   const quantity = Number(form.quantity);
   const feesTotal = Number(form.feesTotal);
+  const instrument = instruments.find((item) => item.symbol === form.symbol);
 
   if (
+    !instrument ||
     !Number.isFinite(entryPrice) ||
     !Number.isFinite(exitPrice) ||
     !Number.isFinite(stopLossPrice) ||
@@ -106,7 +102,7 @@ export function calculateTradeFormPreview(
       exitPrice,
       stopLossPrice,
       quantity,
-      pointValue: pointValueBySymbol[form.symbol],
+      pointValue: instrument.pointValue,
       feesTotal,
     });
   } catch {

@@ -1,6 +1,6 @@
 # AI 交易复盘项目 - 下个对话上下文
 
-更新时间：2026-06-10
+更新时间：2026-06-11
 
 ## 1. 项目定位
 
@@ -83,22 +83,30 @@ docs/superpowers/2026-06-10-next-conversation-context.md
 
 ## 5. 当前 Git 进度
 
-当前分支：`main`
+当前分支：`codex/safe-attachment-preview`
 
 最近一次人工记录的提交序列：
 
 ```text
+fdb2e1c feat: wire review draft resolution UI
+e00f085 feat: add local ai review service
+97ebcf7 feat: add rule binding review workspace
+22c098b docs: update next conversation handoff
 b301a3c feat: add trade screenshot attachments
 53fe691 feat: add closed trade editing
 1e6168a feat: improve trade record workflow
 d7fc313 docs: add next conversation handoff
-3ce5d5c feat: add closed trade entry form
-39a07aa feat: add closed trade persistence
-6896f6d feat: add local sqlite foundation
-61b3b3f refactor: migrate desktop shell to electron
 ```
 
 继续开发前应运行 `git status --short --branch` 和 `git log --oneline -8` 确认最新提交与工作区状态。
+
+2026-06-11 本轮开发内容：
+
+- 修复无选中交易时 `selectedTradeDetailState?.tradeId === selectedTrade?.id` 误判为 true 的运行时问题，避免桌面应用空状态启动时报 `Cannot read properties of undefined`。
+- 新增 `src/app/tradeDetailSelection.ts`，集中处理选中交易详情、错误状态、附件错误和复盘错误的 tradeId 归属判断。
+- 新增 `database:listInstruments` IPC / preload API，Renderer 启动时从 SQLite 读取 ES/MES/NQ/MNQ 品种配置。
+- 移除 `src/app/tradeForm.ts` 内的前端 `pointValueBySymbol`，实时预览改用 `instrument.point_value`，保证表单预览和服务端保存计算使用同一个点值来源。
+- 补充 `electron/ipc/databaseIpc.test.ts`、`src/app/tradeForm.test.ts` 和 `src/app/tradeDetailSelection.test.ts` 覆盖上述行为。
 
 ## 6. 已完成能力
 
@@ -153,6 +161,7 @@ electron/runtimePaths.ts
 - 初始化数据库 schema。
 - 通过 `pragma user_version = 1` 管理当前迁移版本。
 - 种子品种：ES、MES、NQ、MNQ。
+- `instrument.point_value` 是服务端保存交易时计算盈亏、计划风险和 R 倍数的权威配置来源。
 
 核心表：
 
@@ -245,6 +254,7 @@ src/vite-env.d.ts
   - 入场理由
   - 出场理由
 - 表单实时预览净盈亏、R 倍数、计划风险。
+- 表单实时预览已改为从 SQLite `instrument.point_value` 读取点值，不再在前端维护独立 ES/MES/NQ/MNQ 点值表。
 - 表单有客户端中文校验，先拦截无效数字、时间、止损方向等错误。
 - `datetime-local` 会按用户本地时间解析后转 ISO，且会拒绝日期回绕。
 - 点击“保存已平仓交易”可通过 Electron API 写入 SQLite。
@@ -252,6 +262,7 @@ src/vite-env.d.ts
 - 当前支持从选中交易详情回填表单并编辑已平仓交易；更新后重新计算盈亏和成交明细。
 - 当前支持删除选中交易，删除前会确认；SQLite 明细通过外键级联清理。
 - 右侧 AI 复盘区域目前是基于 `ai_review_status` 的真实状态占位，不再展示静态假分数或假截图结论。
+- 无选中交易或详情尚未加载时，交易详情、附件错误和复盘错误状态不会再因为两个缺失 id 相等而误判为当前交易状态。
 
 关键文件：
 
@@ -382,6 +393,69 @@ src/components/RulesView.tsx
 src/App.tsx
 ```
 
+### 6.8 本地 AI 复盘草稿闭环
+
+已完成：
+
+- `ReviewService` 可创建本地复盘草稿，并写入 `ai_review`。
+- 可读取单笔交易最新复盘。
+- 可确认草稿、修正草稿摘要、标记草稿无效。
+- 复盘状态会同步回 `trade.ai_review_status`。
+- Electron IPC / preload 暴露：
+
+```text
+window.desktopApi.reviews.createDraft(input)
+window.desktopApi.reviews.getLatestForTrade(tradeId)
+window.desktopApi.reviews.confirm(id)
+window.desktopApi.reviews.correct(id, input)
+window.desktopApi.reviews.invalidate(id)
+```
+
+- UI 右侧复盘区已经能展示本地草稿状态，并提供确认、修正、标记无效入口。
+- 交易列表和交易详情会随复盘状态变化刷新。
+
+当前限制：
+
+- 还没有真正接入远程多模态 AI API。
+- 目前草稿创建能力主要服务于本地状态闭环，尚未从截图、规则和交易事实自动生成结构化内容。
+- `trade_rule_check` 表已存在，但规则逐项检查结果的写入和展示还没有完成。
+
+关键文件：
+
+```text
+electron/services/reviewService.ts
+electron/ipc/reviewIpc.ts
+src/app/reviewPanel.ts
+src/components/TradeReviewPanel.tsx
+src/App.tsx
+```
+
+### 6.9 品种配置读取和预览计算
+
+已完成：
+
+- SQLite `instrument` 表继续作为品种配置来源。
+- `database:listInstruments` IPC 可返回当前数据库中的品种配置。
+- Preload 暴露 `window.desktopApi.database.listInstruments()`。
+- Renderer 启动时加载品种配置，并传入交易表单。
+- 交易表单品种下拉从数据库配置生成。
+- 表单实时预览使用当前品种的 `pointValue` 计算净盈亏、计划风险和 R 倍数。
+
+当前限制：
+
+- UI 还没有提供“品种配置管理”页面；ES/MES/NQ/MNQ 仍由数据库 seed 初始化。
+- 如果后续允许用户新增或修改品种，需要补充 instrument service、配置 UI 和迁移/校验策略。
+
+关键文件：
+
+```text
+electron/ipc/databaseIpc.ts
+electron/preload.ts
+src/app/tradeForm.ts
+src/components/TradeFormPanel.tsx
+src/vite-env.d.ts
+```
+
 ## 7. 当前验证状态
 
 最近一次完整验证通过：
@@ -394,10 +468,9 @@ npm run lint
 
 结果：
 
-- Vitest：16 files / 67 tests passed。
+- Vitest：20 files / 80 tests passed。
 - Build：passed。
 - Lint：passed。
-- `git diff --check`：passed。
 
 注意：测试和临时 Node 脚本中会出现 `node:sqlite` ExperimentalWarning，这是当前技术选型的已知现象。
 
@@ -433,30 +506,29 @@ latest trade id = 7
 
 ### 9.0 下一步推荐
 
-下个对话建议优先做 **视觉效果优化**，然后再接 AI 复盘。用户已明确指定视觉优化阶段使用下面这个 skill：
+下个对话建议优先做 **统计面板最小闭环**。
+
+原因：
+
+- 交易事实、附件截图、规则绑定和本地复盘草稿确认/修正流程已经基本成型。
+- `confirmed` / `corrected` 复盘状态已经有明确统计口径。
+- 左侧已有“统计”入口，但还没有真实统计服务和 UI。
+- 先做最小统计面板可以验证“记录 -> 复盘确认 -> 进入统计”的 MVP 闭环是否成立。
+
+建议范围保持小：
+
+- 新增 `StatsService`，只统计已平仓交易中的基础交易指标；如果涉及复盘口径，则只纳入 `ai_review_status in ('confirmed', 'corrected')` 的复盘指标。
+- 先实现总览卡片：总交易数、已确认复盘数、总净盈亏、胜率、平均 R、profit factor、总手续费。
+- 增加按品种聚合的简单列表，先不接 ECharts。
+- 通过 IPC / preload 暴露只读统计 API。
+- 在当前“统计”视图接入真实数据，空状态要明确说明“需要确认复盘后才进入 AI 复盘口径”。
+- 新功能先补 Vitest，再实现。
+
+视觉优化仍然重要，但建议放到统计面板最小闭环之后。若下个对话改做视觉优化，用户曾指定可使用：
 
 ```text
 /Users/juyu/.agents/skills/ui-ux-pro-max/SKILL.md
 ```
-
-现在 UI 结构已经拆分，适合在组件边界上优化交易页、规则页和详情区的视觉层级。
-
-视觉优化建议聚焦：
-
-- 重新组织交易页右侧详情区，为后续 AI 草稿、规则检查结果、用户确认/修正留出稳定区域。
-- 优化规则页的密度和版本操作体验，但不引入富文本或复杂编辑器。
-- 统一截图区、规则绑定区、复盘状态区的视觉语言。
-- 保持这是本地桌面工作台，不要做 landing page、营销页或大幅品牌重设计。
-- 沿用现有 React + plain CSS + lucide-react，不引入新的 UI 框架。
-- 视觉优化应先在拆分后的组件上进行：
-  - `src/components/TradeListPanel.tsx`
-  - `src/components/TradeFormPanel.tsx`
-  - `src/components/TradeReviewPanel.tsx`
-  - `src/components/AttachmentSection.tsx`
-  - `src/components/RulesView.tsx`
-  - `src/components/AppSidebar.tsx`
-  - `src/components/AppTopbar.tsx`
-- 完成后必须检查桌面和窄屏布局，确认文本不溢出、面板不重叠、表单和按钮仍可用。
 
 ### 9.1 交易表单产品化
 
@@ -475,6 +547,7 @@ latest trade id = 7
 
 - 已完成客户端校验、时间解析、保存后重置、选择交易、详情读取、编辑交易、删除交易、加载/错误/空状态。
 - 已完成交易录入和编辑时绑定 active 规则 latest version。
+- 已完成表单实时预览从 Electron/SQLite 的 `instrument` 配置读取点值，避免前端预览和保存到数据库时使用不同的 `point_value`。
 - “复制上一笔”按钮仍是占位入口，尚未接入行为。
 - `src/App.tsx` 已经完成主要 UI 面板拆分，但仍承载较多状态和副作用；继续做 AI 复盘前可先做视觉整理，后续再按需要拆 hooks/view model。
 
@@ -529,13 +602,19 @@ session_template
 
 目标：从交易事实、截图、规则版本生成结构化复盘。
 
+当前状态：
+
+- 本地 `ReviewService`、IPC、preload 和 UI 草稿状态处理已完成。
+- 已支持本地草稿的读取、确认、修正摘要和标记无效。
+- 尚未接入真实 AI API，也尚未写入 `trade_rule_check`。
+
 建议任务：
 
-- `ReviewService`。
 - 设计 AI prompt 输入结构。
+- 组装交易事实、截图 data、规则版本和 checklist。
+- 接入远程多模态 AI API，并把模型/API key 做成本地设置。
 - 输出结构写入 `ai_review` 和 `trade_rule_check`。
-- UI 展示 AI 草稿。
-- 用户确认、修正、标记无效。
+- UI 展示真实 AI 草稿、规则 checklist 判断和证据。
 - 只有 confirmed/corrected 数据进入统计。
 
 ### 9.6 统计面板
@@ -545,8 +624,8 @@ session_template
 建议任务：
 
 - `StatsService`。
-- 按时间、品种、规则、标签聚合。
-- ECharts 接入。
+- 先做总览指标和按品种聚合，再扩展按时间、规则、标签聚合。
+- ECharts 放在基础服务和数据口径稳定之后接入。
 - 核心指标：
   - 总交易数
   - 胜率
@@ -581,17 +660,20 @@ session_template
 
 /Users/juyu/IdeaProjects/trading-ai-review
 
-当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。当前“交易事实 + 附件截图 + 入场规则版本绑定”输入链路已成型，主要 UI 面板也已拆分到 src/components。建议下一步优先做视觉效果优化，并保持测试通过。
+当前目标：在现有 Electron + React + SQLite 基础上继续开发 AI 交易复盘 MVP。请先检查 git 状态和现有代码，不要重置或删除本地数据库。当前“交易事实 + 附件截图 + 入场规则版本绑定 + 本地复盘草稿确认/修正”链路已成型，表单预览已改为从 SQLite instrument 配置读取点值。建议下一步优先做“统计面板最小闭环”，并保持测试通过。
 
-当前最新提交应包含：
+当前历史应至少包含这个基线提交；如果本轮改动已经提交，最新提交会在其后：
 
-b301a3c feat: add trade screenshot attachments
+fdb2e1c feat: wire review draft resolution UI
 
-建议下一步优先做“视觉效果优化”。用户指定使用 skill：
+建议下一步优先做“统计面板最小闭环”：
 
-/Users/juyu/.agents/skills/ui-ux-pro-max/SKILL.md
-
-请在现有组件边界上优化交易页、规则页和详情区，为 AI 复盘草稿、规则检查和用户确认/修正流程预留稳定区域。不要引入新的 UI 框架，不要做 landing page，不要删除或重置本地数据库。
+- 新增 StatsService。
+- 新增统计 IPC / preload 只读 API。
+- 统计视图展示总交易数、已确认复盘数、总净盈亏、胜率、平均 R、profit factor、总手续费和按品种聚合。
+- 如果涉及 AI 复盘口径，只纳入 ai_review_status 为 confirmed/corrected 的交易。
+- 先写 Vitest，再实现。
+- 不要删除或重置本地数据库。
 ```
 
 ## 11. 开发命令
@@ -647,5 +729,6 @@ npm audit --cache .npm-cache
 - SQLite、文件系统、备份、附件、AI key 等都应放在 Electron Main Process。
 - Preload 只暴露窄 API。
 - 交易计算必须保持前后端一致，优先复用 `shared/trading/`。
+- 品种点值必须以 SQLite `instrument.point_value` 为权威来源，不要在 Renderer 重新硬编码 ES/MES/NQ/MNQ 点值表。
 - UI 目前是早期工作台，不要过早做复杂营销式页面。
 - MVP 当前不支持 open trade，但文档必须持续说明这个边界。

@@ -16,6 +16,10 @@ import {
   type TradeFormState,
 } from "./app/tradeForm";
 import { getInitialTrades } from "./app/tradeList";
+import {
+  getSelectedTradeDetail,
+  getTradeScopedStateValue,
+} from "./app/tradeDetailSelection";
 import { getReviewActionState, getReviewPanelState } from "./app/reviewPanel";
 import { parseChecklistText } from "./app/rulePanel";
 import { AppSidebar } from "./components/AppSidebar";
@@ -104,6 +108,7 @@ function App() {
     createInitialTradeForm(),
   );
   const [entryRules, setEntryRules] = useState<EntryRuleWithLatestVersion[]>([]);
+  const [instruments, setInstruments] = useState<InstrumentConfig[]>([]);
   const [isLoadingRules, setIsLoadingRules] = useState(false);
   const [ruleMessage, setRuleMessage] = useState(
     "创建入场规则后，交易录入时可以绑定具体版本。",
@@ -196,16 +201,19 @@ function App() {
       setIsLoadingTrades(true);
       setIsLoadingRules(true);
       try {
-        const [status, desktopTrades, activeRules] = await Promise.all([
-          window.desktopApi.database.getStatus(),
-          window.desktopApi.trades.list(),
-          window.desktopApi.rules.listActive(),
-        ]);
+        const [status, desktopTrades, activeRules, instrumentConfigs] =
+          await Promise.all([
+            window.desktopApi.database.getStatus(),
+            window.desktopApi.trades.list(),
+            window.desktopApi.rules.listActive(),
+            window.desktopApi.database.listInstruments(),
+          ]);
 
         if (!cancelled) {
           setDatabaseStatus(
             `SQLite v${status.migrationVersion} / ${status.instrumentCount} 个品种`,
           );
+          setInstruments(instrumentConfigs);
           setTrades(desktopTrades);
           setEntryRules(activeRules);
           setSelectedTradeId((current) => current ?? desktopTrades[0]?.id ?? null);
@@ -235,8 +243,8 @@ function App() {
   }, []);
 
   const formPreview = useMemo(() => {
-    return calculateTradeFormPreview(tradeForm);
-  }, [tradeForm]);
+    return calculateTradeFormPreview(tradeForm, instruments);
+  }, [tradeForm, instruments]);
 
   const updateTradeForm = (field: keyof TradeFormState, value: string) => {
     setTradeForm((current) => ({ ...current, [field]: value }));
@@ -764,29 +772,35 @@ function App() {
     selectedTrade && !window.desktopApi
       ? createPreviewTradeDetail(selectedTrade)
       : undefined;
-  const selectedTradeDetail =
-    previewTradeDetail ??
-    (selectedTradeDetailState?.tradeId === selectedTrade?.id
-      ? selectedTradeDetailState.detail
-      : undefined);
+  const selectedTradeDetail = getSelectedTradeDetail({
+    previewTradeDetail,
+    selectedTrade,
+    selectedTradeDetailState,
+  });
   const isLoadingTradeDetail = loadingTradeDetailId === selectedTrade?.id;
   const tradeDetailError =
-    tradeDetailErrorState?.tradeId === selectedTrade?.id
-      ? tradeDetailErrorState.error
-      : null;
+    getTradeScopedStateValue({
+      selectedTrade,
+      state: tradeDetailErrorState,
+      readValue: (state) => state.error,
+    }) ?? null;
   const attachmentPanel = getAttachmentPanelState(
     selectedTrade ? (attachmentsByTradeId[selectedTrade.id] ?? []) : [],
   );
   const isLoadingAttachments = loadingAttachmentTradeId === selectedTrade?.id;
   const attachmentError =
-    attachmentErrorState?.tradeId === selectedTrade?.id
-      ? attachmentErrorState.error
-      : null;
+    getTradeScopedStateValue({
+      selectedTrade,
+      state: attachmentErrorState,
+      readValue: (state) => state.error,
+    }) ?? null;
   const isLoadingReview = loadingReviewTradeId === selectedTrade?.id;
   const reviewError =
-    reviewErrorState?.tradeId === selectedTrade?.id
-      ? reviewErrorState.error
-      : null;
+    getTradeScopedStateValue({
+      selectedTrade,
+      state: reviewErrorState,
+      readValue: (state) => state.error,
+    }) ?? null;
   const activeAttachmentPreview =
     activeAttachmentPreviewId == null
       ? undefined
@@ -974,6 +988,7 @@ function App() {
           <TradeFormPanel
             tradeForm={tradeForm}
             entryRules={entryRules}
+            instruments={instruments}
             formPreview={formPreview}
             formErrors={formErrors}
             formMessage={formMessage}

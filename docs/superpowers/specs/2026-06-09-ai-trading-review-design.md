@@ -161,6 +161,10 @@ NQ:  tick_size 0.25, tick_value 5,    point_value 20
 MNQ: tick_size 0.25, tick_value 0.5,  point_value 2
 ```
 
+`instrument.point_value` 应作为盈亏、风险金额和 R 倍数计算的唯一权威配置来源。Renderer 里的实时预览也应从 Electron 读取当前品种配置，而不是在前端维护一份独立的 `pointValueBySymbol`。这样可以避免未来调整 ES/MES/NQ/MNQ 或新增品种时，保存结果和表单预览使用不同点值。
+
+当前实现状态：Renderer 已通过 `window.desktopApi.database.listInstruments()` 从 Electron/SQLite 读取品种配置，交易表单下拉和实时预览都使用该配置；`src/app/tradeForm.ts` 不再维护独立点值表。后续如果开放新增或修改品种，需要补 instrument 管理服务、配置页面和对应校验。
+
 ### 4.2 trade
 
 记录单笔交易主信息。
@@ -588,6 +592,8 @@ MVP 统计需要回答三个问题：
 - AI 分数和盈亏关系。
 
 统计项应支持下钻回交易列表，例如点击某个规则后进入该规则下的交易集合。
+
+建议实现顺序：先完成统计面板最小闭环，不要一开始就引入复杂图表。第一步可以只做 `StatsService`、统计 IPC / preload API、统计视图总览卡片和按品种聚合。涉及 AI 复盘口径时，只纳入 `ai_review_status` 为 `confirmed` 或 `corrected` 的交易。
 
 ### 6.6 备份和数据管理
 

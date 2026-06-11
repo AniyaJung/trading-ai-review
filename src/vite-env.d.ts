@@ -2,6 +2,17 @@
 
 type TradeDirection = "long" | "short";
 
+type InstrumentConfig = {
+  symbol: string;
+  name: string;
+  assetClass: "futures";
+  exchange: string;
+  currency: string;
+  tickSize: number;
+  tickValue: number;
+  pointValue: number;
+};
+
 type CreateClosedTradeInput = {
   symbol: string;
   direction: TradeDirection;
@@ -205,6 +216,7 @@ type DesktopApi = {
       instrumentCount: number;
       migrationVersion: number;
     }>;
+    listInstruments: () => Promise<InstrumentConfig[]>;
   };
   trades: {
     list: () => Promise<TradeSummary[]>;

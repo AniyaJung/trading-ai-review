@@ -10,6 +10,7 @@ const desktopApi = {
       instrumentCount: number;
       migrationVersion: number;
     }>,
+    listInstruments: () => ipcRenderer.invoke("database:listInstruments"),
   },
   trades: {
     list: () => ipcRenderer.invoke("trades:list"),

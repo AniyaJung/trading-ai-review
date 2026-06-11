@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppDataPaths } from "../data/appData.js";
+import { listInstrumentPresets } from "../data/database.js";
 
 export type DatabaseStatus = {
   databasePath: string;
@@ -13,7 +14,20 @@ export function registerDatabaseIpc(
   db: DatabaseSync,
   paths: AppDataPaths,
 ) {
-  ipcMain.handle("database:getStatus", () => getDatabaseStatus(db, paths));
+  const handlers = createDatabaseIpcHandlers(db, paths);
+
+  ipcMain.handle("database:getStatus", () => handlers.getStatus());
+  ipcMain.handle("database:listInstruments", () => handlers.listInstruments());
+}
+
+export function createDatabaseIpcHandlers(
+  db: DatabaseSync,
+  paths: AppDataPaths,
+) {
+  return {
+    getStatus: () => getDatabaseStatus(db, paths),
+    listInstruments: () => listInstrumentPresets(db),
+  };
 }
 
 export function getDatabaseStatus(

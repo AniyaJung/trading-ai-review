@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCreateClosedTradeInput,
+  calculateTradeFormPreview,
   createInitialTradeForm,
   createTradeFormFromDetail,
   createTradeFormAfterSave,
@@ -25,6 +26,39 @@ const completeTradeForm: TradeFormState = {
 };
 
 describe("trade form helpers", () => {
+  it("calculates preview from instrument configuration instead of a local point-value map", () => {
+    expect(
+      calculateTradeFormPreview(
+        {
+          ...completeTradeForm,
+          entryPrice: "12",
+          exitPrice: "14",
+          stopLossPrice: "11",
+          quantity: "2",
+          feesTotal: "0",
+        },
+        [
+          {
+            symbol: "ES",
+            name: "Custom ES",
+            assetClass: "futures",
+            exchange: "CME",
+            currency: "USD",
+            tickSize: 0.25,
+            tickValue: 25,
+            pointValue: 100,
+          },
+        ],
+      ),
+    ).toEqual({
+      pointPnl: 2,
+      grossPnl: 400,
+      netPnl: 400,
+      riskAmount: 200,
+      rMultiple: 2,
+    });
+  });
+
   it("treats datetime-local values as the user's local time before storing ISO", () => {
     const localValue = "2026-06-08T14:41";
 

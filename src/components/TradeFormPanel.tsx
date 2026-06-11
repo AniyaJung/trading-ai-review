@@ -10,6 +10,7 @@ type TradeFormPanelProps = {
   formErrors: string[];
   formMessage: string;
   editingTradeId: number | null;
+  instruments: InstrumentConfig[];
   onChange: (field: keyof TradeFormState, value: string) => void;
 };
 
@@ -20,6 +21,7 @@ export function TradeFormPanel({
   formErrors,
   formMessage,
   editingTradeId,
+  instruments,
   onChange,
 }: TradeFormPanelProps) {
   return (
@@ -39,10 +41,13 @@ export function TradeFormPanel({
             value={tradeForm.symbol}
             onChange={(event) => onChange("symbol", event.currentTarget.value)}
           >
-            <option value="ES">ES</option>
-            <option value="MES">MES</option>
-            <option value="NQ">NQ</option>
-            <option value="MNQ">MNQ</option>
+            {buildInstrumentOptions(instruments, tradeForm.symbol).map(
+              (instrument) => (
+                <option key={instrument.symbol} value={instrument.symbol}>
+                  {instrument.symbol}
+                </option>
+              ),
+            )}
           </select>
         </label>
         <label>
@@ -188,4 +193,26 @@ export function TradeFormPanel({
       </div>
     </section>
   );
+}
+
+function buildInstrumentOptions(
+  instruments: InstrumentConfig[],
+  selectedSymbol: string,
+) {
+  if (instruments.length > 0) {
+    return instruments;
+  }
+
+  return [
+    {
+      symbol: selectedSymbol,
+      name: selectedSymbol,
+      assetClass: "futures" as const,
+      exchange: "",
+      currency: "USD",
+      tickSize: 0,
+      tickValue: 0,
+      pointValue: 0,
+    },
+  ];
 }
