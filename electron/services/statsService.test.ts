@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { initializeAppDatabase } from "../data/database";
 import { confirmReview, correctReview, createReviewDraft } from "./reviewService";
+import { createEntryRule } from "./ruleService";
 import { getStatsOverview } from "./statsService";
 import { createClosedTrade, type CreateClosedTradeInput } from "./tradeService";
 
@@ -222,6 +223,65 @@ describe("getStatsOverview", () => {
         symbol: "ES",
         openedFrom: "2026-06-08T00:00:00.000Z",
         openedBefore: "2026-06-11T00:00:00.000Z",
+      }),
+    ).toEqual({
+      totalTradeCount: 1,
+      confirmedReviewCount: 1,
+      totalNetPnl: 445,
+      winRate: 1,
+      averageRMultiple: 2.225,
+      profitFactor: null,
+      totalFees: 5,
+      byInstrument: [
+        expect.objectContaining({
+          symbol: "ES",
+          tradeCount: 1,
+          netPnl: 445,
+        }),
+      ],
+    });
+
+    db.close();
+  });
+
+  it("filters trade counts and confirmed metrics by entry rule", () => {
+    const db = createTestDb();
+    const pullbackRule = createEntryRule(db, {
+      name: "Opening range pullback",
+      content: "Break, retest, enter with defined risk.",
+      checklist: ["Break confirmed"],
+    });
+    const reversalRule = createEntryRule(db, {
+      name: "Failed breakout reversal",
+      content: "Failed break, reclaim, fade back into range.",
+      checklist: ["Failed break"],
+    });
+    const pullbackTrade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        entryRuleVersionId: pullbackRule.latestVersion.id,
+      }),
+    );
+    const reversalTrade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        direction: "short",
+        openedAt: "2026-06-09T14:41:00.000Z",
+        closedAt: "2026-06-09T15:20:00.000Z",
+        entryPrice: 5300,
+        exitPrice: 5298.5,
+        stopLossPrice: 5302,
+        takeProfitPrice: null,
+        entryRuleVersionId: reversalRule.latestVersion.id,
+      }),
+    );
+
+    confirmReview(db, createReviewDraft(db, { tradeId: pullbackTrade.id }).id);
+    confirmReview(db, createReviewDraft(db, { tradeId: reversalTrade.id }).id);
+
+    expect(
+      getStatsOverview(db, {
+        entryRuleId: pullbackRule.id,
       }),
     ).toEqual({
       totalTradeCount: 1,

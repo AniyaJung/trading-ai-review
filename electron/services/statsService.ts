@@ -24,6 +24,7 @@ export type StatsOverview = {
 
 export type StatsOverviewFilters = {
   symbol?: string | null;
+  entryRuleId?: number | null;
   openedFrom?: string | null;
   openedBefore?: string | null;
 };
@@ -73,11 +74,16 @@ type TradeFilterClause = {
 
 function buildTradeFilterClause(filters: StatsOverviewFilters): TradeFilterClause {
   const clauses = ["trade.status = 'closed'"];
-  const params: string[] = [];
+  const params: Array<number | string> = [];
 
   if (filters.symbol?.trim()) {
     clauses.push("instrument.symbol = ?");
     params.push(filters.symbol.trim());
+  }
+
+  if (filters.entryRuleId != null) {
+    clauses.push("trade.entry_rule_id = ?");
+    params.push(filters.entryRuleId);
   }
 
   if (filters.openedFrom?.trim()) {

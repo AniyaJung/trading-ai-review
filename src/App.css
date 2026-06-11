@@ -282,6 +282,31 @@
   display: grid;
 }
 
+.trade-list-filter-banner {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 8px 18px;
+  color: var(--ink);
+  background: #fff8eb;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.trade-list-filter-banner span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.trade-list-filter-banner .icon-button {
+  flex: 0 0 auto;
+  width: 34px;
+  min-height: 34px;
+}
+
 .table-state {
   min-height: 160px;
   display: grid;
@@ -1308,13 +1333,14 @@ textarea:hover {
 
 .stats-filter-bar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(160px, 1fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   align-items: end;
   gap: 12px;
   padding: 14px;
 }
 
 .stats-filter-bar .secondary-button {
+  justify-self: end;
   min-width: 112px;
 }
 
@@ -1378,7 +1404,7 @@ textarea:hover {
   display: grid;
   grid-template-columns:
     minmax(180px, 1fr) 72px minmax(112px, 0.7fr) 86px 86px
-    86px minmax(112px, 0.7fr);
+    86px minmax(112px, 0.7fr) 72px;
   align-items: center;
   gap: 10px;
   padding: 0 18px;
@@ -1406,6 +1432,23 @@ textarea:hover {
 
 .stats-instrument small {
   color: var(--muted);
+}
+
+.stats-drilldown-button {
+  min-height: 32px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.stats-drilldown-button:hover {
+  background: var(--panel-subtle);
 }
 
 @media (max-width: 1180px) {
@@ -1452,7 +1495,7 @@ textarea:hover {
   }
 
   .stats-table-row {
-    min-width: 860px;
+    min-width: 940px;
   }
 
   .rules-overview {

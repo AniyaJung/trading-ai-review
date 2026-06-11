@@ -2,16 +2,20 @@ import {
   BadgeCheck,
   BarChart3,
   CircleDollarSign,
+  ListFilter,
   Percent,
   ReceiptText,
   Scale,
 } from "lucide-react";
 import {
+  buildStatsOverviewFilters,
   formatCurrency,
   formatPercent,
   formatRatio,
+  type StatsEntryRuleOption,
   type StatsFilterState,
   type StatsOverview,
+  type StatsOverviewFilters,
 } from "../app/statsPanel";
 
 type StatsViewProps = {
@@ -21,7 +25,9 @@ type StatsViewProps = {
   isPreview: boolean;
   filters: StatsFilterState;
   instruments: InstrumentConfig[];
+  entryRuleOptions: StatsEntryRuleOption[];
   onFiltersChange: (filters: StatsFilterState) => void;
+  onDrillDown: (filters: StatsOverviewFilters) => void;
   onRefresh: () => void;
 };
 
@@ -32,7 +38,9 @@ export function StatsView({
   isPreview,
   filters,
   instruments,
+  entryRuleOptions,
   onFiltersChange,
+  onDrillDown,
   onRefresh,
 }: StatsViewProps) {
   const metrics = [
@@ -75,6 +83,9 @@ export function StatsView({
   ];
   const updateFilter = (field: keyof StatsFilterState, value: string) => {
     onFiltersChange({ ...filters, [field]: value });
+  };
+  const drillDownToTrades = (nextFilters: StatsFilterState) => {
+    onDrillDown(buildStatsOverviewFilters(nextFilters));
   };
 
   return (
@@ -130,6 +141,23 @@ export function StatsView({
           </select>
         </label>
 
+        <label>
+          入场规则
+          <select
+            value={filters.entryRuleId}
+            onChange={(event) =>
+              updateFilter("entryRuleId", event.target.value)
+            }
+          >
+            <option value="">全部规则</option>
+            {entryRuleOptions.map((rule) => (
+              <option key={rule.id} value={rule.id}>
+                {rule.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         {filters.dateRangePreset === "custom" ? (
           <>
             <label>
@@ -152,6 +180,15 @@ export function StatsView({
             </label>
           </>
         ) : null}
+
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => drillDownToTrades(filters)}
+        >
+          <ListFilter aria-hidden="true" size={16} />
+          查看交易
+        </button>
       </div>
 
       <div className="stats-metric-grid">
@@ -187,6 +224,7 @@ export function StatsView({
               <span>平均 R</span>
               <span>PF</span>
               <span>手续费</span>
+              <span>下钻</span>
             </div>
             {overview.byInstrument.map((instrument) => (
               <div key={instrument.symbol} className="stats-table-row">
@@ -202,6 +240,20 @@ export function StatsView({
                 <span>{formatRatio(instrument.averageRMultiple, "R")}</span>
                 <span>{formatRatio(instrument.profitFactor)}</span>
                 <span>{formatCurrency(instrument.feesTotal)}</span>
+                <span>
+                  <button
+                    type="button"
+                    className="stats-drilldown-button"
+                    onClick={() =>
+                      drillDownToTrades({
+                        ...filters,
+                        symbol: instrument.symbol,
+                      })
+                    }
+                  >
+                    查看
+                  </button>
+                </span>
               </div>
             ))}
           </div>

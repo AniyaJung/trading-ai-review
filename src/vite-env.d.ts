@@ -238,6 +238,7 @@ type StatsOverview = {
 
 type StatsOverviewFilters = {
   symbol?: string;
+  entryRuleId?: number;
   openedFrom?: string;
   openedBefore?: string;
 };

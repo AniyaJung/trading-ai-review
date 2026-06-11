@@ -3,6 +3,8 @@ import {
   buildStatsOverviewFilters,
   createEmptyStatsOverview,
   createPreviewStatsOverview,
+  createStatsEntryRuleOptions,
+  filterTradesForStatsDrilldown,
   formatCurrency,
   formatPercent,
   formatRatio,
@@ -41,6 +43,7 @@ describe("stats panel helpers", () => {
         netPnl: 445,
         feesTotal: 5,
         rMultiple: 2.225,
+        entryRuleId: null,
         aiReviewStatus: "confirmed",
       },
       {
@@ -50,6 +53,7 @@ describe("stats panel helpers", () => {
         netPnl: -16.5,
         feesTotal: 1.5,
         rMultiple: -1.32,
+        entryRuleId: null,
         aiReviewStatus: "corrected",
       },
       {
@@ -59,6 +63,7 @@ describe("stats panel helpers", () => {
         netPnl: 100,
         feesTotal: 2,
         rMultiple: 1,
+        entryRuleId: null,
         aiReviewStatus: "needs_review",
       },
     ]);
@@ -98,6 +103,7 @@ describe("stats panel helpers", () => {
           netPnl: 445,
           feesTotal: 5,
           rMultiple: 2.225,
+          entryRuleId: null,
           aiReviewStatus: "confirmed",
         },
         {
@@ -107,6 +113,7 @@ describe("stats panel helpers", () => {
           netPnl: 100,
           feesTotal: 2,
           rMultiple: 1,
+          entryRuleId: null,
           aiReviewStatus: "confirmed",
         },
         {
@@ -116,6 +123,7 @@ describe("stats panel helpers", () => {
           netPnl: 92.4,
           feesTotal: 3.6,
           rMultiple: 1.925,
+          entryRuleId: null,
           aiReviewStatus: "confirmed",
         },
       ],
@@ -135,6 +143,51 @@ describe("stats panel helpers", () => {
           expect.objectContaining({
             symbol: "ES",
             tradeCount: 1,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("filters browser preview stats by entry rule", () => {
+    const overview = createPreviewStatsOverview(
+      [
+        {
+          id: 1,
+          symbol: "ES",
+          instrumentName: "E-mini S&P 500",
+          openedAt: "2026-06-08T14:41:00.000Z",
+          netPnl: 445,
+          feesTotal: 5,
+          rMultiple: 2.225,
+          entryRuleId: 10,
+          aiReviewStatus: "confirmed",
+        },
+        {
+          id: 2,
+          symbol: "MNQ",
+          instrumentName: "Micro E-mini Nasdaq-100",
+          openedAt: "2026-06-08T15:18:00.000Z",
+          netPnl: 92.4,
+          feesTotal: 3.6,
+          rMultiple: 1.925,
+          entryRuleId: 20,
+          aiReviewStatus: "confirmed",
+        },
+      ],
+      {
+        entryRuleId: 10,
+      },
+    );
+
+    expect(overview).toEqual(
+      expect.objectContaining({
+        totalTradeCount: 1,
+        confirmedReviewCount: 1,
+        totalNetPnl: 445,
+        byInstrument: [
+          expect.objectContaining({
+            symbol: "ES",
           }),
         ],
       }),
@@ -167,11 +220,13 @@ describe("stats panel helpers", () => {
           ...getInitialStatsFilterState(),
           dateRangePreset: "last7",
           symbol: "MNQ",
+          entryRuleId: "42",
         },
         new Date("2026-06-11T10:30:00.000Z"),
       ),
     ).toEqual({
       symbol: "MNQ",
+      entryRuleId: 42,
       openedFrom: "2026-06-05T00:00:00.000Z",
       openedBefore: "2026-06-12T00:00:00.000Z",
     });
@@ -181,6 +236,7 @@ describe("stats panel helpers", () => {
         {
           dateRangePreset: "custom",
           symbol: "",
+          entryRuleId: "",
           customFrom: "2026-06-01",
           customTo: "2026-06-10",
         },
@@ -190,5 +246,95 @@ describe("stats panel helpers", () => {
       openedFrom: "2026-06-01T00:00:00.000Z",
       openedBefore: "2026-06-11T00:00:00.000Z",
     });
+  });
+
+  it("filters trades for stats drilldown using the same stats filter shape", () => {
+    const trades = [
+      {
+        id: 1,
+        symbol: "ES",
+        instrumentName: "E-mini S&P 500",
+        openedAt: "2026-06-08T14:41:00.000Z",
+        netPnl: 445,
+        feesTotal: 5,
+        rMultiple: 2.225,
+        entryRuleId: 10,
+        aiReviewStatus: "confirmed" as const,
+      },
+      {
+        id: 2,
+        symbol: "MNQ",
+        instrumentName: "Micro E-mini Nasdaq-100",
+        openedAt: "2026-06-08T15:18:00.000Z",
+        netPnl: 92.4,
+        feesTotal: 3.6,
+        rMultiple: 1.925,
+        entryRuleId: 20,
+        aiReviewStatus: "confirmed" as const,
+      },
+      {
+        id: 3,
+        symbol: "ES",
+        instrumentName: "E-mini S&P 500",
+        openedAt: "2026-05-30T14:41:00.000Z",
+        netPnl: 100,
+        feesTotal: 2,
+        rMultiple: 1,
+        entryRuleId: 10,
+        aiReviewStatus: "confirmed" as const,
+      },
+    ];
+
+    expect(
+      filterTradesForStatsDrilldown(trades, {
+        symbol: "ES",
+        entryRuleId: 10,
+        openedFrom: "2026-06-01T00:00:00.000Z",
+        openedBefore: "2026-06-11T00:00:00.000Z",
+      }).map((trade) => trade.id),
+    ).toEqual([1]);
+  });
+
+  it("builds entry rule filter options from active rules and historical trades", () => {
+    const options = createStatsEntryRuleOptions(
+      [
+        {
+          id: 10,
+          name: "Opening range pullback",
+          description: null,
+          marketType: "index_futures",
+          status: "active",
+          createdAt: "2026-06-01T00:00:00.000Z",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+          latestVersion: {
+            id: 100,
+            entryRuleId: 10,
+            versionNo: 1,
+            content: "Trade pullbacks.",
+            checklist: [],
+            createdAt: "2026-06-01T00:00:00.000Z",
+          },
+        },
+      ],
+      [
+        {
+          entryRuleId: 10,
+          entryRuleName: "Opening range pullback",
+        },
+        {
+          entryRuleId: 20,
+          entryRuleName: "Archived reversal",
+        },
+        {
+          entryRuleId: null,
+          entryRuleName: null,
+        },
+      ],
+    );
+
+    expect(options).toEqual([
+      { id: 10, label: "Opening range pullback", source: "active" },
+      { id: 20, label: "Archived reversal (历史)", source: "historical" },
+    ]);
   });
 });

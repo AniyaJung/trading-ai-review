@@ -1,10 +1,12 @@
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, X } from "lucide-react";
 
 type TradeListPanelProps = {
   trades: TradeSummary[];
   selectedTradeId: number | undefined;
   isLoadingTrades: boolean;
   tradeLoadError: string | null;
+  activeFilterLabel?: string | null;
+  onClearFilter?: () => void;
   onSelectTrade: (tradeId: number) => void;
 };
 
@@ -13,6 +15,8 @@ export function TradeListPanel({
   selectedTradeId,
   isLoadingTrades,
   tradeLoadError,
+  activeFilterLabel,
+  onClearFilter,
   onSelectTrade,
 }: TradeListPanelProps) {
   return (
@@ -24,6 +28,20 @@ export function TradeListPanel({
         </div>
         <span className="count-pill">{trades.length}</span>
       </div>
+
+      {activeFilterLabel ? (
+        <div className="trade-list-filter-banner">
+          <span>{activeFilterLabel}</span>
+          <button
+            type="button"
+            className="icon-button"
+            title="清除统计下钻筛选"
+            onClick={onClearFilter}
+          >
+            <X aria-hidden="true" size={16} />
+          </button>
+        </div>
+      ) : null}
 
       <div className="trade-table">
         {isLoadingTrades ? (

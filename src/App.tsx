@@ -31,9 +31,13 @@ import {
 import { parseChecklistText } from "./app/rulePanel";
 import {
   buildStatsOverviewFilters,
+  createStatsEntryRuleOptions,
+  filterTradesForStatsDrilldown,
   getInitialStatsFilterState,
   getStatsPanelState,
+  type StatsEntryRuleOption,
   type StatsFilterState,
+  type StatsOverviewFilters,
 } from "./app/statsPanel";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppTopbar } from "./components/AppTopbar";
@@ -219,6 +223,8 @@ function App() {
   const [statsFilters, setStatsFilters] = useState<StatsFilterState>(() =>
     getInitialStatsFilterState(),
   );
+  const [tradeDrilldownFilters, setTradeDrilldownFilters] =
+    useState<StatsOverviewFilters | null>(null);
   const statsOverviewFilters = useMemo(
     () => buildStatsOverviewFilters(statsFilters),
     [statsFilters],
@@ -335,6 +341,16 @@ function App() {
     if (window.desktopApi) {
       void refreshStats(buildStatsOverviewFilters(nextFilters));
     }
+  };
+
+  const handleStatsDrillDown = (filters: StatsOverviewFilters) => {
+    setTradeDrilldownFilters(filters);
+    setCurrentView("trades");
+
+    const nextTrades = filterTradesForStatsDrilldown(trades, filters);
+    setSelectedTradeId(nextTrades[0]?.id ?? null);
+    setActiveAttachmentPreviewId(null);
+    handleCancelRuleCheckEdit();
   };
 
   const handleCreateRule = async () => {
@@ -948,8 +964,23 @@ function App() {
     }
     return [...previewInstruments.values()];
   }, [instruments, trades]);
+  const statsEntryRuleOptions = useMemo(
+    () => createStatsEntryRuleOptions(entryRules, trades),
+    [entryRules, trades],
+  );
+  const visibleTrades = useMemo(
+    () =>
+      tradeDrilldownFilters
+        ? filterTradesForStatsDrilldown(trades, tradeDrilldownFilters)
+        : trades,
+    [tradeDrilldownFilters, trades],
+  );
+  const tradeDrilldownLabel = tradeDrilldownFilters
+    ? formatStatsDrilldownLabel(tradeDrilldownFilters, statsEntryRuleOptions)
+    : null;
   const selectedTrade =
-    trades.find((trade) => trade.id === selectedTradeId) ?? trades[0];
+    visibleTrades.find((trade) => trade.id === selectedTradeId) ??
+    visibleTrades[0];
   const reviewPanel = getReviewPanelState(selectedTrade);
   const latestReview = selectedTrade
     ? latestReviewByTradeId[selectedTrade.id]
@@ -1177,16 +1208,20 @@ function App() {
             isPreview={statsPanel.isPreview}
             filters={statsFilters}
             instruments={statsInstrumentOptions}
+            entryRuleOptions={statsEntryRuleOptions}
             onFiltersChange={handleStatsFiltersChange}
+            onDrillDown={handleStatsDrillDown}
             onRefresh={() => void refreshStats()}
           />
         ) : (
         <section className="desk-grid">
           <TradeListPanel
-            trades={trades}
+            trades={visibleTrades}
             selectedTradeId={selectedTrade?.id}
             isLoadingTrades={isLoadingTrades}
             tradeLoadError={tradeLoadError}
+            activeFilterLabel={tradeDrilldownLabel}
+            onClearFilter={() => setTradeDrilldownFilters(null)}
             onSelectTrade={(tradeId) => {
               setSelectedTradeId(tradeId);
               setActiveAttachmentPreviewId(null);
@@ -1324,6 +1359,36 @@ function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
   };
 }
 
+function formatStatsDrilldownLabel(
+  filters: StatsOverviewFilters,
+  entryRuleOptions: StatsEntryRuleOption[],
+) {
+  const parts = ["统计下钻"];
+
+  if (filters.symbol) {
+    parts.push(filters.symbol);
+  }
+
+  if (filters.entryRuleId != null) {
+    const ruleLabel =
+      entryRuleOptions.find((rule) => rule.id === filters.entryRuleId)?.label ??
+      `规则 ${filters.entryRuleId}`;
+    parts.push(ruleLabel);
+  }
+
+  if (filters.openedFrom || filters.openedBefore) {
+    const from = filters.openedFrom
+      ? formatDateOnly(filters.openedFrom)
+      : "最早";
+    const before = filters.openedBefore
+      ? formatDateOnly(filters.openedBefore)
+      : "现在";
+    parts.push(`${from} 至 ${before}`);
+  }
+
+  return parts.join(" / ");
+}
+
 function updatePreviewTradeSummary(
   trades: TradeSummary[],
   id: number,
@@ -1351,6 +1416,13 @@ function updatePreviewTradeSummary(
       rMultiple: calculation?.rMultiple ?? trade.rMultiple,
     };
   });
+}
+
+function formatDateOnly(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
 }
 
 function formatTradeTime(value: string) {

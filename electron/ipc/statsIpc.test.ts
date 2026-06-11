@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { initializeAppDatabase } from "../data/database";
 import { confirmReview, createReviewDraft } from "../services/reviewService";
+import { createEntryRule } from "../services/ruleService";
 import { createClosedTrade } from "../services/tradeService";
 import { createStatsIpcHandlers } from "./statsIpc";
 
@@ -88,6 +89,58 @@ describe("createStatsIpcHandlers", () => {
         totalTradeCount: 1,
         confirmedReviewCount: 1,
         totalNetPnl: 92.4,
+      }),
+    );
+
+    db.close();
+  });
+
+  it("passes entry rule filters through to the stats overview service", () => {
+    const db = createTestDb();
+    const handlers = createStatsIpcHandlers(db);
+    const pullbackRule = createEntryRule(db, {
+      name: "Opening range pullback",
+      content: "Break, retest, enter with defined risk.",
+      checklist: ["Break confirmed"],
+    });
+    const reversalRule = createEntryRule(db, {
+      name: "Failed breakout reversal",
+      content: "Failed break, reclaim, fade back into range.",
+      checklist: ["Failed break"],
+    });
+    const pullbackTrade = createClosedTrade(db, {
+      symbol: "ES",
+      direction: "long",
+      openedAt: "2026-06-08T14:41:00.000Z",
+      closedAt: "2026-06-08T15:20:00.000Z",
+      entryPrice: 5300,
+      exitPrice: 5304.5,
+      quantity: 2,
+      stopLossPrice: 5298,
+      feesTotal: 5,
+      entryRuleVersionId: pullbackRule.latestVersion.id,
+    });
+    const reversalTrade = createClosedTrade(db, {
+      symbol: "ES",
+      direction: "short",
+      openedAt: "2026-06-09T14:41:00.000Z",
+      closedAt: "2026-06-09T15:20:00.000Z",
+      entryPrice: 5300,
+      exitPrice: 5298.5,
+      quantity: 2,
+      stopLossPrice: 5302,
+      feesTotal: 5,
+      entryRuleVersionId: reversalRule.latestVersion.id,
+    });
+
+    confirmReview(db, createReviewDraft(db, { tradeId: pullbackTrade.id }).id);
+    confirmReview(db, createReviewDraft(db, { tradeId: reversalTrade.id }).id);
+
+    expect(handlers.getOverview({ entryRuleId: pullbackRule.id })).toEqual(
+      expect.objectContaining({
+        totalTradeCount: 1,
+        confirmedReviewCount: 1,
+        totalNetPnl: 445,
       }),
     );
 

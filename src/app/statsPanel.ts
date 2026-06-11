@@ -24,6 +24,7 @@ export type StatsOverview = {
 
 export type StatsOverviewFilters = {
   symbol?: string;
+  entryRuleId?: number;
   openedFrom?: string;
   openedBefore?: string;
 };
@@ -33,19 +34,33 @@ export type StatsDateRangePreset = "all" | "last7" | "last30" | "custom";
 export type StatsFilterState = {
   dateRangePreset: StatsDateRangePreset;
   symbol: string;
+  entryRuleId: string;
   customFrom: string;
   customTo: string;
 };
 
+export type StatsEntryRuleOption = {
+  id: number;
+  label: string;
+  source: "active" | "historical";
+};
+
 type StatsTrade = {
+  id?: number;
   symbol: string;
   instrumentName: string;
   openedAt: string;
   netPnl: number;
   feesTotal: number;
   rMultiple: number | null;
+  entryRuleId: number | null;
   aiReviewStatus: TradeSummary["aiReviewStatus"];
 };
+
+type StatsEntryRuleTrade = Pick<
+  TradeSummary,
+  "entryRuleId" | "entryRuleName"
+>;
 
 type StatsPanelStateInput = {
   runtime: RendererRuntime;
@@ -77,6 +92,7 @@ export function getInitialStatsFilterState(): StatsFilterState {
   return {
     dateRangePreset: "all",
     symbol: "",
+    entryRuleId: "",
     customFrom: "",
     customTo: "",
   };
@@ -120,6 +136,11 @@ export function buildStatsOverviewFilters(
 
   if (state.symbol.trim()) {
     filters.symbol = state.symbol.trim();
+  }
+
+  const entryRuleId = Number(state.entryRuleId);
+  if (Number.isInteger(entryRuleId) && entryRuleId > 0) {
+    filters.entryRuleId = entryRuleId;
   }
 
   if (state.dateRangePreset === "last7") {
@@ -176,16 +197,59 @@ export function formatRatio(value: number | null, suffix = "") {
   return `${value.toFixed(2)}${suffix}`;
 }
 
+export function filterTradesForStatsDrilldown<T extends StatsTrade>(
+  trades: T[],
+  filters: StatsOverviewFilters,
+): T[] {
+  return filterStatsTrades(trades, filters);
+}
+
+export function createStatsEntryRuleOptions(
+  activeRules: EntryRuleWithLatestVersion[],
+  trades: StatsEntryRuleTrade[],
+): StatsEntryRuleOption[] {
+  const options = new Map<number, StatsEntryRuleOption>();
+
+  for (const rule of activeRules) {
+    options.set(rule.id, {
+      id: rule.id,
+      label: rule.name,
+      source: "active",
+    });
+  }
+
+  for (const trade of trades) {
+    if (trade.entryRuleId == null || options.has(trade.entryRuleId)) {
+      continue;
+    }
+
+    options.set(trade.entryRuleId, {
+      id: trade.entryRuleId,
+      label: `${trade.entryRuleName ?? `规则 ${trade.entryRuleId}`} (历史)`,
+      source: "historical",
+    });
+  }
+
+  return [...options.values()];
+}
+
 function isReviewedTradeStatus(status: TradeSummary["aiReviewStatus"]) {
   return status === "confirmed" || status === "corrected";
 }
 
-function filterStatsTrades(
-  trades: StatsTrade[],
+function filterStatsTrades<T extends StatsTrade>(
+  trades: T[],
   filters: StatsOverviewFilters,
-): StatsTrade[] {
+): T[] {
   return trades.filter((trade) => {
     if (filters.symbol && trade.symbol !== filters.symbol) {
+      return false;
+    }
+
+    if (
+      filters.entryRuleId != null &&
+      trade.entryRuleId !== filters.entryRuleId
+    ) {
       return false;
     }
 
