@@ -1,18 +1,25 @@
 :root {
-  --surface: #f3f4f1;
-  --panel: #fffdfa;
-  --panel-subtle: #f8f7f2;
-  --line: #d8dad2;
-  --line-strong: #bfc5bc;
-  --ink: #202322;
-  --ink-soft: #4d5350;
-  --ink-invert: #f5f3ec;
-  --muted: #727970;
-  --accent: #a64032;
-  --accent-strong: #823227;
-  --positive: #0d6b4d;
-  --warning: #8a5e0c;
-  --focus: #24584c;
+  --surface: #f4f1ea;
+  --surface-raised: #faf7f0;
+  --panel: #fffdf8;
+  --panel-subtle: #f7f3eb;
+  --panel-wash: #fbfaf6;
+  --line: #ded6c8;
+  --line-strong: #bfb4a4;
+  --ink: #171b1c;
+  --ink-soft: #424a49;
+  --ink-invert: #f8f4ea;
+  --muted: #67716e;
+  --accent: #9a4a2f;
+  --accent-strong: #743523;
+  --accent-cool: #4f46e5;
+  --positive: #0a6b4f;
+  --warning: #8c5f08;
+  --danger: #ba2f24;
+  --focus: #4f46e5;
+  --shadow-xs: 0 1px 2px rgba(31, 35, 33, 0.06);
+  --shadow-sm: 0 8px 22px rgba(46, 39, 31, 0.08);
+  --shadow-md: 0 18px 46px rgba(46, 39, 31, 0.12);
 
   color: var(--ink);
   background: var(--surface);
@@ -20,7 +27,7 @@
     "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     sans-serif;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.45;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -34,17 +41,27 @@
 html {
   min-width: 320px;
   background: var(--surface);
+  scrollbar-color: #b8ad9e transparent;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), transparent 280px),
+    var(--surface);
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font-family: inherit;
+}
+
+button {
+  touch-action: manipulation;
 }
 
 button:focus-visible,
@@ -53,4 +70,20 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+::selection {
+  color: #fff;
+  background: var(--accent-cool);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

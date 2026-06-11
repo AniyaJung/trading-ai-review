@@ -32,6 +32,7 @@ export function AppSidebar({
               key={item.id}
               type="button"
               className={item.id === currentView ? "nav-item active" : "nav-item"}
+              aria-current={item.id === currentView ? "page" : undefined}
               aria-label={item.label}
               title={item.description}
               onClick={() => onViewChange(item.id)}
