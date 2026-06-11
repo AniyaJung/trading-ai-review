@@ -108,6 +108,66 @@ type CreateEntryRuleVersionInput = {
   checklist?: string[];
 };
 
+type ReviewStatus =
+  | "draft"
+  | "needs_review"
+  | "confirmed"
+  | "corrected"
+  | "invalid";
+
+type AIReview = {
+  id: number;
+  tradeId: number;
+  status: ReviewStatus;
+  model: string | null;
+  promptVersion: string | null;
+  ruleVersionSnapshot: string | null;
+  scoreTotal: number | null;
+  summary: string | null;
+  facts: Record<string, unknown>;
+  missingInfo: unknown[];
+  imageObservations: unknown[];
+  strengths: unknown[];
+  weaknesses: unknown[];
+  suggestions: unknown[];
+  tags: unknown[];
+  confidence: number | null;
+  rawResult: Record<string, unknown>;
+  createdAt: string;
+  confirmedAt: string | null;
+};
+
+type CreateReviewDraftInput = {
+  tradeId: number;
+  model?: string | null;
+  promptVersion?: string | null;
+  ruleVersionSnapshot?: string | null;
+  scoreTotal?: number | null;
+  summary?: string | null;
+  facts?: Record<string, unknown>;
+  missingInfo?: unknown[];
+  imageObservations?: unknown[];
+  strengths?: unknown[];
+  weaknesses?: unknown[];
+  suggestions?: unknown[];
+  tags?: unknown[];
+  confidence?: number | null;
+  rawResult?: Record<string, unknown>;
+};
+
+type CorrectReviewInput = {
+  summary?: string | null;
+  facts?: Record<string, unknown>;
+  missingInfo?: unknown[];
+  imageObservations?: unknown[];
+  strengths?: unknown[];
+  weaknesses?: unknown[];
+  suggestions?: unknown[];
+  tags?: unknown[];
+  confidence?: number | null;
+  rawResult?: Record<string, unknown>;
+};
+
 type AttachmentImageType =
   | "before_entry"
   | "entry"
@@ -165,6 +225,13 @@ type DesktopApi = {
       input: CreateEntryRuleVersionInput,
     ) => Promise<EntryRuleVersion>;
     archive: (id: number) => Promise<boolean>;
+  };
+  reviews: {
+    createDraft: (input: CreateReviewDraftInput) => Promise<AIReview>;
+    getLatestForTrade: (tradeId: number) => Promise<AIReview | undefined>;
+    confirm: (id: number) => Promise<AIReview>;
+    correct: (id: number, input: CorrectReviewInput) => Promise<AIReview>;
+    invalidate: (id: number) => Promise<AIReview>;
   };
   attachments: {
     listByTrade: (tradeId: number) => Promise<TradeAttachment[]>;

@@ -22,6 +22,7 @@ Current implemented scope:
 - Entry rules can be created, versioned immutably, archived, listed, and bound to closed trades by rule version.
 - Trade detail shows the bound entry rule version, content, and checklist snapshot.
 - Main workbench UI is split into focused React components for sidebar, topbar, trade list, trade form, trade review/detail, attachments, and rules.
+- AI review drafts, confirmation, correction, and invalidation now have local service and preload IPC plumbing that syncs `trade.ai_review_status`.
 - AI review panel currently shows honest status placeholders; AI generation is not connected yet.
 - Initial instrument presets: ES, MES, NQ, MNQ.
 - Design spec and implementation plans are stored under `docs/superpowers`.

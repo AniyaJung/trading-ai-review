@@ -27,6 +27,16 @@ const desktopApi = {
       ipcRenderer.invoke("rules:createVersion", input),
     archive: (id: number) => ipcRenderer.invoke("rules:archive", id),
   },
+  reviews: {
+    createDraft: (input: unknown) =>
+      ipcRenderer.invoke("reviews:createDraft", input),
+    getLatestForTrade: (tradeId: number) =>
+      ipcRenderer.invoke("reviews:getLatestForTrade", tradeId),
+    confirm: (id: number) => ipcRenderer.invoke("reviews:confirm", id),
+    correct: (id: number, input: unknown) =>
+      ipcRenderer.invoke("reviews:correct", id, input),
+    invalidate: (id: number) => ipcRenderer.invoke("reviews:invalidate", id),
+  },
   attachments: {
     listByTrade: (tradeId: number) =>
       ipcRenderer.invoke("attachments:listByTrade", tradeId),
