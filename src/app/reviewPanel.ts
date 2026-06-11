@@ -31,8 +31,8 @@ export function getReviewPanelState(
       description: "保存一笔已平仓交易后，可在这里查看 AI 复盘状态。",
       bullets: [
         "当前没有可复盘的交易记录。",
-        "AI 复盘服务尚未接入，统计不会使用占位内容。",
-        "后续将从交易事实、截图和规则版本生成结构化草稿。",
+        "AI 复盘会从交易事实、截图和规则版本生成结构化草稿。",
+        "确认或修正后的复盘才会进入统计口径。",
       ],
       canGenerate: false,
       canConfirm: false,
@@ -47,7 +47,7 @@ export function getReviewPanelState(
         description: `${trade.symbol} 交易已保存，尚未生成 AI 复盘。`,
         bullets: [
           "当前只保存了交易事实和成交明细。",
-          "可以先生成本地复盘草稿，规则 checklist 会进入待确认状态。",
+          "可生成 AI 复盘草稿，规则 checklist 会同步生成判断和证据。",
           "未确认复盘不会进入统计分析。",
         ],
         canGenerate: true,
@@ -146,7 +146,7 @@ export function getReviewActionState({
     return {
       ...labels,
       canResolveDraft: false,
-      disabledReason: "暂无可确认的本地复盘草稿。",
+      disabledReason: "暂无可确认的复盘草稿。",
     };
   }
 

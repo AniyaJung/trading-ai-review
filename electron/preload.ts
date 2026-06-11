@@ -31,6 +31,8 @@ const desktopApi = {
   reviews: {
     createDraft: (input: unknown) =>
       ipcRenderer.invoke("reviews:createDraft", input),
+    generateDraft: (tradeId: number) =>
+      ipcRenderer.invoke("reviews:generateDraft", tradeId),
     getLatestForTrade: (tradeId: number) =>
       ipcRenderer.invoke("reviews:getLatestForTrade", tradeId),
     confirm: (id: number) => ipcRenderer.invoke("reviews:confirm", id),

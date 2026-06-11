@@ -38,8 +38,8 @@ describe("review panel state", () => {
       description: "保存一笔已平仓交易后，可在这里查看 AI 复盘状态。",
       bullets: [
         "当前没有可复盘的交易记录。",
-        "AI 复盘服务尚未接入，统计不会使用占位内容。",
-        "后续将从交易事实、截图和规则版本生成结构化草稿。",
+        "AI 复盘会从交易事实、截图和规则版本生成结构化草稿。",
+        "确认或修正后的复盘才会进入统计口径。",
       ],
       canGenerate: false,
       canConfirm: false,
@@ -139,7 +139,7 @@ describe("review action state", () => {
     ).toEqual(
       expect.objectContaining({
         canResolveDraft: false,
-        disabledReason: "暂无可确认的本地复盘草稿。",
+        disabledReason: "暂无可确认的复盘草稿。",
       }),
     );
   });

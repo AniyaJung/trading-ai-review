@@ -455,9 +455,9 @@ export function TradeReviewPanel({
           className="secondary-button"
           onClick={onCreateReviewDraft}
           disabled={!reviewPanel.canGenerate || !selectedTrade || isSavingReview}
-          title={reviewPanel.canGenerate ? "生成本地复盘草稿" : "当前状态不能生成"}
+          title={reviewPanel.canGenerate ? "生成 AI 复盘草稿" : "当前状态不能生成"}
         >
-          {isSavingReview ? "生成中" : "生成本地草稿"}
+          {isSavingReview ? "生成中" : "生成 AI 草稿"}
         </button>
         <button
           type="button"

@@ -287,6 +287,7 @@ type DesktopApi = {
   };
   reviews: {
     createDraft: (input: CreateReviewDraftInput) => Promise<AIReview>;
+    generateDraft: (tradeId: number) => Promise<AIReview>;
     getLatestForTrade: (tradeId: number) => Promise<AIReview | undefined>;
     confirm: (id: number) => Promise<AIReview>;
     correct: (id: number, input: CorrectReviewInput) => Promise<AIReview>;
