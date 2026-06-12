@@ -28,11 +28,11 @@ export function getReviewPanelState(
     return {
       badge: "-",
       status: "暂无交易",
-      description: "保存一笔已平仓交易后，可在这里查看 AI 复盘状态。",
+      description: "选择或保存一笔已平仓交易后，这里会显示复盘进度。",
       bullets: [
-        "当前没有可复盘的交易记录。",
-        "AI 复盘会从交易事实、截图和规则版本生成结构化草稿。",
-        "确认或修正后的复盘才会进入统计口径。",
+        "先在左侧选择一笔交易，或填写表单新建交易。",
+        "AI 复盘会结合交易事实、截图和绑定规则生成草稿。",
+        "只有确认或修正后的复盘会进入统计。",
       ],
       canGenerate: false,
       canConfirm: false,
@@ -43,12 +43,12 @@ export function getReviewPanelState(
     case "not_generated":
       return {
         badge: "-",
-        status: "not generated",
-        description: `${trade.symbol} 交易已保存，尚未生成 AI 复盘。`,
+        status: "未生成复盘",
+        description: `${trade.symbol} 交易已保存，可以生成 AI 复盘草稿。`,
         bullets: [
-          "当前只保存了交易事实和成交明细。",
-          "可生成 AI 复盘草稿，规则 checklist 会同步生成判断和证据。",
-          "未确认复盘不会进入统计分析。",
+          "当前已保存交易事实和成交明细。",
+          "生成草稿后，会同步检查绑定规则和截图证据。",
+          "确认前，这笔复盘不会进入统计。",
         ],
         canGenerate: true,
         canConfirm: false,
@@ -57,12 +57,12 @@ export function getReviewPanelState(
     case "needs_review":
       return {
         badge: "待审",
-        status: "needs review",
-        description: "AI 草稿需要用户确认或修正后才能进入统计。",
+        status: "待确认",
+        description: "AI 草稿已生成，请核对事实和规则判断后再确认。",
         bullets: [
-          "复盘草稿存在，但仍需人工核对事实和规则一致性。",
-          "确认前不会写入最终统计口径。",
-          "后续会支持编辑、修正和标记无效。",
+          "请检查盈亏、截图证据和规则 checklist 是否一致。",
+          "确认或修正后，这笔交易才会进入统计。",
+          "如果草稿不可用，可以标记为无效后重新生成。",
         ],
         canGenerate: false,
         canConfirm: true,
@@ -70,12 +70,12 @@ export function getReviewPanelState(
     case "confirmed":
       return {
         badge: "OK",
-        status: "confirmed",
-        description: "该复盘已确认，可进入统计口径。",
+        status: "已确认",
+        description: "该复盘已确认，会纳入统计分析。",
         bullets: [
-          "用户已确认 AI 复盘内容。",
-          "统计面板后续会使用这类 confirmed 记录。",
-          "仍可在详情页保留原始 AI 输出和确认时间。",
+          "AI 草稿内容已通过人工核对。",
+          "统计面板会使用这笔确认后的复盘。",
+          "原始 AI 输出和确认时间会保留，便于追溯。",
         ],
         canGenerate: false,
         canConfirm: false,
@@ -83,12 +83,12 @@ export function getReviewPanelState(
     case "corrected":
       return {
         badge: "修正",
-        status: "corrected",
-        description: "该复盘已由用户修正，可进入统计口径。",
+        status: "已修正",
+        description: "该复盘已修正，会按修正结果进入统计。",
         bullets: [
-          "用户已修正 AI 草稿中的事实或判断。",
-          "统计面板后续会使用修正后的结构化结果。",
-          "原始输出应在详情页保留用于追溯。",
+          "你已调整 AI 草稿中的事实或判断。",
+          "统计面板会使用修正后的结构化结果。",
+          "原始输出仍会保留，便于之后回看。",
         ],
         canGenerate: false,
         canConfirm: false,
@@ -96,12 +96,12 @@ export function getReviewPanelState(
     case "invalid":
       return {
         badge: "无效",
-        status: "invalid",
-        description: "该复盘已标记无效，不会进入统计口径。",
+        status: "已作废",
+        description: "该复盘已作废，不会进入统计分析。",
         bullets: [
-          "这笔交易仍保留原始事实记录。",
-          "无效复盘不会参与统计分析。",
-          "后续可以重新生成或重新确认复盘。",
+          "交易事实仍会保留在本地记录中。",
+          "作废复盘不会影响统计结果。",
+          "后续可以重新生成草稿，再重新确认。",
         ],
         canGenerate: false,
         canConfirm: false,
@@ -121,9 +121,9 @@ export function getReviewActionState({
   isSavingReview: boolean;
 }): ReviewActionState {
   const labels = {
-    confirmLabel: isSavingReview ? "处理中" : "确认草稿",
-    correctLabel: isSavingReview ? "处理中" : "修正草稿",
-    invalidateLabel: isSavingReview ? "处理中" : "标记无效",
+    confirmLabel: isSavingReview ? "正在处理" : "确认复盘",
+    correctLabel: isSavingReview ? "正在处理" : "修正复盘",
+    invalidateLabel: isSavingReview ? "正在处理" : "作废复盘",
   };
 
   if (!trade) {
@@ -138,7 +138,7 @@ export function getReviewActionState({
     return {
       ...labels,
       canResolveDraft: false,
-      disabledReason: "请在 Electron 桌面运行时处理复盘草稿。",
+      disabledReason: "当前是浏览器预览，请在桌面应用中处理复盘草稿。",
     };
   }
 
@@ -146,7 +146,7 @@ export function getReviewActionState({
     return {
       ...labels,
       canResolveDraft: false,
-      disabledReason: "暂无可确认的复盘草稿。",
+      disabledReason: "还没有可确认的复盘草稿。",
     };
   }
 
@@ -154,7 +154,7 @@ export function getReviewActionState({
     return {
       ...labels,
       canResolveDraft: false,
-      disabledReason: "复盘草稿处理中。",
+      disabledReason: "复盘草稿正在处理中，请稍候。",
     };
   }
 

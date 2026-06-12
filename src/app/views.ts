@@ -20,31 +20,31 @@ export const navigationItems: NavigationItem[] = [
   {
     id: "trades",
     label: "交易",
-    description: "已平仓交易记录",
+    description: "记录和复盘已平仓交易",
     icon: SquarePen,
   },
   {
     id: "rules",
     label: "规则",
-    description: "入场规则版本",
+    description: "管理入场规则版本",
     icon: ListChecks,
   },
   {
     id: "stats",
     label: "统计",
-    description: "确认复盘口径",
+    description: "查看已确认复盘统计",
     icon: BarChart3,
   },
   {
     id: "backup",
     label: "备份",
-    description: "本地数据保护",
+    description: "备份和恢复本地数据",
     icon: DatabaseBackup,
   },
   {
     id: "settings",
     label: "设置",
-    description: "模型与数据目录",
+    description: "配置模型和本地数据",
     icon: Settings,
   },
 ];

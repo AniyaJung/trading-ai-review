@@ -137,16 +137,16 @@ export function buildCreateClosedTradeInput(
   );
 
   if (openedAt && closedAt && Date.parse(closedAt) < Date.parse(openedAt)) {
-    errors.push("平仓时间不能早于开仓时间。");
+    errors.push("平仓时间需要晚于或等于开仓时间。");
   }
 
   if (entryPrice != null && stopLossPrice != null) {
     if (form.direction === "long" && stopLossPrice >= entryPrice) {
-      errors.push("做多交易的止损点位必须低于入场点位。");
+      errors.push("做多交易的止损点位需要低于入场点位。");
     }
 
     if (form.direction === "short" && stopLossPrice <= entryPrice) {
-      errors.push("做空交易的止损点位必须高于入场点位。");
+      errors.push("做空交易的止损点位需要高于入场点位。");
     }
   }
 
@@ -247,7 +247,7 @@ function parseRequiredLocalDateTime(
   try {
     return parseLocalDateTimeToIso(value);
   } catch {
-    errors.push(`${label}格式无效。`);
+    errors.push(`${label}格式不正确，请重新选择时间。`);
     return null;
   }
 }
@@ -260,7 +260,7 @@ function parsePositiveNumber(
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    errors.push(`${label}必须大于 0。`);
+    errors.push(`${label}需要填写大于 0 的数字。`);
     return null;
   }
 
@@ -287,7 +287,7 @@ function parsePositiveInteger(
   const parsed = Number(value);
 
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    errors.push(`${label}必须是正整数。`);
+    errors.push(`${label}需要填写大于 0 的整数。`);
     return null;
   }
 
@@ -314,12 +314,12 @@ function parseNonNegativeNumber(
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed)) {
-    errors.push(`${label}必须是有效数字。`);
+    errors.push(`${label}需要填写有效数字。`);
     return null;
   }
 
   if (parsed < 0) {
-    errors.push(`${label}不能为负数。`);
+    errors.push(`${label}不能小于 0。`);
     return null;
   }
 

@@ -96,6 +96,6 @@ describe("previewTrades", () => {
         },
         [{ id: 2, label: "ORB v1", source: "active" }],
       ),
-    ).toContain("统计下钻 / ES / ORB v1");
+    ).toContain("统计筛选 / ES / ORB v1");
   });
 });

@@ -35,11 +35,11 @@ describe("review panel state", () => {
     expect(getReviewPanelState(undefined)).toEqual({
       badge: "-",
       status: "暂无交易",
-      description: "保存一笔已平仓交易后，可在这里查看 AI 复盘状态。",
+      description: "选择或保存一笔已平仓交易后，这里会显示复盘进度。",
       bullets: [
-        "当前没有可复盘的交易记录。",
-        "AI 复盘会从交易事实、截图和规则版本生成结构化草稿。",
-        "确认或修正后的复盘才会进入统计口径。",
+        "先在左侧选择一笔交易，或填写表单新建交易。",
+        "AI 复盘会结合交易事实、截图和绑定规则生成草稿。",
+        "只有确认或修正后的复盘会进入统计。",
       ],
       canGenerate: false,
       canConfirm: false,
@@ -49,8 +49,8 @@ describe("review panel state", () => {
   it("does not imply AI output exists before generation", () => {
     expect(getReviewPanelState(baseTrade)).toMatchObject({
       badge: "-",
-      status: "not generated",
-      description: "ES 交易已保存，尚未生成 AI 复盘。",
+      status: "未生成复盘",
+      description: "ES 交易已保存，可以生成 AI 复盘草稿。",
       canGenerate: true,
       canConfirm: false,
     });
@@ -61,8 +61,8 @@ describe("review panel state", () => {
       getReviewPanelState({ ...baseTrade, aiReviewStatus: "needs_review" }),
     ).toMatchObject({
       badge: "待审",
-      status: "needs review",
-      description: "AI 草稿需要用户确认或修正后才能进入统计。",
+      status: "待确认",
+      description: "AI 草稿已生成，请核对事实和规则判断后再确认。",
       canConfirm: true,
     });
   });
@@ -72,8 +72,8 @@ describe("review panel state", () => {
       getReviewPanelState({ ...baseTrade, aiReviewStatus: "confirmed" }),
     ).toMatchObject({
       badge: "OK",
-      status: "confirmed",
-      description: "该复盘已确认，可进入统计口径。",
+      status: "已确认",
+      description: "该复盘已确认，会纳入统计分析。",
       canConfirm: false,
     });
 
@@ -81,8 +81,8 @@ describe("review panel state", () => {
       getReviewPanelState({ ...baseTrade, aiReviewStatus: "corrected" }),
     ).toMatchObject({
       badge: "修正",
-      status: "corrected",
-      description: "该复盘已由用户修正，可进入统计口径。",
+      status: "已修正",
+      description: "该复盘已修正，会按修正结果进入统计。",
       canConfirm: false,
     });
   });
@@ -121,9 +121,9 @@ describe("review action state", () => {
       }),
     ).toEqual({
       canResolveDraft: true,
-      confirmLabel: "确认草稿",
-      correctLabel: "修正草稿",
-      invalidateLabel: "标记无效",
+      confirmLabel: "确认复盘",
+      correctLabel: "修正复盘",
+      invalidateLabel: "作废复盘",
       disabledReason: null,
     });
   });
@@ -139,7 +139,7 @@ describe("review action state", () => {
     ).toEqual(
       expect.objectContaining({
         canResolveDraft: false,
-        disabledReason: "暂无可确认的复盘草稿。",
+        disabledReason: "还没有可确认的复盘草稿。",
       }),
     );
   });
@@ -155,7 +155,7 @@ describe("review action state", () => {
     ).toEqual(
       expect.objectContaining({
         canResolveDraft: false,
-        disabledReason: "请在 Electron 桌面运行时处理复盘草稿。",
+        disabledReason: "当前是浏览器预览，请在桌面应用中处理复盘草稿。",
       }),
     );
 
@@ -169,7 +169,7 @@ describe("review action state", () => {
     ).toEqual(
       expect.objectContaining({
         canResolveDraft: false,
-        confirmLabel: "处理中",
+        confirmLabel: "正在处理",
       }),
     );
   });

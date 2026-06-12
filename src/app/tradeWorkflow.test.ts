@@ -36,17 +36,21 @@ describe("tradeWorkflow", () => {
 
     expect(state.trades).toEqual([]);
     expect(state.formErrors).toEqual([]);
-    expect(state.formMessage).toBe("录入已平仓交易后会立即写入本地 SQLite。");
+    expect(state.formMessage).toBe(
+      "填写一笔已平仓交易，保存后会安全写入本机数据库。",
+    );
     expect(state.editingTradeId).toBeNull();
     expect(state.tradeLoadError).toBeNull();
   });
 
   it("keeps trade workflow copy centralized", () => {
-    expect(getTradeValidationFailureMessage()).toBe("请修正交易事实后再保存。");
-    expect(getTradeRuntimePreviewSaveMessage()).toBe(
-      "浏览器预览不会写入数据库；Electron 运行时会保存。",
+    expect(getTradeValidationFailureMessage()).toBe(
+      "还有几项交易事实需要补全，请按提示修改后再保存。",
     );
-    expect(getDeleteTradeConfirmationMessage(trade)).toContain("删除 ES");
+    expect(getTradeRuntimePreviewSaveMessage()).toBe(
+      "当前是浏览器预览，不会写入数据库；在桌面应用中保存才会落盘。",
+    );
+    expect(getDeleteTradeConfirmationMessage(trade)).toContain("确认删除 ES");
   });
 
   it("clears cached detail state for a deleted trade", () => {

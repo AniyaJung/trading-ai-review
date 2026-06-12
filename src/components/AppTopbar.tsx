@@ -34,7 +34,7 @@ export function AppTopbar({
             <button
               type="button"
               className="icon-button"
-              title="复制当前交易待接入"
+              title="复制交易功能稍后开放"
               disabled
             >
               <Copy aria-hidden="true" size={18} />
@@ -47,7 +47,7 @@ export function AppTopbar({
             >
               <Plus aria-hidden="true" size={18} />
               {isSavingTrade
-                ? "保存中"
+                ? "正在保存"
                 : editingTradeId == null
                   ? "保存已平仓交易"
                   : "更新已平仓交易"}

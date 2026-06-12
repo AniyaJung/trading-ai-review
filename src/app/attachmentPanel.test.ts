@@ -18,7 +18,8 @@ describe("attachment panel helpers", () => {
   it("shows an honest empty state before attachments are added", () => {
     expect(getAttachmentPanelState([])).toEqual({
       countLabel: "0 张截图",
-      emptyText: "尚未添加截图。MVP 接收外部工具标注后的图片。",
+      emptyText:
+        "还没有截图。可以添加入场、持仓或出场后的关键画面，帮助 AI 复盘判断。",
       items: [],
     });
   });
@@ -59,7 +60,7 @@ describe("attachment panel helpers", () => {
         {
           id: 1,
           label: "入场前",
-          caption: "未填写备注",
+          caption: "未添加备注",
           filePath: "/tmp/before.png",
           fileName: "before.png",
         },

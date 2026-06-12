@@ -58,15 +58,15 @@ export function RulesView({
           </div>
           <div>
             <GitBranch aria-hidden="true" size={16} />
-            <span>追加不可变版本</span>
+            <span>追加新版本</span>
           </div>
           <div>
             <Link2 aria-hidden="true" size={16} />
-            <span>交易绑定版本</span>
+            <span>交易绑定当时版本</span>
           </div>
           <div>
             <Archive aria-hidden="true" size={16} />
-            <span>归档不删历史</span>
+            <span>归档保留历史</span>
           </div>
         </div>
       </section>
@@ -138,7 +138,7 @@ export function RulesView({
           <label>
             Checklist
             <textarea
-              placeholder="每行一个检查项"
+              placeholder="每行一个检查项，例如：突破前高、回踩不破、风险小于 1R"
               value={ruleDraft.checklistText}
               onChange={(event) =>
                 onRuleDraftChange({
@@ -150,7 +150,7 @@ export function RulesView({
           </label>
           <button type="submit" className="primary-button" disabled={isSavingRule}>
             <Plus aria-hidden="true" size={18} />
-            {isSavingRule ? "保存中" : "创建规则"}
+            {isSavingRule ? "正在保存" : "创建规则"}
           </button>
         </form>
       </section>
@@ -181,7 +181,7 @@ export function RulesView({
                 })
               }
             >
-              <option value="">选择 active 规则</option>
+              <option value="">选择要追加版本的规则</option>
               {entryRules.map((rule) => (
                 <option key={rule.id} value={rule.id}>
                   {buildRuleVersionLabel(rule)}
@@ -204,7 +204,7 @@ export function RulesView({
           <label>
             新版本 Checklist
             <textarea
-              placeholder="每行一个检查项"
+              placeholder="每行一个检查项；留空则该版本不做 checklist 检查"
               value={versionDraft.checklistText}
               onChange={(event) =>
                 onVersionDraftChange({
@@ -245,10 +245,10 @@ export function RulesView({
         </div>
 
         {isLoadingRules ? (
-          <div className="table-state">正在读取规则库...</div>
+          <div className="table-state">正在读取你的规则库...</div>
         ) : entryRules.length === 0 ? (
           <div className="table-state">
-            暂无 active 规则。创建规则后，交易表单可以绑定 latest version。
+            还没有可用规则。创建第一条入场规则后，交易表单就能绑定对应版本。
           </div>
         ) : (
           <div className="rule-list">
@@ -257,7 +257,7 @@ export function RulesView({
                 <div>
                   <span>{rule.marketType ?? "未分类"}</span>
                   <strong>{rule.name}</strong>
-                  <p>{rule.description ?? "未填写描述"}</p>
+                  <p>{rule.description ?? "未添加描述"}</p>
                 </div>
                 <div className="rule-version-box">
                   <span>v{rule.latestVersion.versionNo}</span>

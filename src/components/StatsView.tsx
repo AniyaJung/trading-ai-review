@@ -103,12 +103,16 @@ export function StatsView({
             onClick={onRefresh}
             disabled={isLoading}
           >
-            {isLoading ? "刷新中" : "刷新统计"}
+            {isLoading ? "正在刷新" : "刷新统计"}
           </button>
         </div>
       </div>
 
-      {error ? <div className="form-status error">读取统计失败：{error}</div> : null}
+      {error ? (
+        <div className="form-status error">
+          统计读取失败：{error}。请确认本地数据可访问后重试。
+        </div>
+      ) : null}
 
       <div className="panel stats-filter-bar" aria-label="统计筛选">
         <label>
@@ -130,7 +134,7 @@ export function StatsView({
               updateFilter("dateRangePreset", event.target.value)
             }
           >
-            <option value="all">全部</option>
+            <option value="all">全部时间</option>
             <option value="last7">最近 7 天</option>
             <option value="last30">最近 30 天</option>
             <option value="custom">自定义</option>
@@ -198,7 +202,7 @@ export function StatsView({
           onClick={() => drillDownToTrades(filters)}
         >
           <ListFilter aria-hidden="true" size={16} />
-          查看交易
+          查看对应交易
         </button>
       </div>
 
@@ -223,7 +227,7 @@ export function StatsView({
 
         {overview.byInstrument.length === 0 ? (
           <div className="table-state">
-            还没有确认或修正后的复盘。确认单笔复盘后，这里会显示统计结果。
+            还没有可统计的复盘。确认或修正单笔复盘后，这里会显示按品种汇总的结果。
           </div>
         ) : (
           <div className="stats-table">

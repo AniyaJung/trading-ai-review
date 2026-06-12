@@ -35,8 +35,8 @@ export function getBackupPanelState({
     canCreateBackup: !isPreview && !isBusy,
     canRestoreBackup: !isPreview && !isBusy,
     statusText: isPreview
-      ? "浏览器预览不会访问本地数据目录。"
-      : "备份会包含 SQLite 数据库、交易截图和 manifest。",
+      ? "当前是浏览器预览，无法访问本机数据目录。"
+      : "备份会打包本地数据库、交易截图和备份说明文件。",
     lastBackupLabel: lastBackup
       ? `${getFileName(lastBackup.filePath)} / ${formatBackupDate(
           lastBackup.manifest.exportedAt,
@@ -47,7 +47,7 @@ export function getBackupPanelState({
           lastRestore.safetyBackupFilePath,
         )}`
       : null,
-    versionPolicyLabel: "当前支持备份包 v1；更高版本会阻止恢复。",
+    versionPolicyLabel: "当前可恢复 v1 备份；更高版本请先升级应用。",
     errorGuidance: error ? getErrorGuidance(error) : null,
     historyItems: backupHistory.map((item) =>
       formatHistoryItem(item, {
@@ -90,14 +90,14 @@ function formatHistoryItem(
 
 function getHistoryStatusLabel(status: BackupHistoryItem["status"]) {
   if (status === "restorable") {
-    return "可恢复";
+    return "可以恢复";
   }
 
   if (status === "unsupported-version") {
-    return "版本过新";
+    return "需要升级";
   }
 
-  return "无法读取";
+  return "读取失败";
 }
 
 function getHistoryStatusTone(status: BackupHistoryItem["status"]) {
@@ -116,18 +116,18 @@ function getErrorGuidance(error: string) {
   const normalized = error.toLowerCase();
 
   if (normalized.includes("checksum mismatch")) {
-    return "备份包校验失败。请换用历史列表中的其他备份，或从备份目录复制该 zip 后再排查文件是否被改动。";
+    return "备份文件可能已被改动或损坏。建议换用历史列表中的其他备份，或先复制该 zip 再排查。";
   }
 
   if (normalized.includes("schema version") || normalized.includes("not supported")) {
-    return "备份包版本暂不支持。请保留该 zip，升级应用后再尝试恢复，或选择历史列表中的 v1 备份。";
+    return "这个备份来自更高版本。请先保留该 zip，升级应用后再恢复，或改用 v1 备份。";
   }
 
   if (normalized.includes("missing manifest") || normalized.includes("manifest.json")) {
-    return "这不是完整备份包。请选择由本应用导出的 zip，或从备份历史中选择 manifest 正常的文件。";
+    return "这不是完整备份包。请选择本应用导出的 zip，或从备份历史中选择可恢复的文件。";
   }
 
-  return "请确认备份 zip 位于本机可访问位置；如果失败发生在恢复过程中，当前数据会先保留安全备份。";
+  return "请确认备份 zip 仍在本机可访问位置。若恢复已开始，当前数据会先保留一份安全备份。";
 }
 
 function formatBytes(bytes: number) {

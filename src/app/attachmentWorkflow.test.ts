@@ -19,10 +19,10 @@ describe("attachmentWorkflow", () => {
 
   it("keeps attachment browser-preview copy centralized", () => {
     expect(getAttachmentRuntimeUnavailableError()).toBe(
-      "浏览器预览不能选择本地文件；请在 Electron 桌面运行时添加截图。",
+      "当前是浏览器预览，无法选择本地文件；请在桌面应用中添加截图。",
     );
     expect(getDeleteAttachmentConfirmationMessage()).toBe(
-      "删除这张交易截图？本地副本也会移除。",
+      "确认删除这张交易截图？本机保存的副本也会一起移除。",
     );
   });
 

@@ -13,7 +13,7 @@ describe("getBackupPanelState", () => {
     expect(state.isPreview).toBe(true);
     expect(state.canCreateBackup).toBe(false);
     expect(state.canRestoreBackup).toBe(false);
-    expect(state.statusText).toBe("浏览器预览不会访问本地数据目录。");
+    expect(state.statusText).toBe("当前是浏览器预览，无法访问本机数据目录。");
   });
 
   it("shows the last backup file name in Electron runtime", () => {
@@ -74,20 +74,20 @@ describe("getBackupPanelState", () => {
       ],
     });
 
-    expect(state.versionPolicyLabel).toBe("当前支持备份包 v1；更高版本会阻止恢复。");
+    expect(state.versionPolicyLabel).toBe("当前可恢复 v1 备份；更高版本请先升级应用。");
     expect(state.historyItems).toEqual([
       expect.objectContaining({
         canRestore: true,
         fileName: "current.zip",
         metadataLabel: "2026-06-11 10:30 / v1 / 2.0 KB",
-        statusLabel: "可恢复",
+        statusLabel: "可以恢复",
         statusTone: "ok",
       }),
       expect.objectContaining({
         canRestore: false,
         fileName: "future.zip",
         metadataLabel: "2026-06-11 09:30 / v999 / 1000 B",
-        statusLabel: "版本过新",
+        statusLabel: "需要升级",
         statusTone: "warning",
       }),
     ]);
@@ -103,7 +103,7 @@ describe("getBackupPanelState", () => {
     });
 
     expect(state.errorGuidance).toBe(
-      "备份包校验失败。请换用历史列表中的其他备份，或从备份目录复制该 zip 后再排查文件是否被改动。",
+      "备份文件可能已被改动或损坏。建议换用历史列表中的其他备份，或先复制该 zip 再排查。",
     );
   });
 

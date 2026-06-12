@@ -75,7 +75,7 @@ export function AttachmentSection({
         </select>
         <input
           aria-label="截图备注"
-          placeholder="备注"
+          placeholder="例如：突破前、止损移动后"
           value={attachmentDraft.caption}
           onChange={(event) =>
             onAttachmentDraftChange({
@@ -90,14 +90,14 @@ export function AttachmentSection({
           disabled={isSavingAttachment || !canAttach}
         >
           <Camera aria-hidden="true" size={16} />
-          {isSavingAttachment ? "添加中" : "添加截图"}
+          {isSavingAttachment ? "正在添加" : "添加截图"}
         </button>
       </form>
 
       {isLoadingAttachments ? (
-        <div className="detail-state">正在读取截图...</div>
+        <div className="detail-state">正在读取这笔交易的截图...</div>
       ) : attachmentError ? (
-        <div className="detail-state error">截图操作失败：{attachmentError}</div>
+        <div className="detail-state error">截图操作没有完成：{attachmentError}</div>
       ) : attachmentPanel.items.length === 0 ? (
         <div className="detail-state">{attachmentPanel.emptyText}</div>
       ) : (

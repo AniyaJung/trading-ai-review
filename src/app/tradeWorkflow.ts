@@ -10,7 +10,8 @@ import {
 import { getInitialTrades, type RendererRuntime } from "./tradeList";
 import { formatTradeTime, updatePreviewTradeSummary } from "./previewTrades";
 
-const defaultFormMessage = "录入已平仓交易后会立即写入本地 SQLite。";
+const defaultFormMessage =
+  "填写一笔已平仓交易，保存后会安全写入本机数据库。";
 
 export type SelectedTradeDetailState = {
   tradeId: number;
@@ -60,17 +61,17 @@ export function createTradeWorkflowInitialState(
 }
 
 export function getTradeValidationFailureMessage() {
-  return "请修正交易事实后再保存。";
+  return "还有几项交易事实需要补全，请按提示修改后再保存。";
 }
 
 export function getTradeRuntimePreviewSaveMessage() {
-  return "浏览器预览不会写入数据库；Electron 运行时会保存。";
+  return "当前是浏览器预览，不会写入数据库；在桌面应用中保存才会落盘。";
 }
 
 export function getDeleteTradeConfirmationMessage(trade: TradeSummary) {
-  return `删除 ${trade.symbol} ${formatTradeTime(
+  return `确认删除 ${trade.symbol} ${formatTradeTime(
     trade.openedAt,
-  )} 这笔交易？成交明细和后续复盘也会一并删除。`;
+  )} 这笔交易？关联的成交明细、截图和复盘记录也会一起移除。`;
 }
 
 export function resetTradeDetailStateForTrade(
@@ -205,7 +206,7 @@ export function useTradeWorkflow(
 
         setEditingTradeId(null);
         setTradeForm(createTradeFormAfterSave(tradeForm));
-        setFormMessage("交易已更新，并重新计算盈亏和成交明细。");
+        setFormMessage("交易已更新，盈亏和成交明细已重新计算。");
       } catch (error) {
         setFormErrors([error instanceof Error ? error.message : String(error)]);
       } finally {
@@ -227,7 +228,7 @@ export function useTradeWorkflow(
       await refreshStats();
       setSelectedTradeId(createdTrade.id);
       setTradeForm(createTradeFormAfterSave(tradeForm));
-      setFormMessage("交易已保存，并自动生成 entry/exit 成交明细。");
+      setFormMessage("交易已保存，已生成入场/出场成交明细。");
     } catch (error) {
       setFormErrors([error instanceof Error ? error.message : String(error)]);
     } finally {
@@ -264,7 +265,7 @@ export function useTradeWorkflow(
       );
       setTradeDetailErrorState(undefined);
       setEditingTradeId(null);
-      setFormMessage("交易已删除。");
+      setFormMessage("交易已删除，相关明细已同步清理。");
       return true;
     } catch (error) {
       setFormErrors([error instanceof Error ? error.message : String(error)]);
@@ -282,14 +283,14 @@ export function useTradeWorkflow(
     setEditingTradeId(selectedTradeDetail.id);
     setTradeForm(createTradeFormFromDetail(selectedTradeDetail));
     setFormErrors([]);
-    setFormMessage("正在编辑选中交易，保存后会覆盖原记录。");
+    setFormMessage("正在编辑选中交易。保存后会更新原记录，也可以取消编辑。");
   };
 
   const handleCancelEdit = () => {
     setEditingTradeId(null);
     setTradeForm(createInitialTradeForm());
     setFormErrors([]);
-    setFormMessage("已取消编辑。");
+    setFormMessage("已取消编辑，表单已恢复为新建交易。");
   };
 
   const applyBootstrapTrades = useCallback((desktopTrades: TradeSummary[]) => {

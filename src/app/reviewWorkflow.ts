@@ -37,11 +37,11 @@ export function createReviewWorkflowInitialState(): ReviewWorkflowState {
 }
 
 export function getCorrectReviewPromptMessage() {
-  return "修正后的复盘摘要";
+  return "请输入修正后的复盘摘要";
 }
 
 export function getInvalidateReviewConfirmationMessage() {
-  return "将这条复盘草稿标记为无效？该交易不会进入复盘统计口径。";
+  return "确认作废这条复盘草稿？作废后，这笔交易不会进入复盘统计。";
 }
 
 export function useReviewWorkflow(

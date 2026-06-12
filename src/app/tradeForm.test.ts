@@ -217,9 +217,9 @@ describe("trade form helpers", () => {
       ok: false,
       errors: [
         "请填写开仓时间。",
-        "入场点位必须大于 0。",
-        "合约数必须是正整数。",
-        "手续费不能为负数。",
+        "入场点位需要填写大于 0 的数字。",
+        "合约数需要填写大于 0 的整数。",
+        "手续费不能小于 0。",
       ],
     });
   });
@@ -233,7 +233,7 @@ describe("trade form helpers", () => {
       }),
     ).toEqual({
       ok: false,
-      errors: ["做多交易的止损点位必须低于入场点位。"],
+      errors: ["做多交易的止损点位需要低于入场点位。"],
     });
 
     expect(
@@ -244,7 +244,7 @@ describe("trade form helpers", () => {
       }),
     ).toEqual({
       ok: false,
-      errors: ["做空交易的止损点位必须高于入场点位。"],
+      errors: ["做空交易的止损点位需要高于入场点位。"],
     });
   });
 });

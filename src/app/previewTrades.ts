@@ -43,7 +43,7 @@ export function formatStatsDrilldownLabel(
   filters: StatsOverviewFilters,
   entryRuleOptions: StatsEntryRuleOption[],
 ) {
-  const parts = ["统计下钻"];
+  const parts = ["统计筛选"];
 
   if (filters.symbol) {
     parts.push(filters.symbol);

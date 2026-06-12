@@ -35,7 +35,7 @@ export function TradeListPanel({
           <button
             type="button"
             className="icon-button"
-            title="清除统计下钻筛选"
+            title="清除统计筛选"
             onClick={onClearFilter}
           >
             <X aria-hidden="true" size={16} />
@@ -45,12 +45,14 @@ export function TradeListPanel({
 
       <div className="trade-table">
         {isLoadingTrades ? (
-          <div className="table-state">正在读取本地交易记录...</div>
+          <div className="table-state">正在读取本机交易记录...</div>
         ) : tradeLoadError ? (
-          <div className="table-state error">读取交易失败：{tradeLoadError}</div>
+          <div className="table-state error">
+            交易记录读取失败：{tradeLoadError}
+          </div>
         ) : trades.length === 0 ? (
           <div className="table-state">
-            暂无交易。保存右侧表单后，这里会显示真实记录。
+            还没有交易记录。填写交易事实并保存后，这里会显示你的复盘列表。
           </div>
         ) : (
           trades.map((trade) => (

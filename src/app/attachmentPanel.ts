@@ -35,12 +35,12 @@ export function getAttachmentPanelState(attachments: AttachmentSummary[]) {
     countLabel: `${attachments.length} 张截图`,
     emptyText:
       attachments.length === 0
-        ? "尚未添加截图。MVP 接收外部工具标注后的图片。"
+        ? "还没有截图。可以添加入场、持仓或出场后的关键画面，帮助 AI 复盘判断。"
         : null,
     items: attachments.map((attachment) => ({
       id: attachment.id,
       label: imageTypeLabelByValue.get(attachment.imageType) ?? attachment.imageType,
-      caption: attachment.caption || "未填写备注",
+      caption: attachment.caption || "未添加备注",
       filePath: attachment.filePath,
       fileName: getFileName(attachment.filePath),
     })),

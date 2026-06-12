@@ -147,7 +147,7 @@ export function TradeReviewPanel({
         <div className={selectedTradeDetail ? "workflow-step ready" : "workflow-step"}>
           <FileText aria-hidden="true" size={15} />
           <span>交易事实</span>
-          <strong>{selectedTradeDetail ? "已读取" : "等待"}</strong>
+          <strong>{selectedTradeDetail ? "已读取" : "待选择"}</strong>
         </div>
         <div className={evidenceCount > 0 ? "workflow-step ready" : "workflow-step"}>
           <Camera aria-hidden="true" size={15} />
@@ -162,7 +162,7 @@ export function TradeReviewPanel({
         <div className={reviewPanel.canConfirm ? "workflow-step attention" : "workflow-step"}>
           <RotateCcw aria-hidden="true" size={15} />
           <span>人工确认</span>
-          <strong>{reviewPanel.canConfirm ? "待处理" : "未开放"}</strong>
+          <strong>{reviewPanel.canConfirm ? "待确认" : "未开始"}</strong>
         </div>
       </div>
 
@@ -172,9 +172,11 @@ export function TradeReviewPanel({
           <span>{selectedTrade?.symbol ?? "-"}</span>
         </div>
         {isLoadingTradeDetail ? (
-          <div className="detail-state">正在读取交易详情...</div>
+          <div className="detail-state">正在读取这笔交易的详情...</div>
         ) : tradeDetailError ? (
-          <div className="detail-state error">读取详情失败：{tradeDetailError}</div>
+          <div className="detail-state error">
+            交易详情读取失败：{tradeDetailError}
+          </div>
         ) : selectedTradeDetail ? (
           <>
             <div className="detail-grid">
@@ -196,7 +198,7 @@ export function TradeReviewPanel({
               <div className="rule-check-grid">
                 <div>
                   <span>版本绑定</span>
-                  <strong>{hasRuleBinding ? "ready" : "missing"}</strong>
+                  <strong>{hasRuleBinding ? "已绑定" : "未绑定"}</strong>
                 </div>
                 <div>
                   <span>截图证据</span>
@@ -307,7 +309,7 @@ export function TradeReviewPanel({
                                 disabled={!canSaveRuleCheck}
                               >
                                 <Save aria-hidden="true" size={14} />
-                                {isSavingThisCheck ? "保存中" : "保存"}
+                                {isSavingThisCheck ? "正在保存" : "保存"}
                               </button>
                             </div>
                           </div>
@@ -318,7 +320,7 @@ export function TradeReviewPanel({
                 </div>
               ) : selectedTradeDetail.entryRuleChecklist.length > 0 ? (
                 <div className="detail-state">
-                  生成复盘草稿后会为 checklist 创建逐项规则检查。
+                  生成 AI 草稿后，会按 checklist 逐项生成规则检查。
                 </div>
               ) : null}
             </div>
@@ -326,11 +328,11 @@ export function TradeReviewPanel({
             <div className="detail-notes">
               <p>
                 <span>入场理由</span>
-                {selectedTradeDetail.entryReason || "未填写"}
+                {selectedTradeDetail.entryReason || "未填写入场理由"}
               </p>
               <p>
                 <span>出场理由</span>
-                {selectedTradeDetail.exitReason || "未填写"}
+                {selectedTradeDetail.exitReason || "未填写出场理由"}
               </p>
             </div>
 
@@ -352,10 +354,10 @@ export function TradeReviewPanel({
                 <span>{latestReview?.status ?? reviewPanel.status}</span>
               </div>
               {isLoadingReview ? (
-                <div className="detail-state">正在读取本地复盘草稿...</div>
+                <div className="detail-state">正在读取本机复盘草稿...</div>
               ) : reviewError ? (
                 <div className="detail-state error">
-                  读取复盘草稿失败：{reviewError}
+                  复盘草稿读取失败：{reviewError}
                 </div>
               ) : latestReview ? (
                 <>
@@ -363,7 +365,7 @@ export function TradeReviewPanel({
                   <div className="review-meta-grid">
                     <div>
                       <span>模型</span>
-                      <strong>{latestReview.model ?? "未记录"}</strong>
+                      <strong>{latestReview.model ?? "未记录模型"}</strong>
                     </div>
                     <div>
                       <span>分数</span>
@@ -386,7 +388,7 @@ export function TradeReviewPanel({
                   className="secondary-button"
                   onClick={onConfirmReview}
                   disabled={!reviewAction.canResolveDraft}
-                  title={reviewAction.disabledReason ?? "确认复盘草稿"}
+                  title={reviewAction.disabledReason ?? "确认这条复盘"}
                 >
                   {reviewAction.confirmLabel}
                 </button>
@@ -395,7 +397,7 @@ export function TradeReviewPanel({
                   className="secondary-button"
                   onClick={onCorrectReview}
                   disabled={!reviewAction.canResolveDraft}
-                  title={reviewAction.disabledReason ?? "修正复盘草稿摘要"}
+                  title={reviewAction.disabledReason ?? "修正这条复盘"}
                 >
                   {reviewAction.correctLabel}
                 </button>
@@ -404,7 +406,7 @@ export function TradeReviewPanel({
                   className="danger-button"
                   onClick={onInvalidateReview}
                   disabled={!reviewAction.canResolveDraft}
-                  title={reviewAction.disabledReason ?? "标记复盘草稿无效"}
+                  title={reviewAction.disabledReason ?? "作废这条复盘"}
                 >
                   {reviewAction.invalidateLabel}
                 </button>
@@ -427,7 +429,7 @@ export function TradeReviewPanel({
             />
           </>
         ) : (
-          <div className="detail-state">暂无交易详情。</div>
+          <div className="detail-state">请选择一笔交易查看详情。</div>
         )}
       </div>
 
@@ -455,16 +457,16 @@ export function TradeReviewPanel({
           className="secondary-button"
           onClick={onCreateReviewDraft}
           disabled={!reviewPanel.canGenerate || !selectedTrade || isSavingReview}
-          title={reviewPanel.canGenerate ? "生成 AI 复盘草稿" : "当前状态不能生成"}
+          title={reviewPanel.canGenerate ? "生成 AI 复盘草稿" : "请先选择可复盘的交易"}
         >
-          {isSavingReview ? "生成中" : "生成 AI 草稿"}
+          {isSavingReview ? "正在生成" : "生成 AI 草稿"}
         </button>
         <button
           type="button"
           className="primary-button"
           onClick={onConfirmReview}
           disabled={!reviewAction.canResolveDraft || isSavingReview}
-          title={reviewAction.disabledReason ?? "确认复盘草稿"}
+          title={reviewAction.disabledReason ?? "确认这条复盘"}
         >
           {reviewAction.confirmLabel}
         </button>

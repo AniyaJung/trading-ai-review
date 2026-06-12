@@ -23,9 +23,9 @@ describe("reviewWorkflow", () => {
   });
 
   it("keeps review prompts centralized", () => {
-    expect(getCorrectReviewPromptMessage()).toBe("修正后的复盘摘要");
+    expect(getCorrectReviewPromptMessage()).toBe("请输入修正后的复盘摘要");
     expect(getInvalidateReviewConfirmationMessage()).toBe(
-      "将这条复盘草稿标记为无效？该交易不会进入复盘统计口径。",
+      "确认作废这条复盘草稿？作废后，这笔交易不会进入复盘统计。",
     );
   });
 });

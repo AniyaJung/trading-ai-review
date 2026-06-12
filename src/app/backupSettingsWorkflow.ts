@@ -9,7 +9,7 @@ import {
 } from "./settingsPanel";
 
 const defaultSettingsMessage =
-  "AI Key 不会回显；留空保存会保持当前 Key 不变。";
+  "API Key 只保存在本机，不会在输入框中回显；留空保存会沿用当前 Key。";
 
 export type BackupSettingsWorkflowState = {
   isBackupBusy: boolean;
@@ -51,26 +51,26 @@ export function createBackupSettingsInitialState(): BackupSettingsWorkflowState 
 }
 
 export function getBackupRuntimeUnavailableError() {
-  return "浏览器预览不会访问本地数据目录；请在 Electron 桌面运行时操作。";
+  return "当前是浏览器预览，无法访问本机数据目录；请在桌面应用中操作。";
 }
 
 export function getSettingsRuntimeUnavailableError(action: "save" | "reset") {
   return action === "save"
-    ? "浏览器预览不会写入设置；请在 Electron 桌面运行时操作。"
-    : "浏览器预览不会重置本地数据；请在 Electron 桌面运行时操作。";
+    ? "当前是浏览器预览，无法保存设置；请在桌面应用中操作。"
+    : "当前是浏览器预览，无法重置本地数据；请在桌面应用中操作。";
 }
 
 export function getRestoreBackupConfirmationMessage(filePath?: string) {
   if (!filePath) {
-    return "从备份恢复会完整替换当前本地数据库和截图目录。恢复前会自动备份当前数据，恢复后应用会重启。继续？";
+    return "恢复备份会替换当前本地数据库和截图目录。开始前会自动保存当前数据快照，恢复后应用会重启。继续恢复？";
   }
 
   const fileName = filePath.split(/[\\/]/).at(-1) ?? filePath;
-  return `从历史备份 ${fileName} 恢复会完整替换当前本地数据库和截图目录。恢复前会自动备份当前数据，恢复后应用会重启。继续？`;
+  return `从历史备份 ${fileName} 恢复会替换当前本地数据库和截图目录。开始前会自动保存当前数据快照，恢复后应用会重启。继续恢复？`;
 }
 
 export function getLocalDataResetConfirmationMessage() {
-  return "这会先自动导出当前数据备份，然后清除本地 SQLite、截图和设置，并重启应用。继续？";
+  return "重置会先自动导出当前数据备份，然后清空本地交易、截图和设置，并重启应用。确认重置？";
 }
 
 export function useBackupSettingsWorkflow(
@@ -216,7 +216,7 @@ export function useBackupSettingsWorkflow(
       );
       setSettingsSummary(summary);
       setSettingsDraft(createSettingsDraft(summary));
-      setSettingsMessage("AI 设置已保存。");
+      setSettingsMessage("AI 设置已保存，下一次生成复盘会使用这些配置。");
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -263,7 +263,7 @@ export function useBackupSettingsWorkflow(
         buildDataResetInput(dataResetDraft),
       );
       setDataResetDraft(createDataResetDraft());
-      setSettingsMessage("本地数据已重置，应用将重启。");
+      setSettingsMessage("本地数据已重置，应用即将重启。");
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : String(error));
     } finally {

@@ -60,7 +60,7 @@ export function BackupView({
 
       {error ? (
         <div className="form-status error backup-error-block">
-          <strong>备份操作失败：{error}</strong>
+          <strong>备份操作没有完成：{error}</strong>
           {panel.errorGuidance ? <span>{panel.errorGuidance}</span> : null}
         </div>
       ) : null}
@@ -82,7 +82,7 @@ export function BackupView({
             disabled={!panel.canCreateBackup}
           >
             <Archive aria-hidden="true" size={17} />
-            {isBusy ? "处理中" : "立即备份"}
+            {isBusy ? "正在处理" : "立即备份"}
           </button>
         </section>
 
@@ -93,7 +93,7 @@ export function BackupView({
           <div>
             <p className="eyebrow">Restore</p>
             <h3>从备份恢复</h3>
-            <p>恢复会完整替换当前 SQLite 和截图目录，执行前会自动保存当前数据快照。</p>
+            <p>恢复会替换当前本地数据。开始前会自动保存一份当前数据快照。</p>
           </div>
           <button
             type="button"
@@ -118,11 +118,11 @@ export function BackupView({
         <div className="backup-status-list">
           <div>
             <span>最近备份</span>
-            <strong>{panel.lastBackupLabel ?? "本次会话尚未导出备份"}</strong>
+            <strong>{panel.lastBackupLabel ?? "本次会话还没有导出备份"}</strong>
           </div>
           <div>
             <span>最近恢复</span>
-            <strong>{panel.lastRestoreLabel ?? "本次会话尚未执行恢复"}</strong>
+            <strong>{panel.lastRestoreLabel ?? "本次会话还没有恢复备份"}</strong>
           </div>
         </div>
       </section>
@@ -160,7 +160,9 @@ export function BackupView({
             ))
           ) : (
             <div className="backup-history-empty">
-              {panel.isPreview ? "桌面运行时可读取备份历史" : "备份目录暂无 zip 记录"}
+              {panel.isPreview
+                ? "请在桌面应用中查看备份历史。"
+                : "备份目录里还没有可显示的 zip 记录。"}
             </div>
           )}
         </div>

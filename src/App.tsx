@@ -54,7 +54,7 @@ function App() {
   const reviewWorkflow = useReviewWorkflow(desktopApi);
   const [instruments, setInstruments] = useState<InstrumentConfig[]>([]);
   const [databaseStatus, setDatabaseStatus] = useState<string>(
-    "数据库等待桌面运行时",
+    "等待桌面数据服务",
   );
   const statsWorkflow = useStatsWorkflow(desktopApi);
   const tradeWorkflow = useTradeWorkflow(
@@ -307,7 +307,7 @@ function App() {
     const review = await confirmReview(selectedTrade, latestReview);
     if (review) {
       await syncAfterReviewMutation(selectedTrade.id);
-      setFormMessage("复盘草稿已确认，后续统计会纳入该交易。");
+      setFormMessage("复盘已确认，这笔交易会纳入统计。");
     }
   };
 
@@ -319,7 +319,7 @@ function App() {
     const review = await generateReviewDraft(selectedTrade);
     if (review) {
       await syncAfterReviewMutation(selectedTrade.id);
-      setFormMessage("AI 复盘草稿已生成，请检查后确认或修正。");
+      setFormMessage("AI 复盘草稿已生成，请核对后确认或修正。");
     }
   };
 
@@ -331,7 +331,7 @@ function App() {
     const review = await correctReview(selectedTrade, latestReview);
     if (review) {
       await syncAfterReviewMutation(selectedTrade.id);
-      setFormMessage("复盘草稿已修正，后续统计会使用修正结果。");
+      setFormMessage("复盘已修正，统计会使用修正后的结果。");
     }
   };
 
@@ -343,7 +343,7 @@ function App() {
     const review = await invalidateReview(selectedTrade, latestReview);
     if (review) {
       await syncAfterReviewMutation(selectedTrade.id);
-      setFormMessage("复盘草稿已标记无效。");
+      setFormMessage("复盘已作废，不会进入统计。");
     }
   };
 

@@ -64,8 +64,8 @@ export function SettingsView({
         {panel.isPreview ? <span className="stats-badge">预览模式</span> : null}
       </div>
 
-      {error ? <div className="form-status error">读取设置失败：{error}</div> : null}
-      <div className="form-status">{isLoading ? "设置加载中..." : message}</div>
+      {error ? <div className="form-status error">设置读取失败：{error}</div> : null}
+      <div className="form-status">{isLoading ? "正在读取本机设置..." : message}</div>
 
       <section className="panel settings-section">
         <div className="panel-heading">
@@ -84,8 +84,8 @@ export function SettingsView({
               value={draft.apiKey}
               placeholder={
                 summary?.openAi.apiKeyConfigured
-                  ? "已配置；留空则保持不变"
-                  : "sk-..."
+                  ? "已配置；不填写会继续使用当前 Key"
+                  : "粘贴 sk- 开头的 API Key"
               }
               disabled={draft.clearApiKey}
               onChange={(event) =>
@@ -126,7 +126,7 @@ export function SettingsView({
                 })
               }
             />
-            清除本机保存的 API Key
+            清除本机已保存的 API Key
           </label>
         </div>
 
@@ -153,7 +153,7 @@ export function SettingsView({
             disabled={!panel.canSave}
           >
             <Save aria-hidden="true" size={17} />
-            {isSaving ? "保存中" : "保存 AI 设置"}
+            {isSaving ? "正在保存" : "保存 AI 设置"}
           </button>
         </div>
       </section>
@@ -170,19 +170,19 @@ export function SettingsView({
         <div className="settings-path-list">
           <div>
             <span>数据目录</span>
-            <strong>{summary?.paths.appDataDir ?? "桌面运行时可用"}</strong>
+            <strong>{summary?.paths.appDataDir ?? "请在桌面应用中查看"}</strong>
           </div>
           <div>
             <span>SQLite</span>
-            <strong>{summary?.paths.databasePath ?? "桌面运行时可用"}</strong>
+            <strong>{summary?.paths.databasePath ?? "请在桌面应用中查看"}</strong>
           </div>
           <div>
             <span>截图目录</span>
-            <strong>{summary?.paths.attachmentsDir ?? "桌面运行时可用"}</strong>
+            <strong>{summary?.paths.attachmentsDir ?? "请在桌面应用中查看"}</strong>
           </div>
           <div>
             <span>备份目录</span>
-            <strong>{summary?.paths.backupsDir ?? "桌面运行时可用"}</strong>
+            <strong>{summary?.paths.backupsDir ?? "请在桌面应用中查看"}</strong>
           </div>
         </div>
 
@@ -219,11 +219,11 @@ export function SettingsView({
 
         <div className="settings-danger-body">
           <p>
-            重置会先导出当前数据备份，然后清除本地 SQLite、截图副本和设置。
-            该操作会重启应用。
+            重置前会先导出一份当前数据备份，然后清空本地交易、截图副本和设置。
+            完成后应用会自动重启。
           </p>
           <label>
-            输入 DELETE 以启用重置
+            输入 DELETE 后才能重置
             <input
               value={dataResetDraft.confirmationText}
               onChange={(event) =>
@@ -244,7 +244,7 @@ export function SettingsView({
             disabled={!panel.canResetLocalData}
           >
             <Trash2 aria-hidden="true" size={17} />
-            {isResettingLocalData ? "重置中" : "重置本地数据"}
+            {isResettingLocalData ? "正在重置" : "重置本地数据"}
           </button>
         </div>
       </section>

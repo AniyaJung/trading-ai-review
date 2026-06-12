@@ -17,30 +17,30 @@ describe("backupSettingsWorkflow", () => {
     expect(state.settingsDraft.apiKey).toBe("");
     expect(state.dataResetDraft.confirmationText).toBe("");
     expect(state.settingsMessage).toBe(
-      "AI Key 不会回显；留空保存会保持当前 Key 不变。",
+      "API Key 只保存在本机，不会在输入框中回显；留空保存会沿用当前 Key。",
     );
   });
 
   it("keeps runtime unavailable messages centralized", () => {
     expect(getBackupRuntimeUnavailableError()).toBe(
-      "浏览器预览不会访问本地数据目录；请在 Electron 桌面运行时操作。",
+      "当前是浏览器预览，无法访问本机数据目录；请在桌面应用中操作。",
     );
     expect(getSettingsRuntimeUnavailableError("save")).toBe(
-      "浏览器预览不会写入设置；请在 Electron 桌面运行时操作。",
+      "当前是浏览器预览，无法保存设置；请在桌面应用中操作。",
     );
     expect(getSettingsRuntimeUnavailableError("reset")).toBe(
-      "浏览器预览不会重置本地数据；请在 Electron 桌面运行时操作。",
+      "当前是浏览器预览，无法重置本地数据；请在桌面应用中操作。",
     );
   });
 
   it("builds destructive-operation confirmation messages", () => {
-    expect(getRestoreBackupConfirmationMessage()).toContain("从备份恢复会完整替换");
+    expect(getRestoreBackupConfirmationMessage()).toContain("恢复备份会替换");
     expect(
       getRestoreBackupConfirmationMessage(
         "/Users/demo/backups/ai-trading-review-backup.zip",
       ),
     ).toContain("ai-trading-review-backup.zip");
-    expect(getLocalDataResetConfirmationMessage()).toContain("清除本地 SQLite");
+    expect(getLocalDataResetConfirmationMessage()).toContain("清空本地交易");
   });
 
   it("can be used with an injected confirm function", () => {
