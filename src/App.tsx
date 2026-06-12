@@ -448,6 +448,35 @@ function App() {
     }
   };
 
+  const handleRestoreBackupFile = async (filePath: string) => {
+    if (!window.desktopApi) {
+      setBackupError("浏览器预览不会访问本地数据目录；请在 Electron 桌面运行时操作。");
+      return;
+    }
+
+    const fileName = filePath.split(/[\\/]/).at(-1) ?? filePath;
+    const confirmed = window.confirm(
+      `从历史备份 ${fileName} 恢复会完整替换当前本地数据库和截图目录。恢复前会自动备份当前数据，恢复后应用会重启。继续？`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsBackupBusy(true);
+    setBackupError(null);
+    try {
+      const restored = await window.desktopApi.backup.restoreFromHistory({
+        filePath,
+      });
+      setLastRestore(restored);
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsBackupBusy(false);
+    }
+  };
+
   const handleOpenDataDirectory = async () => {
     try {
       const error = await window.desktopApi?.backup.openDataDirectory();
@@ -1380,6 +1409,7 @@ function App() {
             backupHistory={backupHistory}
             onCreateBackup={() => void handleCreateBackup()}
             onRestoreBackup={() => void handleRestoreBackup()}
+            onRestoreBackupFile={(filePath) => void handleRestoreBackupFile(filePath)}
             onOpenDataDirectory={() => void handleOpenDataDirectory()}
             onOpenBackupsDirectory={() => void handleOpenBackupsDirectory()}
           />

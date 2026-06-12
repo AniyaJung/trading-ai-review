@@ -76,7 +76,11 @@ export function getBackupPanelState({
       : null,
     versionPolicyLabel: "当前支持备份包 v1；更高版本会阻止恢复。",
     errorGuidance: error ? getErrorGuidance(error) : null,
-    historyItems: backupHistory.map(formatHistoryItem),
+    historyItems: backupHistory.map((item) =>
+      formatHistoryItem(item, {
+        canUseLocalFiles: !isPreview && !isBusy,
+      }),
+    ),
   };
 }
 
@@ -94,9 +98,13 @@ function formatBackupDate(value: string) {
   return date.toISOString().slice(0, 16).replace("T", " ");
 }
 
-function formatHistoryItem(item: BackupHistoryItem) {
+function formatHistoryItem(
+  item: BackupHistoryItem,
+  options: { canUseLocalFiles: boolean },
+) {
   return {
     ...item,
+    canRestore: options.canUseLocalFiles && item.status === "restorable",
     metadataLabel: [
       item.exportedAt ? formatBackupDate(item.exportedAt) : "未知导出时间",
       item.backupSchemaVersion === null ? "未知版本" : `v${item.backupSchemaVersion}`,

@@ -21,6 +21,7 @@ type BackupViewProps = {
   backupHistory: BackupHistoryItem[];
   onCreateBackup: () => void;
   onRestoreBackup: () => void;
+  onRestoreBackupFile: (filePath: string) => void;
   onOpenDataDirectory: () => void;
   onOpenBackupsDirectory: () => void;
 };
@@ -34,6 +35,7 @@ export function BackupView({
   backupHistory,
   onCreateBackup,
   onRestoreBackup,
+  onRestoreBackupFile,
   onOpenDataDirectory,
   onOpenBackupsDirectory,
 }: BackupViewProps) {
@@ -145,6 +147,15 @@ export function BackupView({
                 <span className={`backup-status-chip ${item.statusTone}`}>
                   {item.statusLabel}
                 </span>
+                <button
+                  type="button"
+                  className="danger-button backup-history-restore"
+                  onClick={() => onRestoreBackupFile(item.filePath)}
+                  disabled={!item.canRestore}
+                >
+                  <RotateCcw aria-hidden="true" size={15} />
+                  恢复此备份
+                </button>
               </div>
             ))
           ) : (

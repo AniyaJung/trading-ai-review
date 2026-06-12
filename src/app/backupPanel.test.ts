@@ -77,12 +77,14 @@ describe("getBackupPanelState", () => {
     expect(state.versionPolicyLabel).toBe("当前支持备份包 v1；更高版本会阻止恢复。");
     expect(state.historyItems).toEqual([
       expect.objectContaining({
+        canRestore: true,
         fileName: "current.zip",
         metadataLabel: "2026-06-11 10:30 / v1 / 2.0 KB",
         statusLabel: "可恢复",
         statusTone: "ok",
       }),
       expect.objectContaining({
+        canRestore: false,
         fileName: "future.zip",
         metadataLabel: "2026-06-11 09:30 / v999 / 1000 B",
         statusLabel: "版本过新",
@@ -103,5 +105,40 @@ describe("getBackupPanelState", () => {
     expect(state.errorGuidance).toBe(
       "备份包校验失败。请换用历史列表中的其他备份，或从备份目录复制该 zip 后再排查文件是否被改动。",
     );
+  });
+
+  it("disables history restore actions while busy and in browser preview", () => {
+    const backupHistory = [
+      {
+        filePath: "/backups/current.zip",
+        fileName: "current.zip",
+        sizeBytes: 2048,
+        modifiedAt: "2026-06-11T11:00:00.000Z",
+        backupSchemaVersion: 1,
+        appVersion: "0.0.1",
+        exportedAt: "2026-06-11T10:30:00.000Z",
+        status: "restorable" as const,
+        problem: null,
+      },
+    ];
+
+    expect(
+      getBackupPanelState({
+        runtime: "electron",
+        isBusy: true,
+        lastBackup: null,
+        lastRestore: null,
+        backupHistory,
+      }).historyItems[0].canRestore,
+    ).toBe(false);
+    expect(
+      getBackupPanelState({
+        runtime: "browser-preview",
+        isBusy: false,
+        lastBackup: null,
+        lastRestore: null,
+        backupHistory,
+      }).historyItems[0].canRestore,
+    ).toBe(false);
   });
 });

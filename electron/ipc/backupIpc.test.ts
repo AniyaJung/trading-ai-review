@@ -149,6 +149,66 @@ describe("createBackupIpcHandlers", () => {
     expect(tradeCount).toBe(1);
   });
 
+  it("restores a backup selected from history", async () => {
+    const paths = createPaths();
+    seedDatabase(paths);
+    const backup = await createBackup(paths, {
+      now: new Date("2026-06-11T10:00:00.000Z"),
+      appVersion: "0.0.0-test",
+    });
+    const db = new DatabaseSync(paths.databasePath);
+    db.exec("delete from trade");
+    db.close();
+    let closedDatabase = false;
+    let afterRestoreCalled = false;
+    const handlers = createBackupIpcHandlers(paths, {
+      appVersion: "0.0.0-test",
+      now: () => new Date("2026-06-11T10:05:00.000Z"),
+      closeDatabase: () => {
+        closedDatabase = true;
+      },
+      afterRestore: () => {
+        afterRestoreCalled = true;
+      },
+    });
+
+    const restored = await handlers.restoreFromHistory({ filePath: backup.filePath });
+
+    const restoredDb = new DatabaseSync(paths.databasePath);
+    const tradeCount = (
+      restoredDb.prepare("select count(*) as count from trade").get() as {
+        count: number;
+      }
+    ).count;
+    restoredDb.close();
+
+    expect(restored.restoredFromFilePath).toBe(backup.filePath);
+    expect(restored.safetyBackupFilePath).toMatch(/before-restore\.zip$/);
+    expect(closedDatabase).toBe(true);
+    expect(afterRestoreCalled).toBe(true);
+    expect(tradeCount).toBe(1);
+  });
+
+  it("rejects history restore paths outside the managed backups directory", async () => {
+    const paths = createPaths();
+    seedDatabase(paths);
+    const outsideDir = createTempDir("trading-ai-review-backup-ipc-outside-");
+    const outsidePath = path.join(outsideDir, "outside.zip");
+    writeFileSync(outsidePath, "not used");
+    let closedDatabase = false;
+    const handlers = createBackupIpcHandlers(paths, {
+      closeDatabase: () => {
+        closedDatabase = true;
+      },
+    });
+
+    await expect(
+      handlers.restoreFromHistory({ filePath: outsidePath }),
+    ).rejects.toThrow("Backup file must be inside the managed backups directory.");
+
+    expect(closedDatabase).toBe(false);
+  });
+
   it("returns undefined when restore file selection is cancelled", async () => {
     const paths = createPaths();
     seedDatabase(paths);

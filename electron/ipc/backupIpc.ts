@@ -1,4 +1,5 @@
 import { app, dialog, ipcMain, shell } from "electron";
+import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppDataPaths } from "../data/appData.js";
 import {
@@ -15,6 +16,10 @@ type BackupIpcOptions = {
   openPath?: (targetPath: string) => Promise<string>;
   closeDatabase?: () => void;
   afterRestore?: () => void;
+};
+
+type RestoreFromHistoryInput = {
+  filePath: string;
 };
 
 export function createBackupIpcHandlers(
@@ -36,6 +41,16 @@ export function createBackupIpcHandlers(
         return undefined;
       }
 
+      options.closeDatabase?.();
+      const result = await restoreBackup(paths, backupFilePath, getBackupOptions());
+      options.afterRestore?.();
+      return result;
+    },
+    restoreFromHistory: async (input: RestoreFromHistoryInput) => {
+      const backupFilePath = requireBackupPathInsideBackupsDir(
+        paths.backupsDir,
+        input.filePath,
+      );
       options.closeDatabase?.();
       const result = await restoreBackup(paths, backupFilePath, getBackupOptions());
       options.afterRestore?.();
@@ -80,6 +95,10 @@ export function registerBackupIpc(db: DatabaseSync, paths: AppDataPaths) {
   ipcMain.handle("backup:create", () => handlers.create());
   ipcMain.handle("backup:listHistory", () => handlers.listHistory());
   ipcMain.handle("backup:chooseAndRestore", () => handlers.chooseAndRestore());
+  ipcMain.handle(
+    "backup:restoreFromHistory",
+    (_event, input: RestoreFromHistoryInput) => handlers.restoreFromHistory(input),
+  );
   ipcMain.handle("backup:openDataDirectory", () => handlers.openDataDirectory());
   ipcMain.handle("backup:openBackupsDirectory", () =>
     handlers.openBackupsDirectory(),
@@ -88,4 +107,21 @@ export function registerBackupIpc(db: DatabaseSync, paths: AppDataPaths) {
 
 function openPath(targetPath: string, options: BackupIpcOptions) {
   return options.openPath?.(targetPath) ?? shell.openPath(targetPath);
+}
+
+function requireBackupPathInsideBackupsDir(backupsDir: string, filePath: string) {
+  const resolvedBackupsDir = path.resolve(backupsDir);
+  const resolvedFilePath = path.resolve(filePath);
+  const relativePath = path.relative(resolvedBackupsDir, resolvedFilePath);
+
+  if (
+    !relativePath ||
+    relativePath.startsWith("..") ||
+    path.isAbsolute(relativePath) ||
+    path.extname(resolvedFilePath).toLowerCase() !== ".zip"
+  ) {
+    throw new Error("Backup file must be inside the managed backups directory.");
+  }
+
+  return resolvedFilePath;
 }

@@ -269,6 +269,10 @@ type RestoreBackupResult = {
   manifest: BackupManifest;
 };
 
+type RestoreFromHistoryInput = {
+  filePath: string;
+};
+
 type BackupHistoryItem = {
   filePath: string;
   fileName: string;
@@ -377,6 +381,9 @@ type DesktopApi = {
     create: () => Promise<BackupResult>;
     listHistory: () => Promise<BackupHistoryItem[]>;
     chooseAndRestore: () => Promise<RestoreBackupResult | undefined>;
+    restoreFromHistory: (
+      input: RestoreFromHistoryInput,
+    ) => Promise<RestoreBackupResult>;
     openDataDirectory: () => Promise<string>;
     openBackupsDirectory: () => Promise<string>;
   };
