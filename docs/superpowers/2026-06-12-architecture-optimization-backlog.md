@@ -7,6 +7,45 @@ Branch: `codex/safe-attachment-preview`
 
 The project has completed the main local desktop, trade recording, rule, AI review, stats, backup/restore, AI settings, and local data reset loops. The current architecture is workable, but several boundaries should be tightened before larger P1 features such as tag filtering, market session dates, AI cost reporting, and charting.
 
+## Current Handoff
+
+- Current branch: `codex/safe-attachment-preview`.
+- Latest commit: `9145768 feat: add stats date semantics and workflow refactors`.
+- Worktree status after the feature commit: clean before this handoff note was edited.
+- Latest verified commands:
+  - `npm run test -- --run`: 45 test files and 174 tests passed.
+  - `npm run lint`: passed.
+  - `npm run build`: passed.
+- No local preview/dev server is expected to be running.
+- Important safety constraint: do not reset, delete, or clear real local SQLite or app data. Tests for reset, restore, migration, or destructive flows must use temporary directories.
+
+## Next Conversation Bootstrap
+
+Start the next development conversation with these commands:
+
+```bash
+git status --short --branch
+git log --oneline -8
+sed -n '1,260p' docs/superpowers/2026-06-12-architecture-optimization-backlog.md
+```
+
+Recommended next execution path:
+
+1. Confirm whether the handoff note should be committed, since this note was written after commit `9145768`.
+2. Continue with P1 tag statistics/filtering by deciding tag ownership and persistence:
+   - whether AI review tags should remain only in `ai_review.tags_json`;
+   - whether AI tags should be normalized into `tag` / `trade_tag_map`;
+   - whether manual tags need a maintenance UI before stats filtering.
+3. After the tag ownership decision, implement the smallest useful tag path:
+   - tests first;
+   - persist or derive tags consistently;
+   - expose stats filters and trade drilldown filters;
+   - keep preview-mode behavior deterministic.
+4. If tag work is paused, the next useful engineering item is AI review hardening:
+   - fixture evals for prompt/schema output;
+   - error classification and retry policy;
+   - usage/cost display.
+
 ## Execution Status
 
 - Done: migrated cross-process DTOs from renderer and Electron-local declarations into `shared/contracts`.
