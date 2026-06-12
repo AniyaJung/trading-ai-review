@@ -5,10 +5,16 @@ export type SettingsDraft = {
   promptVersion: string;
 };
 
+export type DataResetDraft = {
+  confirmationText: string;
+};
+
 export type SettingsPanelInput = {
   runtime: DesktopApi["runtime"] | "browser-preview";
   isSaving: boolean;
+  isResetting?: boolean;
   summary: SettingsSummary | null;
+  resetConfirmationText?: string;
 };
 
 export function createSettingsDraft(summary: SettingsSummary | null): SettingsDraft {
@@ -23,16 +29,26 @@ export function createSettingsDraft(summary: SettingsSummary | null): SettingsDr
 export function getSettingsPanelState({
   runtime,
   isSaving,
+  isResetting = false,
   summary,
+  resetConfirmationText = "",
 }: SettingsPanelInput) {
   const isPreview = runtime !== "electron";
 
   return {
     isPreview,
     canSave: !isPreview && !isSaving,
+    canResetLocalData:
+      !isPreview && !isResetting && resetConfirmationText === "DELETE",
     apiKeyStatusLabel: formatApiKeyStatus(summary?.openAi.apiKeySource),
     modelSourceLabel: formatSource(summary?.openAi.modelSource),
     promptVersionSourceLabel: formatSource(summary?.openAi.promptVersionSource),
+  };
+}
+
+export function createDataResetDraft(): DataResetDraft {
+  return {
+    confirmationText: "",
   };
 }
 
@@ -48,6 +64,12 @@ export function buildAISettingsInput(draft: SettingsDraft): AISettingsInput {
   }
 
   return input;
+}
+
+export function buildDataResetInput(draft: DataResetDraft): DataResetInput {
+  return {
+    confirmationText: draft.confirmationText,
+  };
 }
 
 function formatApiKeyStatus(source: SettingsSummary["openAi"]["apiKeySource"] | undefined) {

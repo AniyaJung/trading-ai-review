@@ -42,7 +42,10 @@ import {
 import type { BackupResult, RestoreBackupResult } from "./app/backupPanel";
 import {
   buildAISettingsInput,
+  buildDataResetInput,
+  createDataResetDraft,
   createSettingsDraft,
+  type DataResetDraft,
   type SettingsDraft,
 } from "./app/settingsPanel";
 import { AppSidebar } from "./components/AppSidebar";
@@ -244,8 +247,12 @@ function App() {
   const [settingsDraft, setSettingsDraft] = useState<SettingsDraft>(() =>
     createSettingsDraft(null),
   );
+  const [dataResetDraft, setDataResetDraft] = useState<DataResetDraft>(() =>
+    createDataResetDraft(),
+  );
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isResettingLocalData, setIsResettingLocalData] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsMessage, setSettingsMessage] = useState(
     "AI Key 不会回显；留空保存会保持当前 Key 不变。",
@@ -486,6 +493,35 @@ function App() {
       setSettingsError(error || null);
     } catch (openError) {
       setSettingsError(openError instanceof Error ? openError.message : String(openError));
+    }
+  };
+
+  const handleResetLocalData = async () => {
+    if (!window.desktopApi) {
+      setSettingsError("浏览器预览不会重置本地数据；请在 Electron 桌面运行时操作。");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "这会先自动导出当前数据备份，然后清除本地 SQLite、截图和设置，并重启应用。继续？",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsResettingLocalData(true);
+    setSettingsError(null);
+    try {
+      await window.desktopApi.settings.resetLocalData(
+        buildDataResetInput(dataResetDraft),
+      );
+      setDataResetDraft(createDataResetDraft());
+      setSettingsMessage("本地数据已重置，应用将重启。");
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsResettingLocalData(false);
     }
   };
 
@@ -1341,12 +1377,16 @@ function App() {
             runtime={desktopRuntime}
             summary={settingsSummary}
             draft={settingsDraft}
+            dataResetDraft={dataResetDraft}
             isLoading={isLoadingSettings}
             isSaving={isSavingSettings}
+            isResettingLocalData={isResettingLocalData}
             error={settingsError}
             message={settingsMessage}
             onDraftChange={setSettingsDraft}
+            onDataResetDraftChange={setDataResetDraft}
             onSaveAI={() => void handleSaveAISettings()}
+            onResetLocalData={() => void handleResetLocalData()}
             onOpenDataDirectory={() => void handleOpenSettingsDataDirectory()}
             onOpenBackupsDirectory={() =>
               void handleOpenSettingsBackupsDirectory()

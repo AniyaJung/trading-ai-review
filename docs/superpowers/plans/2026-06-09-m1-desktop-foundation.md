@@ -1,5 +1,7 @@
 # M1 Desktop Foundation Implementation Plan
 
+> Status note: This is a historical implementation plan. For current project status and remaining work, see `docs/superpowers/2026-06-10-next-conversation-context.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the first runnable foundation for the AI trading review desktop app: project scaffold, navigation shell, local-first domain models, futures PnL calculations, and initial documentation inside the repo.

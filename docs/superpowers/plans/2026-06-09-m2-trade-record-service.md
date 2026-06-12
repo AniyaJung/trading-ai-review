@@ -1,5 +1,7 @@
 # M2 Trade Record Service Implementation Plan
 
+> Status note: This is a historical implementation plan. For current project status and remaining work, see `docs/superpowers/2026-06-10-next-conversation-context.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the first closed-trade persistence service and expose it to the renderer through the Electron preload bridge.

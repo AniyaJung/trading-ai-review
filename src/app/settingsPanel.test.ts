@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDataResetInput,
   buildAISettingsInput,
   createSettingsDraft,
+  createDataResetDraft,
   getSettingsPanelState,
 } from "./settingsPanel";
 
@@ -69,6 +71,33 @@ describe("settingsPanel", () => {
       clearApiKey: true,
       model: "gpt-new",
       promptVersion: "prompt-v2",
+    });
+  });
+
+  it("only enables reset when the exact DELETE confirmation is entered", () => {
+    expect(createDataResetDraft()).toEqual({ confirmationText: "" });
+
+    expect(
+      getSettingsPanelState({
+        runtime: "electron",
+        isSaving: false,
+        isResetting: false,
+        summary,
+        resetConfirmationText: "delete",
+      }).canResetLocalData,
+    ).toBe(false);
+
+    expect(
+      getSettingsPanelState({
+        runtime: "electron",
+        isSaving: false,
+        isResetting: false,
+        summary,
+        resetConfirmationText: "DELETE",
+      }).canResetLocalData,
+    ).toBe(true);
+    expect(buildDataResetInput({ confirmationText: "DELETE" })).toEqual({
+      confirmationText: "DELETE",
     });
   });
 });

@@ -1,6 +1,13 @@
-import { FolderOpen, KeyRound, Save, SlidersHorizontal } from "lucide-react";
+import {
+  FolderOpen,
+  KeyRound,
+  Save,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import {
   getSettingsPanelState,
+  type DataResetDraft,
   type SettingsDraft,
 } from "../app/settingsPanel";
 
@@ -8,12 +15,16 @@ type SettingsViewProps = {
   runtime: DesktopApi["runtime"] | "browser-preview";
   summary: SettingsSummary | null;
   draft: SettingsDraft;
+  dataResetDraft: DataResetDraft;
   isLoading: boolean;
   isSaving: boolean;
+  isResettingLocalData: boolean;
   error: string | null;
   message: string;
   onDraftChange: (draft: SettingsDraft) => void;
+  onDataResetDraftChange: (draft: DataResetDraft) => void;
   onSaveAI: () => void;
+  onResetLocalData: () => void;
   onOpenDataDirectory: () => void;
   onOpenBackupsDirectory: () => void;
 };
@@ -22,16 +33,26 @@ export function SettingsView({
   runtime,
   summary,
   draft,
+  dataResetDraft,
   isLoading,
   isSaving,
+  isResettingLocalData,
   error,
   message,
   onDraftChange,
+  onDataResetDraftChange,
   onSaveAI,
+  onResetLocalData,
   onOpenDataDirectory,
   onOpenBackupsDirectory,
 }: SettingsViewProps) {
-  const panel = getSettingsPanelState({ runtime, isSaving, summary });
+  const panel = getSettingsPanelState({
+    runtime,
+    isSaving,
+    isResetting: isResettingLocalData,
+    summary,
+    resetConfirmationText: dataResetDraft.confirmationText,
+  });
 
   return (
     <section className="settings-view">
@@ -183,6 +204,47 @@ export function SettingsView({
           >
             <FolderOpen aria-hidden="true" size={17} />
             打开备份目录
+          </button>
+        </div>
+      </section>
+
+      <section className="panel settings-section danger-zone">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Danger zone</p>
+            <h3>重置本地数据</h3>
+          </div>
+          <Trash2 aria-hidden="true" size={19} />
+        </div>
+
+        <div className="settings-danger-body">
+          <p>
+            重置会先导出当前数据备份，然后清除本地 SQLite、截图副本和设置。
+            该操作会重启应用。
+          </p>
+          <label>
+            输入 DELETE 以启用重置
+            <input
+              value={dataResetDraft.confirmationText}
+              onChange={(event) =>
+                onDataResetDraftChange({
+                  confirmationText: event.target.value,
+                })
+              }
+              placeholder="DELETE"
+            />
+          </label>
+        </div>
+
+        <div className="settings-actions">
+          <button
+            type="button"
+            className="danger-button"
+            onClick={onResetLocalData}
+            disabled={!panel.canResetLocalData}
+          >
+            <Trash2 aria-hidden="true" size={17} />
+            {isResettingLocalData ? "重置中" : "重置本地数据"}
           </button>
         </div>
       </section>

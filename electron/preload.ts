@@ -55,6 +55,8 @@ const desktopApi = {
   settings: {
     getSummary: () => ipcRenderer.invoke("settings:getSummary"),
     saveAI: (input: unknown) => ipcRenderer.invoke("settings:saveAI", input),
+    resetLocalData: (input: unknown) =>
+      ipcRenderer.invoke("settings:resetLocalData", input),
     openDataDirectory: () => ipcRenderer.invoke("settings:openDataDirectory"),
     openBackupsDirectory: () =>
       ipcRenderer.invoke("settings:openBackupsDirectory"),

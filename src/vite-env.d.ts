@@ -293,6 +293,17 @@ type AISettingsInput = {
   promptVersion?: string | null;
 };
 
+type DataResetInput = {
+  confirmationText: string;
+};
+
+type DataResetResult = {
+  safetyBackupFilePath: string;
+  resetAt: string;
+  databasePath: string;
+  attachmentsDir: string;
+};
+
 type AttachExistingFileInput = {
   tradeId: number;
   sourceFilePath: string;
@@ -359,6 +370,7 @@ type DesktopApi = {
   settings: {
     getSummary: () => Promise<SettingsSummary>;
     saveAI: (input: AISettingsInput) => Promise<SettingsSummary>;
+    resetLocalData: (input: DataResetInput) => Promise<DataResetResult>;
     openDataDirectory: () => Promise<string>;
     openBackupsDirectory: () => Promise<string>;
   };

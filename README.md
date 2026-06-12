@@ -21,10 +21,13 @@ Current implemented scope:
 - Trade screenshots can be previewed inline through a controlled Electron preload API that returns data URLs for stored attachment ids.
 - Entry rules can be created, versioned immutably, archived, listed, and bound to closed trades by rule version.
 - Trade detail shows the bound entry rule version, content, and checklist snapshot.
-- Main workbench UI is split into focused React components for sidebar, topbar, trade list, trade form, trade review/detail, attachments, and rules.
-- AI review drafts, confirmation, correction, and invalidation now have local service and preload IPC plumbing that syncs `trade.ai_review_status`.
-- Trade detail can load the latest local review draft and resolve it through confirm, correct, or invalidate actions in Electron.
-- AI review panel currently shows honest status placeholders; AI generation is not connected yet.
+- Main workbench UI is split into focused React components for sidebar, topbar, trade list, trade form, trade review/detail, attachments, rules, stats, backup, and settings.
+- AI review drafts, confirmation, correction, invalidation, and rule-check edits have local service and preload IPC plumbing that syncs `trade.ai_review_status`.
+- AI review generation is connected through the Electron main process using the OpenAI Responses API with structured output and optional screenshot inputs.
+- The settings page can save AI Key/model/prompt configuration; API keys are stored in the main process side and encrypted with Electron `safeStorage` when available.
+- Stats view supports overview metrics, time filters, instrument filters, entry-rule filters, per-instrument aggregation, and drilldown back to the trade list.
+- Backup view can export `app.sqlite`, attachments, and a manifest into a zip; restore validates the backup and creates a safety backup before replacement.
+- Settings includes a local data reset workflow with an exact `DELETE` confirmation; reset creates a safety backup before rebuilding an empty database and attachments directory.
 - Initial instrument presets: ES, MES, NQ, MNQ.
 - Design spec and implementation plans are stored under `docs/superpowers`.
 
@@ -32,9 +35,10 @@ MVP does not support open trades. A trade is one complete trading plan, not a si
 
 Not implemented yet:
 
-- AI image ingestion.
-- AI review generation, confirmation, and correction workflow.
-- Stats, backup/restore, settings, and data reset workflows.
+- AI-generated tags are not yet mapped into `tag` / `trade_tag_map`, so tag statistics and tag filters are not complete.
+- Initial packaging verification is still pending.
+- Market session day / user local day statistics are not modeled yet.
+- DTOs are still duplicated across Electron services, renderer helpers, and `src/vite-env.d.ts`; future cleanup should move shared contracts into `shared/`.
 
 ## Development
 
