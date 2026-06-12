@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
 import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
 import {
@@ -16,6 +15,8 @@ import {
   type TradeFormState,
 } from "./app/tradeForm";
 import { getInitialTrades } from "./app/tradeList";
+import { loadDesktopBootstrapState } from "./app/desktopBootstrap";
+import { sampleTrades } from "./app/previewData";
 import {
   getSelectedTradeDetail,
   getTradeScopedStateValue,
@@ -35,10 +36,15 @@ import {
   filterTradesForStatsDrilldown,
   getInitialStatsFilterState,
   getStatsPanelState,
-  type StatsEntryRuleOption,
   type StatsFilterState,
   type StatsOverviewFilters,
 } from "./app/statsPanel";
+import {
+  createPreviewTradeDetail,
+  formatStatsDrilldownLabel,
+  formatTradeTime,
+  updatePreviewTradeSummary,
+} from "./app/previewTrades";
 import type {
   BackupHistoryItem,
   BackupResult,
@@ -55,81 +61,13 @@ import {
 import { AppSidebar } from "./components/AppSidebar";
 import { AppTopbar } from "./components/AppTopbar";
 import { BackupView } from "./components/BackupView";
+import { ImagePreviewOverlay } from "./components/ImagePreviewOverlay";
 import { RulesView } from "./components/RulesView";
 import { SettingsView } from "./components/SettingsView";
 import { StatsView } from "./components/StatsView";
 import { TradeFormPanel } from "./components/TradeFormPanel";
 import { TradeListPanel } from "./components/TradeListPanel";
 import { TradeReviewPanel } from "./components/TradeReviewPanel";
-
-const sampleTrades: TradeSummary[] = [
-  {
-    id: 1,
-    symbol: "ES",
-    instrumentName: "E-mini S&P 500",
-    direction: "long",
-    status: "closed",
-    openedAt: "2026-06-08T14:41:00.000Z",
-    closedAt: "2026-06-08T15:20:00.000Z",
-    entryPriceAvg: 5300,
-    exitPriceAvg: 5304.5,
-    quantity: 2,
-    feesTotal: 5,
-    grossPnl: 450,
-    netPnl: 445,
-    riskAmount: 200,
-    rMultiple: 2.225,
-    entryRuleId: null,
-    entryRuleVersionId: null,
-    entryRuleName: null,
-    entryRuleVersionNo: null,
-    aiReviewStatus: "needs_review",
-  },
-  {
-    id: 2,
-    symbol: "MNQ",
-    instrumentName: "Micro E-mini Nasdaq-100",
-    direction: "short",
-    status: "closed",
-    openedAt: "2026-06-07T15:18:00.000Z",
-    closedAt: "2026-06-07T16:02:00.000Z",
-    entryPriceAvg: 19000,
-    exitPriceAvg: 18984,
-    quantity: 3,
-    feesTotal: 3.6,
-    grossPnl: 96,
-    netPnl: 92.4,
-    riskAmount: 48,
-    rMultiple: 1.925,
-    entryRuleId: null,
-    entryRuleVersionId: null,
-    entryRuleName: null,
-    entryRuleVersionNo: null,
-    aiReviewStatus: "confirmed",
-  },
-  {
-    id: 3,
-    symbol: "MES",
-    instrumentName: "Micro E-mini S&P 500",
-    direction: "long",
-    status: "closed",
-    openedAt: "2026-06-06T13:57:00.000Z",
-    closedAt: "2026-06-06T14:22:00.000Z",
-    entryPriceAvg: 5291.25,
-    exitPriceAvg: 5288.25,
-    quantity: 1,
-    feesTotal: 1.5,
-    grossPnl: -15,
-    netPnl: -16.5,
-    riskAmount: 12.5,
-    rMultiple: -1.32,
-    entryRuleId: null,
-    entryRuleVersionId: null,
-    entryRuleName: null,
-    entryRuleVersionNo: null,
-    aiReviewStatus: "corrected",
-  },
-];
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
@@ -271,7 +209,8 @@ function App() {
     let cancelled = false;
 
     async function loadDesktopState() {
-      if (!window.desktopApi) {
+      const desktopApi = window.desktopApi;
+      if (!desktopApi) {
         return;
       }
 
@@ -280,37 +219,20 @@ function App() {
       setIsLoadingStats(true);
       setIsLoadingSettings(true);
       try {
-        const [
-          status,
-          desktopTrades,
-          activeRules,
-          instrumentConfigs,
-          desktopStatsOverview,
-          desktopSettingsSummary,
-          desktopBackupHistory,
-        ] =
-          await Promise.all([
-            window.desktopApi.database.getStatus(),
-            window.desktopApi.trades.list(),
-            window.desktopApi.rules.listActive(),
-            window.desktopApi.database.listInstruments(),
-            window.desktopApi.stats.getOverview({}),
-            window.desktopApi.settings.getSummary(),
-            window.desktopApi.backup.listHistory(),
-          ]);
+        const desktopState = await loadDesktopBootstrapState(desktopApi);
 
         if (!cancelled) {
-          setDatabaseStatus(
-            `SQLite v${status.migrationVersion} / ${status.instrumentCount} 个品种`,
+          setDatabaseStatus(desktopState.databaseStatus);
+          setInstruments(desktopState.instruments);
+          setTrades(desktopState.trades);
+          setEntryRules(desktopState.activeRules);
+          setStatsOverview(desktopState.statsOverview);
+          setSettingsSummary(desktopState.settingsSummary);
+          setBackupHistory(desktopState.backupHistory);
+          setSettingsDraft(createSettingsDraft(desktopState.settingsSummary));
+          setSelectedTradeId(
+            (current) => current ?? desktopState.trades[0]?.id ?? null,
           );
-          setInstruments(instrumentConfigs);
-          setTrades(desktopTrades);
-          setEntryRules(activeRules);
-          setStatsOverview(desktopStatsOverview);
-          setSettingsSummary(desktopSettingsSummary);
-          setBackupHistory(desktopBackupHistory);
-          setSettingsDraft(createSettingsDraft(desktopSettingsSummary));
-          setSelectedTradeId((current) => current ?? desktopTrades[0]?.id ?? null);
           setTradeLoadError(null);
           setRuleErrors([]);
           setStatsError(null);
@@ -1505,153 +1427,14 @@ function App() {
       </section>
 
       {activeAttachmentPreview && activeAttachmentPreviewDataUrl ? (
-        <div
-          className="image-preview-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-label="交易截图预览"
-          onClick={() => setActiveAttachmentPreviewId(null)}
-        >
-          <div
-            className="image-preview-dialog"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="image-preview-heading">
-              <div>
-                <span>{activeAttachmentPreview.label}</span>
-                <strong>{activeAttachmentPreview.caption}</strong>
-              </div>
-              <button
-                type="button"
-                className="icon-button"
-                title="关闭预览"
-                onClick={() => setActiveAttachmentPreviewId(null)}
-              >
-                <X aria-hidden="true" size={18} />
-              </button>
-            </div>
-            <img
-              src={activeAttachmentPreviewDataUrl}
-              alt={`${activeAttachmentPreview.label} ${activeAttachmentPreview.caption}`}
-            />
-          </div>
-        </div>
+        <ImagePreviewOverlay
+          attachment={activeAttachmentPreview}
+          imageDataUrl={activeAttachmentPreviewDataUrl}
+          onClose={() => setActiveAttachmentPreviewId(null)}
+        />
       ) : null}
     </main>
   );
-}
-
-function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
-  return {
-    ...trade,
-    stopLossPrice: null,
-    takeProfitPrice: null,
-    backgroundNote: null,
-    entryReason: null,
-    exitReason: null,
-    emotionNote: null,
-    lessonNote: null,
-    entryRuleContent: null,
-    entryRuleChecklist: [],
-    ruleChecks: [],
-    executions: [
-      {
-        id: trade.id * 10 + 1,
-        executedAt: trade.openedAt,
-        side: trade.direction === "long" ? "buy" : "sell",
-        price: trade.entryPriceAvg,
-        quantity: trade.quantity,
-        fee: 0,
-        feeCurrency: "USD",
-        executionType: "entry",
-      },
-      {
-        id: trade.id * 10 + 2,
-        executedAt: trade.closedAt,
-        side: trade.direction === "long" ? "sell" : "buy",
-        price: trade.exitPriceAvg,
-        quantity: trade.quantity,
-        fee: trade.feesTotal,
-        feeCurrency: "USD",
-        executionType: "exit",
-      },
-    ],
-  };
-}
-
-function formatStatsDrilldownLabel(
-  filters: StatsOverviewFilters,
-  entryRuleOptions: StatsEntryRuleOption[],
-) {
-  const parts = ["统计下钻"];
-
-  if (filters.symbol) {
-    parts.push(filters.symbol);
-  }
-
-  if (filters.entryRuleId != null) {
-    const ruleLabel =
-      entryRuleOptions.find((rule) => rule.id === filters.entryRuleId)?.label ??
-      `规则 ${filters.entryRuleId}`;
-    parts.push(ruleLabel);
-  }
-
-  if (filters.openedFrom || filters.openedBefore) {
-    const from = filters.openedFrom
-      ? formatDateOnly(filters.openedFrom)
-      : "最早";
-    const before = filters.openedBefore
-      ? formatDateOnly(filters.openedBefore)
-      : "现在";
-    parts.push(`${from} 至 ${before}`);
-  }
-
-  return parts.join(" / ");
-}
-
-function updatePreviewTradeSummary(
-  trades: TradeSummary[],
-  id: number,
-  input: CreateClosedTradeInput,
-  calculation: ReturnType<typeof calculateTradeFormPreview>,
-): TradeSummary[] {
-  return trades.map((trade) => {
-    if (trade.id !== id) {
-      return trade;
-    }
-
-    return {
-      ...trade,
-      symbol: input.symbol,
-      direction: input.direction,
-      openedAt: input.openedAt,
-      closedAt: input.closedAt,
-      entryPriceAvg: input.entryPrice,
-      exitPriceAvg: input.exitPrice,
-      quantity: input.quantity,
-      feesTotal: input.feesTotal,
-      grossPnl: calculation?.grossPnl ?? trade.grossPnl,
-      netPnl: calculation?.netPnl ?? trade.netPnl,
-      riskAmount: calculation?.riskAmount ?? trade.riskAmount,
-      rMultiple: calculation?.rMultiple ?? trade.rMultiple,
-    };
-  });
-}
-
-function formatDateOnly(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatTradeTime(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
 
 export default App;
