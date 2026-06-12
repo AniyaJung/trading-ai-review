@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import {
   getBackupPanelState,
+  type BackupHistoryItem,
   type BackupResult,
   type RestoreBackupResult,
 } from "../app/backupPanel";
@@ -17,6 +18,7 @@ type BackupViewProps = {
   error: string | null;
   lastBackup: BackupResult | null;
   lastRestore: RestoreBackupResult | null;
+  backupHistory: BackupHistoryItem[];
   onCreateBackup: () => void;
   onRestoreBackup: () => void;
   onOpenDataDirectory: () => void;
@@ -29,6 +31,7 @@ export function BackupView({
   error,
   lastBackup,
   lastRestore,
+  backupHistory,
   onCreateBackup,
   onRestoreBackup,
   onOpenDataDirectory,
@@ -39,6 +42,8 @@ export function BackupView({
     isBusy,
     lastBackup,
     lastRestore,
+    backupHistory,
+    error,
   });
 
   return (
@@ -51,7 +56,12 @@ export function BackupView({
         {panel.isPreview ? <span className="stats-badge">预览模式</span> : null}
       </div>
 
-      {error ? <div className="form-status error">备份操作失败：{error}</div> : null}
+      {error ? (
+        <div className="form-status error backup-error-block">
+          <strong>备份操作失败：{error}</strong>
+          {panel.errorGuidance ? <span>{panel.errorGuidance}</span> : null}
+        </div>
+      ) : null}
 
       <div className="backup-action-grid">
         <section className="panel backup-action-panel">
@@ -112,6 +122,36 @@ export function BackupView({
             <span>最近恢复</span>
             <strong>{panel.lastRestoreLabel ?? "本次会话尚未执行恢复"}</strong>
           </div>
+        </div>
+      </section>
+
+      <section className="panel backup-history-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Backup history</p>
+            <h3>备份历史</h3>
+          </div>
+          <span className="backup-version-policy">{panel.versionPolicyLabel}</span>
+        </div>
+        <div className="backup-history-list">
+          {panel.historyItems.length > 0 ? (
+            panel.historyItems.map((item) => (
+              <div className="backup-history-row" key={item.filePath}>
+                <div>
+                  <strong>{item.fileName}</strong>
+                  <span>{item.metadataLabel}</span>
+                  {item.problem ? <small>{item.problem}</small> : null}
+                </div>
+                <span className={`backup-status-chip ${item.statusTone}`}>
+                  {item.statusLabel}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="backup-history-empty">
+              {panel.isPreview ? "桌面运行时可读取备份历史" : "备份目录暂无 zip 记录"}
+            </div>
+          )}
         </div>
       </section>
 

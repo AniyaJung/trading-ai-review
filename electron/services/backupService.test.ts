@@ -8,6 +8,7 @@ import { initializeAppDatabase } from "../data/database";
 import { attachExistingFile } from "./attachmentService";
 import {
   createBackup,
+  listBackupHistory,
   restoreBackup,
   type BackupManifest,
   type BackupServicePaths,
@@ -112,6 +113,78 @@ describe("createBackup", () => {
           sha256: expect.any(String),
         }),
       ]),
+    );
+  });
+});
+
+describe("listBackupHistory", () => {
+  it("lists backup zip files newest first with manifest metadata", async () => {
+    const paths = createPaths();
+    createSeededDatabase(paths);
+    const older = await createBackup(paths, {
+      now: new Date("2026-06-11T09:30:00.000Z"),
+      appVersion: "0.0.0-test",
+    });
+    const newer = await createBackup(paths, {
+      now: new Date("2026-06-11T10:30:00.000Z"),
+      appVersion: "0.0.1-test",
+    });
+
+    const history = await listBackupHistory(paths);
+
+    expect(history.map((item) => item.filePath)).toEqual([
+      newer.filePath,
+      older.filePath,
+    ]);
+    expect(history[0]).toEqual(
+      expect.objectContaining({
+        appVersion: "0.0.1-test",
+        backupSchemaVersion: 1,
+        exportedAt: "2026-06-11T10:30:00.000Z",
+        fileName: path.basename(newer.filePath),
+        status: "restorable",
+      }),
+    );
+    expect(history[0].sizeBytes).toBeGreaterThan(0);
+  });
+
+  it("marks unreadable and unsupported backup packages without throwing", async () => {
+    const paths = createPaths();
+    createSeededDatabase(paths);
+    const backup = await createBackup(paths, {
+      now: new Date("2026-06-11T09:30:00.000Z"),
+      appVersion: "0.0.0-test",
+    });
+    const zip = await JSZip.loadAsync(readFileSync(backup.filePath));
+    const manifest = JSON.parse(
+      await zip.file("manifest.json")!.async("string"),
+    ) as BackupManifest;
+    zip.file(
+      "manifest.json",
+      JSON.stringify({ ...manifest, backupSchemaVersion: 999 }, null, 2),
+    );
+    writeFileSync(
+      path.join(paths.backupsDir, "future-version.zip"),
+      await zip.generateAsync({ type: "nodebuffer" }),
+    );
+    writeFileSync(path.join(paths.backupsDir, "not-a-backup.zip"), "not a zip");
+
+    const history = await listBackupHistory(paths);
+
+    expect(
+      history.find((item) => item.fileName === "future-version.zip"),
+    ).toEqual(
+      expect.objectContaining({
+        backupSchemaVersion: 999,
+        status: "unsupported-version",
+      }),
+    );
+    expect(history.find((item) => item.fileName === "not-a-backup.zip")).toEqual(
+      expect.objectContaining({
+        backupSchemaVersion: null,
+        exportedAt: null,
+        status: "invalid",
+      }),
     );
   });
 });

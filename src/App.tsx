@@ -39,7 +39,11 @@ import {
   type StatsFilterState,
   type StatsOverviewFilters,
 } from "./app/statsPanel";
-import type { BackupResult, RestoreBackupResult } from "./app/backupPanel";
+import type {
+  BackupHistoryItem,
+  BackupResult,
+  RestoreBackupResult,
+} from "./app/backupPanel";
 import {
   buildAISettingsInput,
   buildDataResetInput,
@@ -242,6 +246,7 @@ function App() {
   const [lastRestore, setLastRestore] = useState<RestoreBackupResult | null>(
     null,
   );
+  const [backupHistory, setBackupHistory] = useState<BackupHistoryItem[]>([]);
   const [settingsSummary, setSettingsSummary] =
     useState<SettingsSummary | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<SettingsDraft>(() =>
@@ -282,6 +287,7 @@ function App() {
           instrumentConfigs,
           desktopStatsOverview,
           desktopSettingsSummary,
+          desktopBackupHistory,
         ] =
           await Promise.all([
             window.desktopApi.database.getStatus(),
@@ -290,6 +296,7 @@ function App() {
             window.desktopApi.database.listInstruments(),
             window.desktopApi.stats.getOverview({}),
             window.desktopApi.settings.getSummary(),
+            window.desktopApi.backup.listHistory(),
           ]);
 
         if (!cancelled) {
@@ -301,6 +308,7 @@ function App() {
           setEntryRules(activeRules);
           setStatsOverview(desktopStatsOverview);
           setSettingsSummary(desktopSettingsSummary);
+          setBackupHistory(desktopBackupHistory);
           setSettingsDraft(createSettingsDraft(desktopSettingsSummary));
           setSelectedTradeId((current) => current ?? desktopTrades[0]?.id ?? null);
           setTradeLoadError(null);
@@ -402,7 +410,9 @@ function App() {
     setIsBackupBusy(true);
     setBackupError(null);
     try {
-      setLastBackup(await window.desktopApi.backup.create());
+      const backup = await window.desktopApi.backup.create();
+      setLastBackup(backup);
+      setBackupHistory(await window.desktopApi.backup.listHistory());
     } catch (error) {
       setBackupError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1367,6 +1377,7 @@ function App() {
             error={backupError}
             lastBackup={lastBackup}
             lastRestore={lastRestore}
+            backupHistory={backupHistory}
             onCreateBackup={() => void handleCreateBackup()}
             onRestoreBackup={() => void handleRestoreBackup()}
             onOpenDataDirectory={() => void handleOpenDataDirectory()}

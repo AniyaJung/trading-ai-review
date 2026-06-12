@@ -88,6 +88,26 @@ describe("createBackupIpcHandlers", () => {
     expect(openedPaths).toEqual([paths.appDataDir, paths.backupsDir]);
   });
 
+  it("lists available backup history", async () => {
+    const paths = createPaths();
+    seedDatabase(paths);
+    const backup = await createBackup(paths, {
+      now: new Date("2026-06-11T10:00:00.000Z"),
+      appVersion: "0.0.0-test",
+    });
+    const handlers = createBackupIpcHandlers(paths);
+
+    const history = await handlers.listHistory();
+
+    expect(history).toEqual([
+      expect.objectContaining({
+        filePath: backup.filePath,
+        fileName: path.basename(backup.filePath),
+        status: "restorable",
+      }),
+    ]);
+  });
+
   it("restores the selected backup after closing the active database", async () => {
     const paths = createPaths();
     seedDatabase(paths);

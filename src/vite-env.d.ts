@@ -269,6 +269,18 @@ type RestoreBackupResult = {
   manifest: BackupManifest;
 };
 
+type BackupHistoryItem = {
+  filePath: string;
+  fileName: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  backupSchemaVersion: number | null;
+  appVersion: string | null;
+  exportedAt: string | null;
+  status: "restorable" | "unsupported-version" | "invalid";
+  problem: string | null;
+};
+
 type SettingsSummary = {
   openAi: {
     apiKeyConfigured: boolean;
@@ -363,6 +375,7 @@ type DesktopApi = {
   };
   backup: {
     create: () => Promise<BackupResult>;
+    listHistory: () => Promise<BackupHistoryItem[]>;
     chooseAndRestore: () => Promise<RestoreBackupResult | undefined>;
     openDataDirectory: () => Promise<string>;
     openBackupsDirectory: () => Promise<string>;

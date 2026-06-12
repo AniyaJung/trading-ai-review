@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
+  statSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -49,6 +50,18 @@ export type RestoreBackupResult = {
   restoredFromFilePath: string;
   safetyBackupFilePath: string;
   manifest: BackupManifest;
+};
+
+export type BackupHistoryItem = {
+  filePath: string;
+  fileName: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  backupSchemaVersion: number | null;
+  appVersion: string | null;
+  exportedAt: string | null;
+  status: "restorable" | "unsupported-version" | "invalid";
+  problem: string | null;
 };
 
 export async function createBackup(
@@ -158,6 +171,55 @@ export async function restoreBackup(
     safetyBackupFilePath: safetyBackup.filePath,
     manifest,
   };
+}
+
+export async function listBackupHistory(
+  paths: BackupServicePaths,
+): Promise<BackupHistoryItem[]> {
+  ensureBackupDirectories(paths);
+
+  const files = readdirSync(paths.backupsDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".zip"))
+    .map((entry) => {
+      const filePath = path.join(paths.backupsDir, entry.name);
+      const stats = statSync(filePath);
+      return {
+        filePath,
+        fileName: entry.name,
+        sizeBytes: stats.size,
+        modifiedAt: stats.mtime.toISOString(),
+      };
+    })
+    .sort((left, right) => right.modifiedAt.localeCompare(left.modifiedAt));
+
+  return Promise.all(
+    files.map(async (file) => {
+      try {
+        const zip = await JSZip.loadAsync(readFileSync(file.filePath));
+        const manifest = await readManifest(zip);
+        const isSupported = manifest.backupSchemaVersion === backupSchemaVersion;
+        return {
+          ...file,
+          backupSchemaVersion: manifest.backupSchemaVersion,
+          appVersion: manifest.appVersion,
+          exportedAt: manifest.exportedAt,
+          status: isSupported ? "restorable" : "unsupported-version",
+          problem: isSupported
+            ? null
+            : `Backup schema version ${manifest.backupSchemaVersion} is not supported.`,
+        } satisfies BackupHistoryItem;
+      } catch (error) {
+        return {
+          ...file,
+          backupSchemaVersion: null,
+          appVersion: null,
+          exportedAt: null,
+          status: "invalid",
+          problem: error instanceof Error ? error.message : String(error),
+        } satisfies BackupHistoryItem;
+      }
+    }),
+  );
 }
 
 async function readManifest(zip: JSZip): Promise<BackupManifest> {

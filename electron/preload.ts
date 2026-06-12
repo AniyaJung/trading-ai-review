@@ -48,6 +48,7 @@ const desktopApi = {
   },
   backup: {
     create: () => ipcRenderer.invoke("backup:create"),
+    listHistory: () => ipcRenderer.invoke("backup:listHistory"),
     chooseAndRestore: () => ipcRenderer.invoke("backup:chooseAndRestore"),
     openDataDirectory: () => ipcRenderer.invoke("backup:openDataDirectory"),
     openBackupsDirectory: () => ipcRenderer.invoke("backup:openBackupsDirectory"),

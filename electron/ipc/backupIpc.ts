@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import type { AppDataPaths } from "../data/appData.js";
 import {
   createBackup,
+  listBackupHistory,
   restoreBackup,
   type BackupServiceOptions,
 } from "../services/backupService.js";
@@ -27,6 +28,7 @@ export function createBackupIpcHandlers(
 
   return {
     create: () => createBackup(paths, getBackupOptions()),
+    listHistory: () => listBackupHistory(paths),
     chooseAndRestore: async () => {
       const backupFilePath = await options.chooseBackupFile?.();
 
@@ -76,6 +78,7 @@ export function registerBackupIpc(db: DatabaseSync, paths: AppDataPaths) {
   });
 
   ipcMain.handle("backup:create", () => handlers.create());
+  ipcMain.handle("backup:listHistory", () => handlers.listHistory());
   ipcMain.handle("backup:chooseAndRestore", () => handlers.chooseAndRestore());
   ipcMain.handle("backup:openDataDirectory", () => handlers.openDataDirectory());
   ipcMain.handle("backup:openBackupsDirectory", () =>
