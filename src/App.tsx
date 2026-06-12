@@ -3,18 +3,9 @@ import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
 import {
   getAttachmentPanelState,
-  type AttachmentImageType,
-  type AttachmentSummary,
 } from "./app/attachmentPanel";
-import {
-  buildCreateClosedTradeInput,
-  calculateTradeFormPreview,
-  createInitialTradeForm,
-  createTradeFormFromDetail,
-  createTradeFormAfterSave,
-  type TradeFormState,
-} from "./app/tradeForm";
-import { getInitialTrades } from "./app/tradeList";
+import { useAttachmentWorkflow } from "./app/attachmentWorkflow";
+import { useTradeWorkflow } from "./app/tradeWorkflow";
 import { loadDesktopBootstrapState } from "./app/desktopBootstrap";
 import { sampleTrades } from "./app/previewData";
 import {
@@ -22,42 +13,27 @@ import {
   getTradeScopedStateValue,
 } from "./app/tradeDetailSelection";
 import {
-  buildRuleCheckUpdateInput,
   canSaveRuleCheckEdit,
-  createRuleCheckEditDraft,
   getReviewActionState,
   getReviewPanelState,
-  type RuleCheckEditDraft,
 } from "./app/reviewPanel";
-import { parseChecklistText } from "./app/rulePanel";
+import { useReviewWorkflow } from "./app/reviewWorkflow";
+import { useRuleWorkflow } from "./app/ruleWorkflow";
 import {
-  buildStatsOverviewFilters,
   createStatsEntryRuleOptions,
   filterTradesForStatsDrilldown,
-  getInitialStatsFilterState,
-  getStatsPanelState,
-  type StatsFilterState,
-  type StatsOverviewFilters,
 } from "./app/statsPanel";
+import {
+  getStatsRuntimePreviewState,
+  useStatsWorkflow,
+} from "./app/statsWorkflow";
 import {
   createPreviewTradeDetail,
   formatStatsDrilldownLabel,
-  formatTradeTime,
-  updatePreviewTradeSummary,
 } from "./app/previewTrades";
-import type {
-  BackupHistoryItem,
-  BackupResult,
-  RestoreBackupResult,
-} from "./app/backupPanel";
 import {
-  buildAISettingsInput,
-  buildDataResetInput,
-  createDataResetDraft,
-  createSettingsDraft,
-  type DataResetDraft,
-  type SettingsDraft,
-} from "./app/settingsPanel";
+  useBackupSettingsWorkflow,
+} from "./app/backupSettingsWorkflow";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppTopbar } from "./components/AppTopbar";
 import { BackupView } from "./components/BackupView";
@@ -71,139 +47,172 @@ import { TradeReviewPanel } from "./components/TradeReviewPanel";
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
-  const desktopRuntime = window.desktopApi?.runtime ?? "browser-preview";
-  const [trades, setTrades] = useState<TradeSummary[]>(() =>
-    getInitialTrades(desktopRuntime, sampleTrades),
-  );
-  const [tradeForm, setTradeForm] = useState<TradeFormState>(() =>
-    createInitialTradeForm(),
-  );
-  const [entryRules, setEntryRules] = useState<EntryRuleWithLatestVersion[]>([]);
+  const desktopApi = window.desktopApi;
+  const desktopRuntime = desktopApi?.runtime ?? "browser-preview";
+  const backupSettingsWorkflow = useBackupSettingsWorkflow(desktopApi);
+  const attachmentWorkflow = useAttachmentWorkflow(desktopApi);
+  const reviewWorkflow = useReviewWorkflow(desktopApi);
   const [instruments, setInstruments] = useState<InstrumentConfig[]>([]);
-  const [isLoadingRules, setIsLoadingRules] = useState(false);
-  const [ruleMessage, setRuleMessage] = useState(
-    "创建入场规则后，交易录入时可以绑定具体版本。",
-  );
-  const [ruleErrors, setRuleErrors] = useState<string[]>([]);
-  const [ruleDraft, setRuleDraft] = useState({
-    name: "",
-    marketType: "index_futures",
-    description: "",
-    content: "",
-    checklistText: "",
-  });
-  const [versionDraft, setVersionDraft] = useState({
-    entryRuleId: "",
-    content: "",
-    checklistText: "",
-  });
-  const [isSavingRule, setIsSavingRule] = useState(false);
-  const [formMessage, setFormMessage] = useState<string>(
-    "录入已平仓交易后会立即写入本地 SQLite。",
-  );
-  const [formErrors, setFormErrors] = useState<string[]>([]);
-  const [isSavingTrade, setIsSavingTrade] = useState(false);
-  const [isDeletingTrade, setIsDeletingTrade] = useState(false);
-  const [editingTradeId, setEditingTradeId] = useState<number | null>(null);
-  const [isLoadingTrades, setIsLoadingTrades] = useState(false);
-  const [tradeLoadError, setTradeLoadError] = useState<string | null>(null);
-  const [selectedTradeId, setSelectedTradeId] = useState<number | null>(null);
-  const [selectedTradeDetailState, setSelectedTradeDetailState] = useState<{
-    tradeId: number;
-    detail: TradeDetail | undefined;
-  }>();
-  const [loadingTradeDetailId, setLoadingTradeDetailId] = useState<number | null>(
-    null,
-  );
-  const [tradeDetailErrorState, setTradeDetailErrorState] = useState<{
-    tradeId: number;
-    error: string;
-  }>();
-  const [attachmentsByTradeId, setAttachmentsByTradeId] = useState<
-    Record<number, AttachmentSummary[]>
-  >({});
-  const [attachmentDraft, setAttachmentDraft] = useState<{
-    imageType: AttachmentImageType;
-    caption: string;
-  }>({
-    imageType: "entry",
-    caption: "",
-  });
-  const [loadingAttachmentTradeId, setLoadingAttachmentTradeId] = useState<
-    number | null
-  >(null);
-  const [attachmentErrorState, setAttachmentErrorState] = useState<{
-    tradeId: number;
-    error: string;
-  }>();
-  const [isSavingAttachment, setIsSavingAttachment] = useState(false);
-  const [deletingAttachmentId, setDeletingAttachmentId] = useState<number | null>(
-    null,
-  );
-  const [attachmentImageDataUrls, setAttachmentImageDataUrls] = useState<
-    Record<number, string>
-  >({});
-  const [activeAttachmentPreviewId, setActiveAttachmentPreviewId] = useState<
-    number | null
-  >(null);
-  const [latestReviewByTradeId, setLatestReviewByTradeId] = useState<
-    Record<number, AIReview | undefined>
-  >({});
-  const [loadingReviewTradeId, setLoadingReviewTradeId] = useState<number | null>(
-    null,
-  );
-  const [reviewErrorState, setReviewErrorState] = useState<{
-    tradeId: number;
-    error: string;
-  }>();
-  const [isSavingReview, setIsSavingReview] = useState(false);
-  const [editingRuleCheckId, setEditingRuleCheckId] = useState<number | null>(
-    null,
-  );
-  const [ruleCheckEditDraft, setRuleCheckEditDraft] =
-    useState<RuleCheckEditDraft>({
-      result: "unknown",
-      evidence: "",
-      comment: "",
-    });
-  const [savingRuleCheckId, setSavingRuleCheckId] = useState<number | null>(null);
   const [databaseStatus, setDatabaseStatus] = useState<string>(
     "数据库等待桌面运行时",
   );
-  const [statsOverview, setStatsOverview] = useState<StatsOverview | null>(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(false);
-  const [statsError, setStatsError] = useState<string | null>(null);
-  const [statsFilters, setStatsFilters] = useState<StatsFilterState>(() =>
-    getInitialStatsFilterState(),
+  const statsWorkflow = useStatsWorkflow(desktopApi);
+  const tradeWorkflow = useTradeWorkflow(
+    desktopApi,
+    desktopRuntime,
+    sampleTrades,
+    instruments,
+    async () => {
+      await statsWorkflow.actions.refreshStats();
+    },
   );
-  const [tradeDrilldownFilters, setTradeDrilldownFilters] =
-    useState<StatsOverviewFilters | null>(null);
-  const [isBackupBusy, setIsBackupBusy] = useState(false);
-  const [backupError, setBackupError] = useState<string | null>(null);
-  const [lastBackup, setLastBackup] = useState<BackupResult | null>(null);
-  const [lastRestore, setLastRestore] = useState<RestoreBackupResult | null>(
-    null,
-  );
-  const [backupHistory, setBackupHistory] = useState<BackupHistoryItem[]>([]);
-  const [settingsSummary, setSettingsSummary] =
-    useState<SettingsSummary | null>(null);
-  const [settingsDraft, setSettingsDraft] = useState<SettingsDraft>(() =>
-    createSettingsDraft(null),
-  );
-  const [dataResetDraft, setDataResetDraft] = useState<DataResetDraft>(() =>
-    createDataResetDraft(),
-  );
-  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [isResettingLocalData, setIsResettingLocalData] = useState(false);
-  const [settingsError, setSettingsError] = useState<string | null>(null);
-  const [settingsMessage, setSettingsMessage] = useState(
-    "AI Key 不会回显；留空保存会保持当前 Key 不变。",
-  );
-  const statsOverviewFilters = useMemo(
-    () => buildStatsOverviewFilters(statsFilters),
-    [statsFilters],
-  );
+  const {
+    isBackupBusy,
+    backupError,
+    lastBackup,
+    lastRestore,
+    backupHistory,
+    settingsSummary,
+    settingsDraft,
+    dataResetDraft,
+    isLoadingSettings,
+    isSavingSettings,
+    isResettingLocalData,
+    settingsError,
+    settingsMessage,
+  } = backupSettingsWorkflow.state;
+  const {
+    applyBootstrapState,
+    clearLoadErrors: clearBackupSettingsLoadErrors,
+    setIsLoadingSettings,
+    setSettingsError,
+    setSettingsDraft,
+    setDataResetDraft,
+    handleCreateBackup,
+    handleRestoreBackup,
+    handleRestoreBackupFile,
+    handleOpenDataDirectory,
+    handleOpenBackupsDirectory,
+    handleSaveAISettings,
+    handleOpenSettingsDataDirectory,
+    handleOpenSettingsBackupsDirectory,
+    handleResetLocalData,
+  } = backupSettingsWorkflow.actions;
+  const {
+    attachmentsByTradeId,
+    attachmentDraft,
+    loadingAttachmentTradeId,
+    attachmentErrorState,
+    isSavingAttachment,
+    deletingAttachmentId,
+    attachmentImageDataUrls,
+    activeAttachmentPreviewId,
+  } = attachmentWorkflow.state;
+  const {
+    setAttachmentDraft,
+    setActiveAttachmentPreviewId,
+    removeTradeAttachments,
+    refreshAttachmentsForTrade,
+    handleChooseAndAttach,
+    handleDeleteAttachment,
+  } = attachmentWorkflow.actions;
+  const {
+    latestReviewByTradeId,
+    loadingReviewTradeId,
+    reviewErrorState,
+    isSavingReview,
+    editingRuleCheckId,
+    ruleCheckEditDraft,
+    savingRuleCheckId,
+  } = reviewWorkflow.state;
+  const {
+    loadLatestReviewForTrade,
+    handleConfirmReview: confirmReview,
+    handleCreateReviewDraft: generateReviewDraft,
+    handleCorrectReview: correctReview,
+    handleInvalidateReview: invalidateReview,
+    handleStartRuleCheckEdit,
+    handleCancelRuleCheckEdit,
+    setRuleCheckEditDraft: handleRuleCheckDraftChange,
+    handleSaveRuleCheck: saveRuleCheck,
+    removeReviewForTrade,
+  } = reviewWorkflow.actions;
+  const {
+    trades,
+    tradeForm,
+    formPreview,
+    formMessage,
+    formErrors,
+    isSavingTrade,
+    isDeletingTrade,
+    editingTradeId,
+    isLoadingTrades,
+    tradeLoadError,
+    selectedTradeId,
+    selectedTradeDetailState,
+    loadingTradeDetailId,
+    tradeDetailErrorState,
+  } = tradeWorkflow.state;
+  const {
+    setTrades,
+    setTradeForm,
+    setIsLoadingTrades,
+    setSelectedTradeId,
+    setSelectedTradeDetailState,
+    setFormMessage,
+    updateTradeForm,
+    loadTradeDetail,
+    handleCreateClosedTrade,
+    handleDeleteSelectedTrade: deleteSelectedTrade,
+    handleEditSelectedTrade,
+    handleCancelEdit,
+    applyBootstrapTrades,
+    setTradeLoadFailure,
+  } = tradeWorkflow.actions;
+  const ruleWorkflow = useRuleWorkflow(desktopApi, (entryRuleVersionId) => {
+    setTradeForm((current) => {
+      if (entryRuleVersionId == null) {
+        return { ...current, entryRuleVersionId: "" };
+      }
+
+      return { ...current, entryRuleVersionId: String(entryRuleVersionId) };
+    });
+  });
+  const {
+    isLoadingStats,
+    statsError,
+    statsFilters,
+    tradeDrilldownFilters,
+    statsOverviewFilters,
+  } = statsWorkflow.state;
+  const {
+    setIsLoadingStats,
+    setTradeDrilldownFilters,
+    refreshStats,
+    handleStatsFiltersChange,
+    applyBootstrapStats,
+    setStatsLoadFailure,
+  } = statsWorkflow.actions;
+  const {
+    entryRules,
+    isLoadingRules,
+    ruleMessage,
+    ruleErrors,
+    ruleDraft,
+    versionDraft,
+    isSavingRule,
+  } = ruleWorkflow.state;
+  const {
+    setIsLoadingRules,
+    setRuleDraft,
+    setVersionDraft,
+    refreshRules,
+    handleCreateRule,
+    handleCreateRuleVersion,
+    handleArchiveRule,
+    applyBootstrapRules,
+    setRuleLoadFailure,
+  } = ruleWorkflow.actions;
 
   useEffect(() => {
     let cancelled = false;
@@ -224,26 +233,21 @@ function App() {
         if (!cancelled) {
           setDatabaseStatus(desktopState.databaseStatus);
           setInstruments(desktopState.instruments);
-          setTrades(desktopState.trades);
-          setEntryRules(desktopState.activeRules);
-          setStatsOverview(desktopState.statsOverview);
-          setSettingsSummary(desktopState.settingsSummary);
-          setBackupHistory(desktopState.backupHistory);
-          setSettingsDraft(createSettingsDraft(desktopState.settingsSummary));
-          setSelectedTradeId(
-            (current) => current ?? desktopState.trades[0]?.id ?? null,
-          );
-          setTradeLoadError(null);
-          setRuleErrors([]);
-          setStatsError(null);
-          setSettingsError(null);
+          applyBootstrapTrades(desktopState.trades);
+          applyBootstrapRules(desktopState.activeRules);
+          applyBootstrapStats(desktopState.statsOverview);
+          applyBootstrapState({
+            settingsSummary: desktopState.settingsSummary,
+            backupHistory: desktopState.backupHistory,
+          });
+          clearBackupSettingsLoadErrors();
         }
       } catch (error) {
         if (!cancelled) {
           const message = error instanceof Error ? error.message : String(error);
-          setTradeLoadError(message);
-          setRuleErrors([message]);
-          setStatsError(message);
+          setTradeLoadFailure(message);
+          setRuleLoadFailure(message);
+          setStatsLoadFailure(message);
           setSettingsError(message);
         }
       } finally {
@@ -261,57 +265,21 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  const formPreview = useMemo(() => {
-    return calculateTradeFormPreview(tradeForm, instruments);
-  }, [tradeForm, instruments]);
-
-  const updateTradeForm = (field: keyof TradeFormState, value: string) => {
-    setTradeForm((current) => ({ ...current, [field]: value }));
-    setFormErrors([]);
-  };
-
-  const refreshRules = async () => {
-    if (!window.desktopApi) {
-      return;
-    }
-
-    setIsLoadingRules(true);
-    try {
-      const activeRules = await window.desktopApi.rules.listActive();
-      setEntryRules(activeRules);
-      setRuleErrors([]);
-    } catch (error) {
-      setRuleErrors([error instanceof Error ? error.message : String(error)]);
-    } finally {
-      setIsLoadingRules(false);
-    }
-  };
-
-  const refreshStats = async (filters = statsOverviewFilters) => {
-    if (!window.desktopApi) {
-      return;
-    }
-
-    setIsLoadingStats(true);
-    try {
-      setStatsOverview(await window.desktopApi.stats.getOverview(filters));
-      setStatsError(null);
-    } catch (error) {
-      setStatsError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsLoadingStats(false);
-    }
-  };
-
-  const handleStatsFiltersChange = (nextFilters: StatsFilterState) => {
-    setStatsFilters(nextFilters);
-
-    if (window.desktopApi) {
-      void refreshStats(buildStatsOverviewFilters(nextFilters));
-    }
-  };
+  }, [
+    applyBootstrapState,
+    applyBootstrapTrades,
+    applyBootstrapRules,
+    clearBackupSettingsLoadErrors,
+    applyBootstrapStats,
+    setIsLoadingTrades,
+    setIsLoadingRules,
+    setIsLoadingStats,
+    setIsLoadingSettings,
+    setSettingsError,
+    setRuleLoadFailure,
+    setStatsLoadFailure,
+    setTradeLoadFailure,
+  ]);
 
   const handleStatsDrillDown = (filters: StatsOverviewFilters) => {
     setTradeDrilldownFilters(filters);
@@ -323,562 +291,77 @@ function App() {
     handleCancelRuleCheckEdit();
   };
 
-  const handleCreateBackup = async () => {
-    if (!window.desktopApi) {
-      setBackupError("浏览器预览不会访问本地数据目录；请在 Electron 桌面运行时操作。");
-      return;
-    }
-
-    setIsBackupBusy(true);
-    setBackupError(null);
-    try {
-      const backup = await window.desktopApi.backup.create();
-      setLastBackup(backup);
-      setBackupHistory(await window.desktopApi.backup.listHistory());
-    } catch (error) {
-      setBackupError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsBackupBusy(false);
-    }
-  };
-
-  const handleRestoreBackup = async () => {
-    if (!window.desktopApi) {
-      setBackupError("浏览器预览不会访问本地数据目录；请在 Electron 桌面运行时操作。");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "从备份恢复会完整替换当前本地数据库和截图目录。恢复前会自动备份当前数据，恢复后应用会重启。继续？",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setIsBackupBusy(true);
-    setBackupError(null);
-    try {
-      const restored = await window.desktopApi.backup.chooseAndRestore();
-      if (restored) {
-        setLastRestore(restored);
-      }
-    } catch (error) {
-      setBackupError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsBackupBusy(false);
-    }
-  };
-
-  const handleRestoreBackupFile = async (filePath: string) => {
-    if (!window.desktopApi) {
-      setBackupError("浏览器预览不会访问本地数据目录；请在 Electron 桌面运行时操作。");
-      return;
-    }
-
-    const fileName = filePath.split(/[\\/]/).at(-1) ?? filePath;
-    const confirmed = window.confirm(
-      `从历史备份 ${fileName} 恢复会完整替换当前本地数据库和截图目录。恢复前会自动备份当前数据，恢复后应用会重启。继续？`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setIsBackupBusy(true);
-    setBackupError(null);
-    try {
-      const restored = await window.desktopApi.backup.restoreFromHistory({
-        filePath,
-      });
-      setLastRestore(restored);
-    } catch (error) {
-      setBackupError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsBackupBusy(false);
-    }
-  };
-
-  const handleOpenDataDirectory = async () => {
-    try {
-      const error = await window.desktopApi?.backup.openDataDirectory();
-      setBackupError(error || null);
-    } catch (openError) {
-      setBackupError(openError instanceof Error ? openError.message : String(openError));
-    }
-  };
-
-  const handleOpenBackupsDirectory = async () => {
-    try {
-      const error = await window.desktopApi?.backup.openBackupsDirectory();
-      setBackupError(error || null);
-    } catch (openError) {
-      setBackupError(openError instanceof Error ? openError.message : String(openError));
-    }
-  };
-
-  const handleSaveAISettings = async () => {
-    if (!window.desktopApi) {
-      setSettingsError("浏览器预览不会写入设置；请在 Electron 桌面运行时操作。");
-      return;
-    }
-
-    setIsSavingSettings(true);
-    setSettingsError(null);
-    try {
-      const summary = await window.desktopApi.settings.saveAI(
-        buildAISettingsInput(settingsDraft),
-      );
-      setSettingsSummary(summary);
-      setSettingsDraft(createSettingsDraft(summary));
-      setSettingsMessage("AI 设置已保存。");
-    } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsSavingSettings(false);
-    }
-  };
-
-  const handleOpenSettingsDataDirectory = async () => {
-    try {
-      const error = await window.desktopApi?.settings.openDataDirectory();
-      setSettingsError(error || null);
-    } catch (openError) {
-      setSettingsError(openError instanceof Error ? openError.message : String(openError));
-    }
-  };
-
-  const handleOpenSettingsBackupsDirectory = async () => {
-    try {
-      const error = await window.desktopApi?.settings.openBackupsDirectory();
-      setSettingsError(error || null);
-    } catch (openError) {
-      setSettingsError(openError instanceof Error ? openError.message : String(openError));
-    }
-  };
-
-  const handleResetLocalData = async () => {
-    if (!window.desktopApi) {
-      setSettingsError("浏览器预览不会重置本地数据；请在 Electron 桌面运行时操作。");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      "这会先自动导出当前数据备份，然后清除本地 SQLite、截图和设置，并重启应用。继续？",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setIsResettingLocalData(true);
-    setSettingsError(null);
-    try {
-      await window.desktopApi.settings.resetLocalData(
-        buildDataResetInput(dataResetDraft),
-      );
-      setDataResetDraft(createDataResetDraft());
-      setSettingsMessage("本地数据已重置，应用将重启。");
-    } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setIsResettingLocalData(false);
-    }
-  };
-
-  const handleCreateRule = async () => {
-    setRuleErrors([]);
-
-    if (!window.desktopApi) {
-      setRuleErrors(["浏览器预览不会写入规则库；请在 Electron 桌面运行时操作。"]);
-      return;
-    }
-
-    if (!ruleDraft.name.trim() || !ruleDraft.content.trim()) {
-      setRuleErrors(["请填写规则名称和版本内容。"]);
-      return;
-    }
-
-    setIsSavingRule(true);
-    try {
-      const created = await window.desktopApi.rules.create({
-        name: ruleDraft.name,
-        description: ruleDraft.description || null,
-        marketType: ruleDraft.marketType || null,
-        content: ruleDraft.content,
-        checklist: parseChecklistText(ruleDraft.checklistText),
-      });
-      setRuleDraft({
-        name: "",
-        marketType: "index_futures",
-        description: "",
-        content: "",
-        checklistText: "",
-      });
-      setVersionDraft((current) => ({
-        ...current,
-        entryRuleId: String(created.id),
-      }));
-      setTradeForm((current) => ({
-        ...current,
-        entryRuleVersionId: String(created.latestVersion.id),
-      }));
-      await refreshRules();
-      setRuleMessage("规则已创建，交易表单已选中新规则版本。");
-    } catch (error) {
-      setRuleErrors([error instanceof Error ? error.message : String(error)]);
-    } finally {
-      setIsSavingRule(false);
-    }
-  };
-
-  const handleCreateRuleVersion = async () => {
-    setRuleErrors([]);
-
-    if (!window.desktopApi) {
-      setRuleErrors(["浏览器预览不会写入规则库；请在 Electron 桌面运行时操作。"]);
-      return;
-    }
-
-    const entryRuleId = Number(versionDraft.entryRuleId);
-
-    if (!Number.isInteger(entryRuleId) || entryRuleId <= 0) {
-      setRuleErrors(["请选择要追加版本的规则。"]);
-      return;
-    }
-
-    if (!versionDraft.content.trim()) {
-      setRuleErrors(["请填写新版本内容。"]);
-      return;
-    }
-
-    setIsSavingRule(true);
-    try {
-      const version = await window.desktopApi.rules.createVersion({
-        entryRuleId,
-        content: versionDraft.content,
-        checklist: parseChecklistText(versionDraft.checklistText),
-      });
-      setVersionDraft((current) => ({
-        ...current,
-        content: "",
-        checklistText: "",
-      }));
-      setTradeForm((current) => ({
-        ...current,
-        entryRuleVersionId: String(version.id),
-      }));
-      await refreshRules();
-      setRuleMessage("规则新版本已创建，交易表单已选中新版本。");
-    } catch (error) {
-      setRuleErrors([error instanceof Error ? error.message : String(error)]);
-    } finally {
-      setIsSavingRule(false);
-    }
-  };
-
-  const handleArchiveRule = async (rule: EntryRuleWithLatestVersion) => {
-    const confirmed = window.confirm(`归档规则 ${rule.name}？历史交易绑定不会被删除。`);
-
-    if (!confirmed) {
-      return;
-    }
-
-    if (!window.desktopApi) {
-      setRuleErrors(["浏览器预览不会写入规则库；请在 Electron 桌面运行时操作。"]);
-      return;
-    }
-
-    setIsSavingRule(true);
-    try {
-      await window.desktopApi.rules.archive(rule.id);
-      await refreshRules();
-      setTradeForm((current) =>
-        current.entryRuleVersionId === String(rule.latestVersion.id)
-          ? { ...current, entryRuleVersionId: "" }
-          : current,
-      );
-      setRuleMessage("规则已归档，历史交易仍保留原版本绑定。");
-    } catch (error) {
-      setRuleErrors([error instanceof Error ? error.message : String(error)]);
-    } finally {
-      setIsSavingRule(false);
-    }
-  };
-
-  const handleCreateClosedTrade = async () => {
-    setFormErrors([]);
-    const result = buildCreateClosedTradeInput(tradeForm);
-
-    if (!result.ok) {
-      setFormErrors(result.errors);
-      setFormMessage("请修正交易事实后再保存。");
-      return;
-    }
-
-    if (editingTradeId != null) {
-      setIsSavingTrade(true);
-      try {
-        if (window.desktopApi) {
-          const updatedTrade = await window.desktopApi.trades.update(
-            editingTradeId,
-            result.input,
-          );
-
-          if (!updatedTrade) {
-            throw new Error("交易不存在，无法更新。");
-          }
-
-          setTrades(await window.desktopApi.trades.list());
-          await refreshStats();
-          setSelectedTradeId(updatedTrade.id);
-          setSelectedTradeDetailState(undefined);
-        } else {
-          const updatedTrades = updatePreviewTradeSummary(
-            trades,
-            editingTradeId,
-            result.input,
-            formPreview,
-          );
-          setTrades(updatedTrades);
-          setSelectedTradeId(editingTradeId);
-        }
-
-        setEditingTradeId(null);
-        setTradeForm(createTradeFormAfterSave(tradeForm));
-        setFormMessage("交易已更新，并重新计算盈亏和成交明细。");
-      } catch (error) {
-        setFormErrors([error instanceof Error ? error.message : String(error)]);
-      } finally {
-        setIsSavingTrade(false);
-      }
-      return;
-    }
-
-    if (!window.desktopApi) {
-      setFormMessage("浏览器预览不会写入数据库；Electron 运行时会保存。");
-      setTrades(sampleTrades);
-      return;
-    }
-
-    setIsSavingTrade(true);
-    try {
-      const createdTrade = await window.desktopApi.trades.createClosed(
-        result.input,
-      );
-      setTrades(await window.desktopApi.trades.list());
-      await refreshStats();
-      setSelectedTradeId(createdTrade.id);
-      setTradeForm(createTradeFormAfterSave(tradeForm));
-      setFormMessage("交易已保存，并自动生成 entry/exit 成交明细。");
-    } catch (error) {
-      setFormErrors([error instanceof Error ? error.message : String(error)]);
-    } finally {
-      setIsSavingTrade(false);
-    }
-  };
-
   const handleDeleteSelectedTrade = async () => {
-    if (!selectedTrade) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `删除 ${selectedTrade.symbol} ${formatTradeTime(
-        selectedTrade.openedAt,
-      )} 这笔交易？成交明细和后续复盘也会一并删除。`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setIsDeletingTrade(true);
-    try {
-      if (window.desktopApi) {
-        await window.desktopApi.trades.delete(selectedTrade.id);
-        const nextTrades = await window.desktopApi.trades.list();
-        setTrades(nextTrades);
-        await refreshStats();
-        setSelectedTradeId(nextTrades[0]?.id ?? null);
-      } else {
-        const nextTrades = trades.filter((trade) => trade.id !== selectedTrade.id);
-        setTrades(nextTrades);
-        setSelectedTradeId(nextTrades[0]?.id ?? null);
-      }
-      setSelectedTradeDetailState(undefined);
-      setTradeDetailErrorState(undefined);
-      setAttachmentsByTradeId((current) => {
-        const next = { ...current };
-        delete next[selectedTrade.id];
-        return next;
-      });
-      setLatestReviewByTradeId((current) => {
-        const next = { ...current };
-        delete next[selectedTrade.id];
-        return next;
-      });
-      setEditingTradeId(null);
-      setFormMessage("交易已删除。");
-    } catch (error) {
-      setFormErrors([error instanceof Error ? error.message : String(error)]);
-    } finally {
-      setIsDeletingTrade(false);
+    const deleted = await deleteSelectedTrade(selectedTrade);
+    if (deleted && selectedTrade) {
+      removeTradeAttachments(selectedTrade.id);
+      removeReviewForTrade(selectedTrade.id);
     }
   };
 
   const handleConfirmReview = async () => {
-    if (!selectedTrade || !latestReview || !window.desktopApi) {
+    if (!selectedTrade) {
       return;
     }
 
-    setIsSavingReview(true);
-    try {
-      const review = await window.desktopApi.reviews.confirm(latestReview.id);
-      await applyReviewMutation(selectedTrade.id, review);
+    const review = await confirmReview(selectedTrade, latestReview);
+    if (review) {
+      await syncAfterReviewMutation(selectedTrade.id);
       setFormMessage("复盘草稿已确认，后续统计会纳入该交易。");
-    } catch (error) {
-      setReviewErrorState({
-        tradeId: selectedTrade.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsSavingReview(false);
     }
   };
 
   const handleCreateReviewDraft = async () => {
-    if (!selectedTrade || !window.desktopApi) {
+    if (!selectedTrade) {
       return;
     }
 
-    setIsSavingReview(true);
-    try {
-      const review = await window.desktopApi.reviews.generateDraft(
-        selectedTrade.id,
-      );
-      await applyReviewMutation(selectedTrade.id, review);
+    const review = await generateReviewDraft(selectedTrade);
+    if (review) {
+      await syncAfterReviewMutation(selectedTrade.id);
       setFormMessage("AI 复盘草稿已生成，请检查后确认或修正。");
-    } catch (error) {
-      setReviewErrorState({
-        tradeId: selectedTrade.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsSavingReview(false);
     }
   };
 
   const handleCorrectReview = async () => {
-    if (!selectedTrade || !latestReview || !window.desktopApi) {
+    if (!selectedTrade) {
       return;
     }
 
-    const summary = window.prompt(
-      "修正后的复盘摘要",
-      latestReview.summary ?? "",
-    );
-
-    if (summary == null) {
-      return;
-    }
-
-    setIsSavingReview(true);
-    try {
-      const review = await window.desktopApi.reviews.correct(latestReview.id, {
-        summary: summary.trim() || latestReview.summary,
-      });
-      await applyReviewMutation(selectedTrade.id, review);
+    const review = await correctReview(selectedTrade, latestReview);
+    if (review) {
+      await syncAfterReviewMutation(selectedTrade.id);
       setFormMessage("复盘草稿已修正，后续统计会使用修正结果。");
-    } catch (error) {
-      setReviewErrorState({
-        tradeId: selectedTrade.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsSavingReview(false);
     }
   };
 
   const handleInvalidateReview = async () => {
-    if (!selectedTrade || !latestReview || !window.desktopApi) {
+    if (!selectedTrade) {
       return;
     }
 
-    const confirmed = window.confirm("将这条复盘草稿标记为无效？该交易不会进入复盘统计口径。");
-
-    if (!confirmed) {
-      return;
-    }
-
-    setIsSavingReview(true);
-    try {
-      const review = await window.desktopApi.reviews.invalidate(latestReview.id);
-      await applyReviewMutation(selectedTrade.id, review);
+    const review = await invalidateReview(selectedTrade, latestReview);
+    if (review) {
+      await syncAfterReviewMutation(selectedTrade.id);
       setFormMessage("复盘草稿已标记无效。");
-    } catch (error) {
-      setReviewErrorState({
-        tradeId: selectedTrade.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsSavingReview(false);
     }
-  };
-
-  const handleStartRuleCheckEdit = (check: TradeRuleCheckDetail) => {
-    setEditingRuleCheckId(check.id);
-    setRuleCheckEditDraft(createRuleCheckEditDraft(check));
-    setReviewErrorState(undefined);
-  };
-
-  const handleCancelRuleCheckEdit = () => {
-    setEditingRuleCheckId(null);
-    setRuleCheckEditDraft({
-      result: "unknown",
-      evidence: "",
-      comment: "",
-    });
-  };
-
-  const handleRuleCheckDraftChange = (draft: RuleCheckEditDraft) => {
-    setRuleCheckEditDraft(draft);
   };
 
   const handleSaveRuleCheck = async (checkId: number) => {
-    if (!selectedTrade || !window.desktopApi) {
+    if (!selectedTrade) {
       return;
     }
 
-    setSavingRuleCheckId(checkId);
-    try {
-      await window.desktopApi.reviews.updateRuleCheck(
-        checkId,
-        buildRuleCheckUpdateInput(ruleCheckEditDraft),
-      );
-      const detail = await window.desktopApi.trades.get(selectedTrade.id);
+    const saved = await saveRuleCheck(selectedTrade, checkId);
+    if (saved) {
+      const detail = await desktopApi?.trades.get(selectedTrade.id);
       setSelectedTradeDetailState({ tradeId: selectedTrade.id, detail });
-      setEditingRuleCheckId(null);
-      setReviewErrorState(undefined);
       setFormMessage("规则检查已保存。");
-    } catch (error) {
-      setReviewErrorState({
-        tradeId: selectedTrade.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setSavingRuleCheckId(null);
     }
   };
 
-  const applyReviewMutation = async (tradeId: number, review: AIReview) => {
-    setLatestReviewByTradeId((current) => ({
-      ...current,
-      [tradeId]: review,
-    }));
-    setReviewErrorState(undefined);
-
-    const desktopTrades = await window.desktopApi?.trades.list();
+  const syncAfterReviewMutation = async (tradeId: number) => {
+    const desktopTrades = await desktopApi?.trades.list();
     if (desktopTrades) {
       setTrades(desktopTrades);
       setSelectedTradeId(tradeId);
@@ -886,172 +369,20 @@ function App() {
 
     await refreshStats();
 
-    const detail = await window.desktopApi?.trades.get(tradeId);
+    const detail = await desktopApi?.trades.get(tradeId);
     setSelectedTradeDetailState({ tradeId, detail });
-  };
-
-  const handleEditSelectedTrade = () => {
-    if (!selectedTradeDetail) {
-      return;
-    }
-
-    setEditingTradeId(selectedTradeDetail.id);
-    setTradeForm(createTradeFormFromDetail(selectedTradeDetail));
-    setFormErrors([]);
-    setFormMessage("正在编辑选中交易，保存后会覆盖原记录。");
-  };
-
-  const handleCancelEdit = () => {
-    setEditingTradeId(null);
-    setTradeForm(createInitialTradeForm());
-    setFormErrors([]);
-    setFormMessage("已取消编辑。");
-  };
-
-  const refreshAttachmentsForTrade = async (tradeId: number) => {
-    if (!window.desktopApi) {
-      return;
-    }
-
-    setLoadingAttachmentTradeId(tradeId);
-    try {
-      const attachments = await window.desktopApi.attachments.listByTrade(tradeId);
-      setAttachmentsByTradeId((current) => ({
-        ...current,
-        [tradeId]: attachments,
-      }));
-      await loadAttachmentImageDataUrls(attachments);
-      setAttachmentErrorState(undefined);
-    } catch (error) {
-      setAttachmentErrorState({
-        tradeId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setLoadingAttachmentTradeId((current) =>
-        current === tradeId ? null : current,
-      );
-    }
-  };
-
-  const loadAttachmentImageDataUrls = async (attachments: AttachmentSummary[]) => {
-    if (!window.desktopApi || attachments.length === 0) {
-      return;
-    }
-
-    const entries = await Promise.all(
-      attachments.map(async (attachment) => {
-        try {
-          const dataUrl =
-            await window.desktopApi?.attachments.readImageDataUrl(attachment.id);
-          return dataUrl ? ([attachment.id, dataUrl] as const) : undefined;
-        } catch {
-          return undefined;
-        }
-      }),
-    );
-    const imageDataUrls = Object.fromEntries(
-      entries.filter((entry): entry is readonly [number, string] =>
-        Boolean(entry),
-      ),
-    );
-
-    setAttachmentImageDataUrls((current) => ({
-      ...current,
-      ...imageDataUrls,
-    }));
-  };
-
-  const handleChooseAndAttach = async () => {
-    if (!selectedTrade) {
-      return;
-    }
-
-    if (!window.desktopApi) {
-      setAttachmentErrorState({
-        tradeId: selectedTrade.id,
-        error: "浏览器预览不能选择本地文件；请在 Electron 桌面运行时添加截图。",
-      });
-      return;
-    }
-
-    setIsSavingAttachment(true);
-    try {
-      const attachment = await window.desktopApi.attachments.chooseAndAttach({
-        tradeId: selectedTrade.id,
-        imageType: attachmentDraft.imageType,
-        caption: attachmentDraft.caption.trim() || null,
-        sortOrder: attachmentsByTradeId[selectedTrade.id]?.length ?? 0,
-      });
-      if (!attachment) {
-        return;
-      }
-      setAttachmentDraft((current) => ({
-        ...current,
-        caption: "",
-      }));
-      await refreshAttachmentsForTrade(selectedTrade.id);
-    } catch (error) {
-      setAttachmentErrorState({
-        tradeId: selectedTrade.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setIsSavingAttachment(false);
-    }
-  };
-
-  const handleDeleteAttachment = async (attachmentId: number) => {
-    if (!selectedTrade) {
-      return;
-    }
-
-    const confirmed = window.confirm("删除这张交易截图？本地副本也会移除。");
-    if (!confirmed) {
-      return;
-    }
-
-    setDeletingAttachmentId(attachmentId);
-    try {
-      if (window.desktopApi) {
-        await window.desktopApi.attachments.delete(attachmentId);
-        await refreshAttachmentsForTrade(selectedTrade.id);
-        setAttachmentImageDataUrls((current) => {
-          const next = { ...current };
-          delete next[attachmentId];
-          return next;
-        });
-        setActiveAttachmentPreviewId((current) =>
-          current === attachmentId ? null : current,
-        );
-      } else {
-        setAttachmentsByTradeId((current) => ({
-          ...current,
-          [selectedTrade.id]: (current[selectedTrade.id] ?? []).filter(
-            (attachment) => attachment.id !== attachmentId,
-          ),
-        }));
-      }
-    } catch (error) {
-      setAttachmentErrorState({
-        tradeId: selectedTrade.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setDeletingAttachmentId(null);
-    }
   };
 
   const activeView = useMemo(
     () => navigationItems.find((item) => item.id === currentView),
     [currentView],
   );
-  const statsPanel = getStatsPanelState({
-    runtime: desktopRuntime,
-    overview: statsOverview,
+  const statsPanel = getStatsRuntimePreviewState(
+    desktopRuntime,
+    statsWorkflow.state.statsOverview,
     trades,
-    filters: statsOverviewFilters,
-  });
+    statsOverviewFilters,
+  );
   const statsInstrumentOptions = useMemo(() => {
     if (instruments.length > 0) {
       return instruments;
@@ -1149,128 +480,28 @@ function App() {
       : attachmentImageDataUrls[activeAttachmentPreviewId];
 
   useEffect(() => {
-    let cancelled = false;
-
-    if (!selectedTrade || !window.desktopApi) {
+    if (!selectedTrade || !desktopApi) {
       return;
     }
 
-    void Promise.resolve()
-      .then(() => {
-        setLoadingTradeDetailId(selectedTrade.id);
-        return window.desktopApi?.trades.get(selectedTrade.id);
-      })
-      .then((detail) => {
-        if (!cancelled) {
-          setSelectedTradeDetailState({ tradeId: selectedTrade.id, detail });
-          setTradeDetailErrorState(undefined);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setTradeDetailErrorState({
-            tradeId: selectedTrade.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingTradeDetailId((current) =>
-            current === selectedTrade.id ? null : current,
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedTrade]);
+    void loadTradeDetail(selectedTrade.id);
+  }, [desktopApi, loadTradeDetail, selectedTrade]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    if (!selectedTrade || !window.desktopApi) {
+    if (!selectedTrade || !desktopApi) {
       return;
     }
 
-    void Promise.resolve()
-      .then(() => {
-        setLoadingReviewTradeId(selectedTrade.id);
-        return window.desktopApi?.reviews.getLatestForTrade(selectedTrade.id);
-      })
-      .then((review) => {
-        if (!cancelled) {
-          setLatestReviewByTradeId((current) => ({
-            ...current,
-            [selectedTrade.id]: review,
-          }));
-          setReviewErrorState(undefined);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setReviewErrorState({
-            tradeId: selectedTrade.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingReviewTradeId((current) =>
-            current === selectedTrade.id ? null : current,
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedTrade]);
+    void loadLatestReviewForTrade(selectedTrade.id);
+  }, [desktopApi, loadLatestReviewForTrade, selectedTrade]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    if (!selectedTrade || !window.desktopApi) {
+    if (!selectedTrade || !desktopApi) {
       return;
     }
 
-    void Promise.resolve()
-      .then(() => {
-        setLoadingAttachmentTradeId(selectedTrade.id);
-        return window.desktopApi?.attachments.listByTrade(selectedTrade.id);
-      })
-      .then((attachments) => {
-        if (!cancelled) {
-          setAttachmentsByTradeId((current) => ({
-            ...current,
-            [selectedTrade.id]: attachments ?? [],
-          }));
-          void loadAttachmentImageDataUrls(attachments ?? []);
-          setAttachmentErrorState(undefined);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setAttachmentErrorState({
-            tradeId: selectedTrade.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingAttachmentTradeId((current) =>
-            current === selectedTrade.id ? null : current,
-          );
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedTrade]);
+    void refreshAttachmentsForTrade(selectedTrade.id);
+  }, [desktopApi, refreshAttachmentsForTrade, selectedTrade]);
 
   return (
     <main className="app-shell">
@@ -1405,7 +636,7 @@ function App() {
             isSavingAttachment={isSavingAttachment}
             deletingAttachmentId={deletingAttachmentId}
             attachmentImageDataUrls={attachmentImageDataUrls}
-            onEditSelectedTrade={handleEditSelectedTrade}
+            onEditSelectedTrade={() => handleEditSelectedTrade(selectedTradeDetail)}
             onDeleteSelectedTrade={handleDeleteSelectedTrade}
             onCreateReviewDraft={() => void handleCreateReviewDraft()}
             onConfirmReview={() => void handleConfirmReview()}
@@ -1416,9 +647,9 @@ function App() {
             onCancelRuleCheckEdit={handleCancelRuleCheckEdit}
             onSaveRuleCheck={(checkId) => void handleSaveRuleCheck(checkId)}
             onAttachmentDraftChange={setAttachmentDraft}
-            onChooseAndAttach={() => void handleChooseAndAttach()}
+            onChooseAndAttach={() => void handleChooseAndAttach(selectedTrade)}
             onDeleteAttachment={(attachmentId) =>
-              void handleDeleteAttachment(attachmentId)
+              void handleDeleteAttachment(selectedTrade, attachmentId)
             }
             onPreviewAttachment={setActiveAttachmentPreviewId}
           />

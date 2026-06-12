@@ -14,26 +14,18 @@ import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
 import type { AppDataPaths } from "../data/appData.js";
+import type {
+  BackupHistoryItem,
+  BackupManifest,
+  BackupManifestFile,
+  BackupResult,
+  RestoreBackupResult,
+} from "../../shared/contracts/desktopApi.js";
 
 const backupSchemaVersion = 1;
 const databaseFileName = "app.sqlite";
 
 export type BackupServicePaths = AppDataPaths;
-
-export type BackupManifestFile = {
-  path: string;
-  sha256: string;
-  bytes: number;
-};
-
-export type BackupManifest = {
-  backupSchemaVersion: number;
-  appVersion: string;
-  exportedAt: string;
-  databaseFile: string;
-  attachments: BackupManifestFile[];
-  files: BackupManifestFile[];
-};
 
 export type BackupServiceOptions = {
   now?: Date;
@@ -41,28 +33,15 @@ export type BackupServiceOptions = {
   filenameSuffix?: string;
 };
 
-export type CreateBackupResult = {
-  filePath: string;
-  manifest: BackupManifest;
-};
+export type CreateBackupResult = BackupResult;
 
-export type RestoreBackupResult = {
-  restoredFromFilePath: string;
-  safetyBackupFilePath: string;
-  manifest: BackupManifest;
-};
-
-export type BackupHistoryItem = {
-  filePath: string;
-  fileName: string;
-  sizeBytes: number;
-  modifiedAt: string;
-  backupSchemaVersion: number | null;
-  appVersion: string | null;
-  exportedAt: string | null;
-  status: "restorable" | "unsupported-version" | "invalid";
-  problem: string | null;
-};
+export type {
+  BackupHistoryItem,
+  BackupManifest,
+  BackupManifestFile,
+  BackupResult,
+  RestoreBackupResult,
+} from "../../shared/contracts/desktopApi.js";
 
 export async function createBackup(
   paths: BackupServicePaths,

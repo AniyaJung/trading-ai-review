@@ -2,39 +2,19 @@ import type { DatabaseSync } from "node:sqlite";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  supportedAttachmentImageTypes,
+  type AttachExistingFileInput,
+  type AttachmentImageType,
+  type TradeAttachment,
+} from "../../shared/contracts/desktopApi.js";
 
-export type AttachmentImageType =
-  | "before_entry"
-  | "entry"
-  | "holding"
-  | "exit"
-  | "review_marked";
-
-export type TradeAttachment = {
-  id: number;
-  tradeId: number;
-  imageType: AttachmentImageType;
-  filePath: string;
-  caption: string | null;
-  sortOrder: number;
-  createdAt: string;
-};
-
-export type AttachExistingFileInput = {
-  tradeId: number;
-  sourceFilePath: string;
-  imageType: AttachmentImageType;
-  caption?: string | null;
-  sortOrder?: number;
-};
-
-const supportedImageTypes: AttachmentImageType[] = [
-  "before_entry",
-  "entry",
-  "holding",
-  "exit",
-  "review_marked",
-];
+export type {
+  AttachExistingFileInput,
+  AttachmentImageType,
+  ChooseAndAttachInput,
+  TradeAttachment,
+} from "../../shared/contracts/desktopApi.js";
 
 export function listAttachmentsByTrade(
   db: DatabaseSync,
@@ -144,7 +124,7 @@ export function readAttachmentImageDataUrl(
 }
 
 function validateImageType(imageType: AttachmentImageType) {
-  if (!supportedImageTypes.includes(imageType)) {
+  if (!supportedAttachmentImageTypes.includes(imageType)) {
     throw new Error(`Image type ${imageType} is not supported.`);
   }
 }

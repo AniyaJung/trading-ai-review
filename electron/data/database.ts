@@ -1,19 +1,12 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import type { InstrumentConfig } from "../../shared/contracts/desktopApi.js";
+import { deriveTradeDateSemantics } from "../../shared/trading/tradeDates.js";
 
-const supportedDatabaseVersion = 1;
+const supportedDatabaseVersion = 2;
 
-export type InstrumentPreset = {
-  symbol: string;
-  name: string;
-  assetClass: "futures";
-  exchange: string;
-  currency: string;
-  tickSize: number;
-  tickValue: number;
-  pointValue: number;
-};
+export type InstrumentPreset = InstrumentConfig;
 
 const futuresInstrumentPresets: InstrumentPreset[] = [
   {
@@ -86,6 +79,11 @@ export function runMigrations(db: DatabaseSync) {
       db.exec("rollback");
       throw error;
     }
+    return;
+  }
+
+  if (currentVersion < 2) {
+    migrateToVersionTwo(db);
   }
 }
 
@@ -157,6 +155,8 @@ function createVersionOneSchema(db: DatabaseSync) {
       direction text not null check (direction in ('long', 'short')),
       status text not null default 'closed' check (status = 'closed'),
       opened_at text not null,
+      user_local_date text not null,
+      market_session_date text not null,
       closed_at text not null,
       entry_price_avg real not null,
       exit_price_avg real not null,
@@ -259,10 +259,68 @@ function createVersionOneSchema(db: DatabaseSync) {
     );
 
     create index idx_trade_opened_at on trade(opened_at);
+    create index idx_trade_user_local_date on trade(user_local_date);
+    create index idx_trade_market_session_date on trade(market_session_date);
     create index idx_trade_instrument_id on trade(instrument_id);
     create index idx_trade_rule_version_id on trade(entry_rule_version_id);
     create index idx_ai_review_trade_status on ai_review(trade_id, status);
   `);
+}
+
+function migrateToVersionTwo(db: DatabaseSync) {
+  db.exec("begin immediate");
+  try {
+    const columns = getTableColumns(db, "trade");
+
+    if (!columns.has("user_local_date")) {
+      db.exec("alter table trade add column user_local_date text");
+    }
+
+    if (!columns.has("market_session_date")) {
+      db.exec("alter table trade add column market_session_date text");
+    }
+
+    const rows = db
+      .prepare(
+        `select id, opened_at as openedAt
+         from trade
+         where user_local_date is null
+            or user_local_date = ''
+            or market_session_date is null
+            or market_session_date = ''`,
+      )
+      .all() as Array<{ id: number; openedAt: string }>;
+    const update = db.prepare(
+      `update trade
+       set user_local_date = ?,
+           market_session_date = ?
+       where id = ?`,
+    );
+
+    for (const row of rows) {
+      const dates = deriveTradeDateSemantics(row.openedAt);
+      update.run(dates.userLocalDate, dates.marketSessionDate, row.id);
+    }
+
+    db.exec(`
+      create index if not exists idx_trade_user_local_date on trade(user_local_date);
+      create index if not exists idx_trade_market_session_date on trade(market_session_date);
+      pragma user_version = 2;
+    `);
+    db.exec("commit");
+  } catch (error) {
+    db.exec("rollback");
+    throw error;
+  }
+}
+
+function getTableColumns(db: DatabaseSync, tableName: string) {
+  return new Set(
+    db
+      .prepare(`pragma table_info(${tableName})`)
+      .all()
+      .map((row) => (row as { name: string }).name),
+  );
 }
 
 function seedInstrumentPresets(db: DatabaseSync) {

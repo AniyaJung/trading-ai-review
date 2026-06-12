@@ -1,5 +1,9 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { AppDataPaths } from "../data/appData.js";
+import type {
+  AISettingsInput,
+  SettingsSummary,
+} from "../../shared/contracts/desktopApi.js";
 
 const defaultOpenAIModel = "gpt-5.5";
 const defaultPromptVersion = "single-trade-ai-v1";
@@ -22,24 +26,10 @@ export type SettingsServiceOptions = {
   secretCodec?: SecretCodec;
 };
 
-export type AISettingsInput = {
-  apiKey?: string | null;
-  clearApiKey?: boolean;
-  model?: string | null;
-  promptVersion?: string | null;
-};
-
-export type SettingsSummary = {
-  openAi: {
-    apiKeyConfigured: boolean;
-    apiKeySource: "local" | "environment" | "missing";
-    model: string;
-    modelSource: "local" | "environment" | "default";
-    promptVersion: string;
-    promptVersionSource: "local" | "default";
-  };
-  paths: SettingsServicePaths;
-};
+export type {
+  AISettingsInput,
+  SettingsSummary,
+} from "../../shared/contracts/desktopApi.js";
 
 export type OpenAIAdapterConfig = {
   apiKey: string;

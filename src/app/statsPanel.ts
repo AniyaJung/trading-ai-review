@@ -1,38 +1,26 @@
 import type { RendererRuntime } from "./tradeList";
+import type {
+  StatsDateBasis,
+  StatsOverview,
+  StatsOverviewFilters,
+} from "../../shared/contracts/desktopApi";
+import {
+  addDaysToDateString,
+  deriveTradeDateSemantics,
+} from "../../shared/trading/tradeDates";
 
-export type InstrumentStats = {
-  symbol: string;
-  instrumentName: string;
-  tradeCount: number;
-  netPnl: number;
-  winRate: number | null;
-  averageRMultiple: number | null;
-  profitFactor: number | null;
-  feesTotal: number;
-};
-
-export type StatsOverview = {
-  totalTradeCount: number;
-  confirmedReviewCount: number;
-  totalNetPnl: number;
-  winRate: number | null;
-  averageRMultiple: number | null;
-  profitFactor: number | null;
-  totalFees: number;
-  byInstrument: InstrumentStats[];
-};
-
-export type StatsOverviewFilters = {
-  symbol?: string;
-  entryRuleId?: number;
-  openedFrom?: string;
-  openedBefore?: string;
-};
+export type {
+  InstrumentStats,
+  StatsDateBasis,
+  StatsOverview,
+  StatsOverviewFilters,
+} from "../../shared/contracts/desktopApi";
 
 export type StatsDateRangePreset = "all" | "last7" | "last30" | "custom";
 
 export type StatsFilterState = {
   dateRangePreset: StatsDateRangePreset;
+  dateBasis: StatsDateBasis;
   symbol: string;
   entryRuleId: string;
   customFrom: string;
@@ -50,6 +38,8 @@ type StatsTrade = {
   symbol: string;
   instrumentName: string;
   openedAt: string;
+  userLocalDate?: string;
+  marketSessionDate?: string;
   netPnl: number;
   feesTotal: number;
   rMultiple: number | null;
@@ -91,6 +81,7 @@ export function getStatsPanelState({
 export function getInitialStatsFilterState(): StatsFilterState {
   return {
     dateRangePreset: "all",
+    dateBasis: "user_local_day",
     symbol: "",
     entryRuleId: "",
     customFrom: "",
@@ -133,6 +124,7 @@ export function buildStatsOverviewFilters(
   now = new Date(),
 ): StatsOverviewFilters {
   const filters: StatsOverviewFilters = {};
+  filters.dateBasis = state.dateBasis;
 
   if (state.symbol.trim()) {
     filters.symbol = state.symbol.trim();
@@ -144,24 +136,24 @@ export function buildStatsOverviewFilters(
   }
 
   if (state.dateRangePreset === "last7") {
-    filters.openedFrom = toUtcDateBoundary(addUtcDays(startOfUtcDay(now), -6));
-    filters.openedBefore = toUtcDateBoundary(addUtcDays(startOfUtcDay(now), 1));
+    const currentDate = getCurrentStatsDate(state.dateBasis, now);
+    filters.dateFrom = addDaysToDateString(currentDate, -6);
+    filters.dateBefore = addDaysToDateString(currentDate, 1);
   }
 
   if (state.dateRangePreset === "last30") {
-    filters.openedFrom = toUtcDateBoundary(addUtcDays(startOfUtcDay(now), -29));
-    filters.openedBefore = toUtcDateBoundary(addUtcDays(startOfUtcDay(now), 1));
+    const currentDate = getCurrentStatsDate(state.dateBasis, now);
+    filters.dateFrom = addDaysToDateString(currentDate, -29);
+    filters.dateBefore = addDaysToDateString(currentDate, 1);
   }
 
   if (state.dateRangePreset === "custom") {
     if (state.customFrom) {
-      filters.openedFrom = `${state.customFrom}T00:00:00.000Z`;
+      filters.dateFrom = state.customFrom;
     }
 
     if (state.customTo) {
-      filters.openedBefore = toUtcDateBoundary(
-        addUtcDays(new Date(`${state.customTo}T00:00:00.000Z`), 1),
-      );
+      filters.dateBefore = addDaysToDateString(state.customTo, 1);
     }
   }
 
@@ -253,6 +245,17 @@ function filterStatsTrades<T extends StatsTrade>(
       return false;
     }
 
+    if (filters.dateFrom && getTradeStatsDate(trade, filters) < filters.dateFrom) {
+      return false;
+    }
+
+    if (
+      filters.dateBefore &&
+      getTradeStatsDate(trade, filters) >= filters.dateBefore
+    ) {
+      return false;
+    }
+
     if (filters.openedFrom && trade.openedAt < filters.openedFrom) {
       return false;
     }
@@ -339,18 +342,27 @@ function roundRatio(value: number) {
   return Number(value.toFixed(10));
 }
 
-function startOfUtcDay(value: Date) {
-  return new Date(
-    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()),
+function getCurrentStatsDate(dateBasis: StatsDateBasis, now: Date) {
+  const dates = deriveTradeDateSemantics(now.toISOString());
+  return dateBasis === "market_session_day"
+    ? dates.marketSessionDate
+    : dates.userLocalDate;
+}
+
+function getTradeStatsDate(
+  trade: StatsTrade,
+  filters: StatsOverviewFilters,
+) {
+  const dateBasis = filters.dateBasis ?? "user_local_day";
+
+  if (dateBasis === "market_session_day") {
+    return (
+      trade.marketSessionDate ??
+      deriveTradeDateSemantics(trade.openedAt).marketSessionDate
+    );
+  }
+
+  return (
+    trade.userLocalDate ?? deriveTradeDateSemantics(trade.openedAt).userLocalDate
   );
-}
-
-function addUtcDays(value: Date, days: number) {
-  const next = new Date(value);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
-}
-
-function toUtcDateBoundary(value: Date) {
-  return value.toISOString();
 }

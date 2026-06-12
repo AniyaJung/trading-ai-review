@@ -1,4 +1,5 @@
 import type { StatsEntryRuleOption, StatsOverviewFilters } from "./statsPanel";
+import { deriveTradeDateSemantics } from "../../shared/trading/tradeDates";
 
 export function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
   return {
@@ -63,6 +64,14 @@ export function formatStatsDrilldownLabel(
     parts.push(`${from} 至 ${before}`);
   }
 
+  if (filters.dateFrom || filters.dateBefore) {
+    const from = filters.dateFrom ?? "最早";
+    const before = filters.dateBefore ?? "现在";
+    const basis =
+      filters.dateBasis === "market_session_day" ? "市场会话日" : "用户本地日";
+    parts.push(`${basis} ${from} 至 ${before}`);
+  }
+
   return parts.join(" / ");
 }
 
@@ -84,11 +93,15 @@ export function updatePreviewTradeSummary(
       return trade;
     }
 
+    const dates = deriveTradeDateSemantics(input.openedAt);
+
     return {
       ...trade,
       symbol: input.symbol,
       direction: input.direction,
       openedAt: input.openedAt,
+      userLocalDate: dates.userLocalDate,
+      marketSessionDate: dates.marketSessionDate,
       closedAt: input.closedAt,
       entryPriceAvg: input.entryPrice,
       exitPriceAvg: input.exitPrice,

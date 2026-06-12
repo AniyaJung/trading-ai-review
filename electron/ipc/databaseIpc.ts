@@ -2,13 +2,9 @@ import { ipcMain } from "electron";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppDataPaths } from "../data/appData.js";
 import { listInstrumentPresets } from "../data/database.js";
+import type { DatabaseStatus } from "../../shared/contracts/desktopApi.js";
 
-export type DatabaseStatus = {
-  databasePath: string;
-  appDataDir: string;
-  instrumentCount: number;
-  migrationVersion: number;
-};
+export type { DatabaseStatus } from "../../shared/contracts/desktopApi.js";
 
 export function registerDatabaseIpc(
   db: DatabaseSync,

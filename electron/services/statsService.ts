@@ -1,33 +1,15 @@
 import type { DatabaseSync } from "node:sqlite";
+import type {
+  InstrumentStats,
+  StatsOverview,
+  StatsOverviewFilters,
+} from "../../shared/contracts/desktopApi.js";
 
-export type InstrumentStats = {
-  symbol: string;
-  instrumentName: string;
-  tradeCount: number;
-  netPnl: number;
-  winRate: number | null;
-  averageRMultiple: number | null;
-  profitFactor: number | null;
-  feesTotal: number;
-};
-
-export type StatsOverview = {
-  totalTradeCount: number;
-  confirmedReviewCount: number;
-  totalNetPnl: number;
-  winRate: number | null;
-  averageRMultiple: number | null;
-  profitFactor: number | null;
-  totalFees: number;
-  byInstrument: InstrumentStats[];
-};
-
-export type StatsOverviewFilters = {
-  symbol?: string | null;
-  entryRuleId?: number | null;
-  openedFrom?: string | null;
-  openedBefore?: string | null;
-};
+export type {
+  InstrumentStats,
+  StatsOverview,
+  StatsOverviewFilters,
+} from "../../shared/contracts/desktopApi.js";
 
 type AggregateRow = {
   tradeCount: number;
@@ -75,6 +57,10 @@ type TradeFilterClause = {
 function buildTradeFilterClause(filters: StatsOverviewFilters): TradeFilterClause {
   const clauses = ["trade.status = 'closed'"];
   const params: Array<number | string> = [];
+  const dateColumn =
+    filters.dateBasis === "market_session_day"
+      ? "trade.market_session_date"
+      : "trade.user_local_date";
 
   if (filters.symbol?.trim()) {
     clauses.push("instrument.symbol = ?");
@@ -84,6 +70,16 @@ function buildTradeFilterClause(filters: StatsOverviewFilters): TradeFilterClaus
   if (filters.entryRuleId != null) {
     clauses.push("trade.entry_rule_id = ?");
     params.push(filters.entryRuleId);
+  }
+
+  if (filters.dateFrom?.trim()) {
+    clauses.push(`${dateColumn} >= ?`);
+    params.push(filters.dateFrom.trim());
+  }
+
+  if (filters.dateBefore?.trim()) {
+    clauses.push(`${dateColumn} < ?`);
+    params.push(filters.dateBefore.trim());
   }
 
   if (filters.openedFrom?.trim()) {

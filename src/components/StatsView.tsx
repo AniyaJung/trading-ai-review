@@ -112,6 +112,17 @@ export function StatsView({
 
       <div className="panel stats-filter-bar" aria-label="统计筛选">
         <label>
+          日期口径
+          <select
+            value={filters.dateBasis}
+            onChange={(event) => updateFilter("dateBasis", event.target.value)}
+          >
+            <option value="user_local_day">用户本地日</option>
+            <option value="market_session_day">市场会话日</option>
+          </select>
+        </label>
+
+        <label>
           时间范围
           <select
             value={filters.dateRangePreset}

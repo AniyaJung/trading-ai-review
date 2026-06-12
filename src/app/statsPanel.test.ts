@@ -129,8 +129,9 @@ describe("stats panel helpers", () => {
       ],
       {
         symbol: "ES",
-        openedFrom: "2026-06-01T00:00:00.000Z",
-        openedBefore: "2026-06-11T00:00:00.000Z",
+        dateBasis: "user_local_day",
+        dateFrom: "2026-06-01",
+        dateBefore: "2026-06-11",
       },
     );
 
@@ -227,14 +228,16 @@ describe("stats panel helpers", () => {
     ).toEqual({
       symbol: "MNQ",
       entryRuleId: 42,
-      openedFrom: "2026-06-05T00:00:00.000Z",
-      openedBefore: "2026-06-12T00:00:00.000Z",
+      dateBasis: "user_local_day",
+      dateFrom: "2026-06-05",
+      dateBefore: "2026-06-12",
     });
 
     expect(
       buildStatsOverviewFilters(
         {
           dateRangePreset: "custom",
+          dateBasis: "market_session_day",
           symbol: "",
           entryRuleId: "",
           customFrom: "2026-06-01",
@@ -243,8 +246,9 @@ describe("stats panel helpers", () => {
         new Date("2026-06-11T10:30:00.000Z"),
       ),
     ).toEqual({
-      openedFrom: "2026-06-01T00:00:00.000Z",
-      openedBefore: "2026-06-11T00:00:00.000Z",
+      dateBasis: "market_session_day",
+      dateFrom: "2026-06-01",
+      dateBefore: "2026-06-11",
     });
   });
 
@@ -289,10 +293,50 @@ describe("stats panel helpers", () => {
       filterTradesForStatsDrilldown(trades, {
         symbol: "ES",
         entryRuleId: 10,
-        openedFrom: "2026-06-01T00:00:00.000Z",
-        openedBefore: "2026-06-11T00:00:00.000Z",
+        dateBasis: "user_local_day",
+        dateFrom: "2026-06-01",
+        dateBefore: "2026-06-11",
       }).map((trade) => trade.id),
     ).toEqual([1]);
+  });
+
+  it("filters preview trades by market session day", () => {
+    const trades = [
+      {
+        id: 1,
+        symbol: "ES",
+        instrumentName: "E-mini S&P 500",
+        openedAt: "2026-06-11T20:30:00.000Z",
+        userLocalDate: "2026-06-11",
+        marketSessionDate: "2026-06-11",
+        netPnl: 100,
+        feesTotal: 2,
+        rMultiple: 1,
+        entryRuleId: null,
+        aiReviewStatus: "confirmed" as const,
+      },
+      {
+        id: 2,
+        symbol: "ES",
+        instrumentName: "E-mini S&P 500",
+        openedAt: "2026-06-11T22:30:00.000Z",
+        userLocalDate: "2026-06-11",
+        marketSessionDate: "2026-06-12",
+        netPnl: 200,
+        feesTotal: 2,
+        rMultiple: 2,
+        entryRuleId: null,
+        aiReviewStatus: "confirmed" as const,
+      },
+    ];
+
+    expect(
+      filterTradesForStatsDrilldown(trades, {
+        dateBasis: "market_session_day",
+        dateFrom: "2026-06-12",
+        dateBefore: "2026-06-13",
+      }).map((trade) => trade.id),
+    ).toEqual([2]);
   });
 
   it("builds entry rule filter options from active rules and historical trades", () => {

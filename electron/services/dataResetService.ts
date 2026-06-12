@@ -2,6 +2,7 @@ import { mkdirSync, rmSync } from "node:fs";
 import type { AppDataPaths } from "../data/appData.js";
 import { initializeAppDatabase } from "../data/database.js";
 import { createBackup, type BackupServiceOptions } from "./backupService.js";
+import type { DataResetResult } from "../../shared/contracts/desktopApi.js";
 
 export type DataResetServicePaths = AppDataPaths;
 
@@ -9,12 +10,9 @@ export type ResetLocalDataInput = BackupServiceOptions & {
   confirmationText: string;
 };
 
-export type ResetLocalDataResult = {
-  safetyBackupFilePath: string;
-  resetAt: string;
-  databasePath: string;
-  attachmentsDir: string;
-};
+export type ResetLocalDataResult = DataResetResult;
+
+export type { DataResetResult } from "../../shared/contracts/desktopApi.js";
 
 export async function resetLocalData(
   paths: DataResetServicePaths,

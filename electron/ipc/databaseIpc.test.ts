@@ -39,7 +39,7 @@ describe("createDatabaseIpcHandlers", () => {
       databasePath: paths.databasePath,
       appDataDir: paths.appDataDir,
       instrumentCount: 4,
-      migrationVersion: 1,
+      migrationVersion: 2,
     });
     expect(handlers.listInstruments()).toEqual([
       expect.objectContaining({

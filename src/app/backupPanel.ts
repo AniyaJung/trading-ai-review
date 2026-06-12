@@ -1,42 +1,15 @@
-export type BackupManifest = {
-  backupSchemaVersion: number;
-  appVersion: string;
-  exportedAt: string;
-  databaseFile: string;
-  attachments: Array<{
-    path: string;
-    sha256: string;
-    bytes: number;
-  }>;
-  files: Array<{
-    path: string;
-    sha256: string;
-    bytes: number;
-  }>;
-};
+export type {
+  BackupHistoryItem,
+  BackupManifest,
+  BackupResult,
+  RestoreBackupResult,
+} from "../../shared/contracts/desktopApi";
 
-export type BackupResult = {
-  filePath: string;
-  manifest: BackupManifest;
-};
-
-export type RestoreBackupResult = {
-  restoredFromFilePath: string;
-  safetyBackupFilePath: string;
-  manifest: BackupManifest;
-};
-
-export type BackupHistoryItem = {
-  filePath: string;
-  fileName: string;
-  sizeBytes: number;
-  modifiedAt: string;
-  backupSchemaVersion: number | null;
-  appVersion: string | null;
-  exportedAt: string | null;
-  status: "restorable" | "unsupported-version" | "invalid";
-  problem: string | null;
-};
+import type {
+  BackupHistoryItem,
+  BackupResult,
+  RestoreBackupResult,
+} from "../../shared/contracts/desktopApi";
 
 export type BackupPanelInput = {
   runtime: DesktopApi["runtime"] | "browser-preview";

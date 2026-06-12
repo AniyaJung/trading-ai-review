@@ -182,7 +182,7 @@ describe("getStatsOverview", () => {
     db.close();
   });
 
-  it("filters trade counts and confirmed metrics by opened time and symbol", () => {
+  it("filters trade counts and confirmed metrics by user local date and symbol", () => {
     const db = createTestDb();
     const oldEsTrade = createClosedTrade(
       db,
@@ -221,8 +221,56 @@ describe("getStatsOverview", () => {
     expect(
       getStatsOverview(db, {
         symbol: "ES",
-        openedFrom: "2026-06-08T00:00:00.000Z",
-        openedBefore: "2026-06-11T00:00:00.000Z",
+        dateBasis: "user_local_day",
+        dateFrom: "2026-06-08",
+        dateBefore: "2026-06-11",
+      }),
+    ).toEqual({
+      totalTradeCount: 1,
+      confirmedReviewCount: 1,
+      totalNetPnl: 445,
+      winRate: 1,
+      averageRMultiple: 2.225,
+      profitFactor: null,
+      totalFees: 5,
+      byInstrument: [
+        expect.objectContaining({
+          symbol: "ES",
+          tradeCount: 1,
+          netPnl: 445,
+        }),
+      ],
+    });
+
+    db.close();
+  });
+
+  it("filters trade counts and confirmed metrics by market session date", () => {
+    const db = createTestDb();
+    const regularSessionTrade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        openedAt: "2026-06-11T20:30:00.000Z",
+        closedAt: "2026-06-11T21:00:00.000Z",
+      }),
+    );
+    const eveningSessionTrade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        openedAt: "2026-06-11T22:30:00.000Z",
+        closedAt: "2026-06-11T23:00:00.000Z",
+      }),
+    );
+
+    for (const trade of [regularSessionTrade, eveningSessionTrade]) {
+      confirmReview(db, createReviewDraft(db, { tradeId: trade.id }).id);
+    }
+
+    expect(
+      getStatsOverview(db, {
+        dateBasis: "market_session_day",
+        dateFrom: "2026-06-12",
+        dateBefore: "2026-06-13",
       }),
     ).toEqual({
       totalTradeCount: 1,

@@ -1,91 +1,38 @@
 import type { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import { calculateClosedFuturesTrade } from "../../shared/trading/futuresMath.js";
-import type { TradeDirection } from "../../shared/trading/types.js";
+import { deriveTradeDateSemantics } from "../../shared/trading/tradeDates.js";
+import type {
+  CreateClosedTradeInput,
+  TradeDetail,
+  TradeSummary,
+} from "../../shared/contracts/desktopApi.js";
+import {
+  mapTradeDetailRow,
+  mapTradeSummaryRow,
+} from "./tradeMappers.js";
+import {
+  getTradeDetailRow,
+  getTradeSummaryById,
+  insertClosedTradeExecutions,
+  insertClosedTradeRow,
+  listAttachmentFileRows,
+  listTradeExecutions,
+  listTradeRuleChecks,
+  listTradeSummaries,
+  replaceClosedTradeRow,
+  replaceTradeExecutions,
+  type PersistClosedTradeRowInput,
+} from "./tradeRepository.js";
+import type { ClosedFuturesTradeCalculation } from "../../shared/trading/types.js";
 
-export type CreateClosedTradeInput = {
-  symbol: string;
-  direction: TradeDirection;
-  openedAt: string;
-  closedAt: string;
-  entryPrice: number;
-  exitPrice: number;
-  quantity: number;
-  stopLossPrice: number;
-  takeProfitPrice?: number | null;
-  feesTotal: number;
-  backgroundNote?: string | null;
-  entryReason?: string | null;
-  exitReason?: string | null;
-  emotionNote?: string | null;
-  lessonNote?: string | null;
-  entryRuleVersionId?: number | null;
-};
-
-export type TradeSummary = {
-  id: number;
-  symbol: string;
-  instrumentName: string;
-  direction: TradeDirection;
-  status: "closed";
-  openedAt: string;
-  closedAt: string;
-  entryPriceAvg: number;
-  exitPriceAvg: number;
-  quantity: number;
-  feesTotal: number;
-  grossPnl: number;
-  netPnl: number;
-  riskAmount: number;
-  rMultiple: number | null;
-  entryRuleId: number | null;
-  entryRuleVersionId: number | null;
-  entryRuleName: string | null;
-  entryRuleVersionNo: number | null;
-  aiReviewStatus:
-    | "not_generated"
-    | "draft"
-    | "needs_review"
-    | "confirmed"
-    | "corrected"
-    | "invalid";
-};
-
-export type TradeExecutionDetail = {
-  id: number;
-  executedAt: string;
-  side: "buy" | "sell";
-  price: number;
-  quantity: number;
-  fee: number;
-  feeCurrency: string | null;
-  executionType: "entry" | "exit" | "add" | "reduce";
-};
-
-export type TradeRuleCheckDetail = {
-  id: number;
-  entryRuleVersionId: number;
-  checkItem: string;
-  result: "pass" | "fail" | "unknown";
-  evidence: string | null;
-  comment: string | null;
-  scoreDelta: number | null;
-  createdAt: string;
-};
-
-export type TradeDetail = TradeSummary & {
-  stopLossPrice: number | null;
-  takeProfitPrice: number | null;
-  backgroundNote: string | null;
-  entryReason: string | null;
-  exitReason: string | null;
-  emotionNote: string | null;
-  lessonNote: string | null;
-  entryRuleContent: string | null;
-  entryRuleChecklist: string[];
-  ruleChecks: TradeRuleCheckDetail[];
-  executions: TradeExecutionDetail[];
-};
+export type {
+  CreateClosedTradeInput,
+  TradeDetail,
+  TradeExecutionDetail,
+  TradeRuleCheckDetail,
+  TradeSummary,
+} from "../../shared/contracts/desktopApi.js";
 
 type InstrumentRow = {
   id: number;
@@ -98,10 +45,6 @@ type InstrumentRow = {
 type EntryRuleVersionBinding = {
   entryRuleId: number;
   entryRuleVersionId: number;
-};
-
-type TradeDetailRow = Omit<TradeDetail, "entryRuleChecklist" | "executions"> & {
-  entryRuleChecklistJson: string | null;
 };
 
 export function createClosedTrade(
@@ -132,94 +75,26 @@ export function createClosedTrade(
 
   db.exec("begin immediate");
   try {
-    const insertTradeResult = db
-      .prepare(
-        `insert into trade (
-          instrument_id,
-          entry_rule_id,
-          entry_rule_version_id,
-          direction,
-          status,
-          opened_at,
-          closed_at,
-          entry_price_avg,
-          exit_price_avg,
-          quantity,
-          stop_loss_price,
-          take_profit_price,
-          fees_total,
-          gross_pnl,
-          net_pnl,
-          risk_amount,
-          r_multiple,
-          background_note,
-          entry_reason,
-          exit_reason,
-          emotion_note,
-          lesson_note
-        ) values (?, ?, ?, ?, 'closed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
+    const tradeId = insertClosedTradeRow(
+      db,
+      createPersistClosedTradeRowInput(
+        input,
         instrument.id,
-        entryRuleBinding?.entryRuleId ?? null,
-        entryRuleBinding?.entryRuleVersionId ?? null,
-        input.direction,
-        input.openedAt,
-        input.closedAt,
-        input.entryPrice,
-        input.exitPrice,
-        input.quantity,
-        input.stopLossPrice,
-        input.takeProfitPrice ?? null,
-        input.feesTotal,
-        calculation.grossPnl,
-        calculation.netPnl,
-        calculation.riskAmount,
-        calculation.rMultiple,
-        input.backgroundNote ?? null,
-        input.entryReason ?? null,
-        input.exitReason ?? null,
-        input.emotionNote ?? null,
-        input.lessonNote ?? null,
-      );
-
-    const tradeId = Number(insertTradeResult.lastInsertRowid);
-
-    const entrySide = input.direction === "long" ? "buy" : "sell";
-    const exitSide = input.direction === "long" ? "sell" : "buy";
-    const insertExecution = db.prepare(
-      `insert into trade_execution (
-        trade_id,
-        executed_at,
-        side,
-        price,
-        quantity,
-        fee,
-        fee_currency,
-        execution_type
-      ) values (?, ?, ?, ?, ?, ?, ?, ?)`,
+        entryRuleBinding,
+        calculation,
+      ),
     );
-
-    insertExecution.run(
+    insertClosedTradeExecutions(db, {
       tradeId,
-      input.openedAt,
-      entrySide,
-      input.entryPrice,
-      input.quantity,
-      0,
-      instrument.currency,
-      "entry",
-    );
-    insertExecution.run(
-      tradeId,
-      input.closedAt,
-      exitSide,
-      input.exitPrice,
-      input.quantity,
-      input.feesTotal,
-      instrument.currency,
-      "exit",
-    );
+      direction: input.direction,
+      openedAt: input.openedAt,
+      closedAt: input.closedAt,
+      entryPrice: input.entryPrice,
+      exitPrice: input.exitPrice,
+      quantity: input.quantity,
+      feesTotal: input.feesTotal,
+      currency: instrument.currency,
+    });
 
     db.exec("commit");
     return getTradeById(db, tradeId);
@@ -287,135 +162,27 @@ function assertPositiveFiniteNumber(value: number, label: string) {
 }
 
 export function listTrades(db: DatabaseSync): TradeSummary[] {
-  return db
-    .prepare(
-      `select
-        trade.id,
-        instrument.symbol,
-        instrument.name as instrumentName,
-        trade.direction,
-        trade.status,
-        trade.opened_at as openedAt,
-        trade.closed_at as closedAt,
-        trade.entry_price_avg as entryPriceAvg,
-        trade.exit_price_avg as exitPriceAvg,
-        trade.quantity,
-        trade.fees_total as feesTotal,
-        trade.gross_pnl as grossPnl,
-        trade.net_pnl as netPnl,
-        trade.risk_amount as riskAmount,
-        trade.r_multiple as rMultiple,
-        trade.entry_rule_id as entryRuleId,
-        trade.entry_rule_version_id as entryRuleVersionId,
-        entry_rule.name as entryRuleName,
-        entry_rule_version.version_no as entryRuleVersionNo,
-        trade.ai_review_status as aiReviewStatus
-      from trade
-      join instrument on instrument.id = trade.instrument_id
-      left join entry_rule on entry_rule.id = trade.entry_rule_id
-      left join entry_rule_version on entry_rule_version.id = trade.entry_rule_version_id
-      order by trade.opened_at desc, trade.id desc`,
-    )
-    .all() as unknown as TradeSummary[];
+  return listTradeSummaries(db).map(mapTradeSummaryRow);
 }
 
 export function getTradeDetail(
   db: DatabaseSync,
   id: number,
 ): TradeDetail | undefined {
-  const trade = db
-    .prepare(
-      `select
-        trade.id,
-        instrument.symbol,
-        instrument.name as instrumentName,
-        trade.direction,
-        trade.status,
-        trade.opened_at as openedAt,
-        trade.closed_at as closedAt,
-        trade.entry_price_avg as entryPriceAvg,
-        trade.exit_price_avg as exitPriceAvg,
-        trade.quantity,
-        trade.stop_loss_price as stopLossPrice,
-        trade.take_profit_price as takeProfitPrice,
-        trade.fees_total as feesTotal,
-        trade.gross_pnl as grossPnl,
-        trade.net_pnl as netPnl,
-        trade.risk_amount as riskAmount,
-        trade.r_multiple as rMultiple,
-        trade.entry_rule_id as entryRuleId,
-        trade.entry_rule_version_id as entryRuleVersionId,
-        entry_rule.name as entryRuleName,
-        entry_rule_version.version_no as entryRuleVersionNo,
-        entry_rule_version.content as entryRuleContent,
-        entry_rule_version.checklist_json as entryRuleChecklistJson,
-        trade.background_note as backgroundNote,
-        trade.entry_reason as entryReason,
-        trade.exit_reason as exitReason,
-        trade.emotion_note as emotionNote,
-        trade.lesson_note as lessonNote,
-        trade.ai_review_status as aiReviewStatus
-      from trade
-      join instrument on instrument.id = trade.instrument_id
-      left join entry_rule on entry_rule.id = trade.entry_rule_id
-      left join entry_rule_version on entry_rule_version.id = trade.entry_rule_version_id
-      where trade.id = ?`,
-    )
-    .get(id) as TradeDetailRow | undefined;
+  const trade = getTradeDetailRow(db, id);
 
   if (!trade) {
     return undefined;
   }
 
-  const executions = db
-    .prepare(
-      `select
-        id,
-        executed_at as executedAt,
-        side,
-        price,
-        quantity,
-        fee,
-        fee_currency as feeCurrency,
-        execution_type as executionType
-      from trade_execution
-      where trade_id = ?
-      order by executed_at asc, id asc`,
-    )
-    .all(id) as unknown as TradeExecutionDetail[];
-  const ruleChecks = db
-    .prepare(
-      `select
-        id,
-        entry_rule_version_id as entryRuleVersionId,
-        check_item as checkItem,
-        result,
-        evidence,
-        comment,
-        score_delta as scoreDelta,
-        created_at as createdAt
-      from trade_rule_check
-      where trade_id = ?
-      order by id asc`,
-    )
-    .all(id) as unknown as TradeRuleCheckDetail[];
+  const executions = listTradeExecutions(db, id);
+  const ruleChecks = listTradeRuleChecks(db, id);
 
-  const { entryRuleChecklistJson, ...tradeDetail } = trade;
-
-  return {
-    ...tradeDetail,
-    entryRuleChecklist: entryRuleChecklistJson
-      ? (JSON.parse(entryRuleChecklistJson) as string[])
-      : [],
-    ruleChecks,
-    executions,
-  };
+  return mapTradeDetailRow(trade, ruleChecks, executions);
 }
 
 export function deleteTrade(db: DatabaseSync, id: number): boolean {
-  const attachmentRows = db
-    .prepare("select file_path as filePath from trade_attachment where trade_id = ?")
-    .all(id) as unknown as Array<{ filePath: string }>;
+  const attachmentRows = listAttachmentFileRows(db, id);
   const result = db.prepare("delete from trade where id = ?").run(id);
 
   if (result.changes > 0) {
@@ -464,94 +231,27 @@ export function updateClosedTrade(
 
   db.exec("begin immediate");
   try {
-    db.prepare(
-      `update trade set
-        instrument_id = ?,
-        entry_rule_id = ?,
-        entry_rule_version_id = ?,
-        direction = ?,
-        opened_at = ?,
-        closed_at = ?,
-        entry_price_avg = ?,
-        exit_price_avg = ?,
-        quantity = ?,
-        stop_loss_price = ?,
-        take_profit_price = ?,
-        fees_total = ?,
-        gross_pnl = ?,
-        net_pnl = ?,
-        risk_amount = ?,
-        r_multiple = ?,
-        background_note = ?,
-        entry_reason = ?,
-        exit_reason = ?,
-        emotion_note = ?,
-        lesson_note = ?,
-        updated_at = datetime('now')
-      where id = ?`,
-    ).run(
-      instrument.id,
-      entryRuleBinding?.entryRuleId ?? null,
-      entryRuleBinding?.entryRuleVersionId ?? null,
-      input.direction,
-      input.openedAt,
-      input.closedAt,
-      input.entryPrice,
-      input.exitPrice,
-      input.quantity,
-      input.stopLossPrice,
-      input.takeProfitPrice ?? null,
-      input.feesTotal,
-      calculation.grossPnl,
-      calculation.netPnl,
-      calculation.riskAmount,
-      calculation.rMultiple,
-      input.backgroundNote ?? null,
-      input.entryReason ?? null,
-      input.exitReason ?? null,
-      input.emotionNote ?? null,
-      input.lessonNote ?? null,
+    replaceClosedTradeRow(
+      db,
       id,
+      createPersistClosedTradeRowInput(
+        input,
+        instrument.id,
+        entryRuleBinding,
+        calculation,
+      ),
     );
-
-    db.prepare("delete from trade_execution where trade_id = ?").run(id);
-
-    const entrySide = input.direction === "long" ? "buy" : "sell";
-    const exitSide = input.direction === "long" ? "sell" : "buy";
-    const insertExecution = db.prepare(
-      `insert into trade_execution (
-        trade_id,
-        executed_at,
-        side,
-        price,
-        quantity,
-        fee,
-        fee_currency,
-        execution_type
-      ) values (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-
-    insertExecution.run(
-      id,
-      input.openedAt,
-      entrySide,
-      input.entryPrice,
-      input.quantity,
-      0,
-      instrument.currency,
-      "entry",
-    );
-    insertExecution.run(
-      id,
-      input.closedAt,
-      exitSide,
-      input.exitPrice,
-      input.quantity,
-      input.feesTotal,
-      instrument.currency,
-      "exit",
-    );
-
+    replaceTradeExecutions(db, {
+      tradeId: id,
+      direction: input.direction,
+      openedAt: input.openedAt,
+      closedAt: input.closedAt,
+      entryPrice: input.entryPrice,
+      exitPrice: input.exitPrice,
+      quantity: input.quantity,
+      feesTotal: input.feesTotal,
+      currency: instrument.currency,
+    });
     db.exec("commit");
     return getTradeById(db, id);
   } catch (error) {
@@ -561,42 +261,48 @@ export function updateClosedTrade(
 }
 
 function getTradeById(db: DatabaseSync, id: number): TradeSummary {
-  const trade = db
-    .prepare(
-      `select
-        trade.id,
-        instrument.symbol,
-        instrument.name as instrumentName,
-        trade.direction,
-        trade.status,
-        trade.opened_at as openedAt,
-        trade.closed_at as closedAt,
-        trade.entry_price_avg as entryPriceAvg,
-        trade.exit_price_avg as exitPriceAvg,
-        trade.quantity,
-        trade.fees_total as feesTotal,
-        trade.gross_pnl as grossPnl,
-        trade.net_pnl as netPnl,
-        trade.risk_amount as riskAmount,
-        trade.r_multiple as rMultiple,
-        trade.entry_rule_id as entryRuleId,
-        trade.entry_rule_version_id as entryRuleVersionId,
-        entry_rule.name as entryRuleName,
-        entry_rule_version.version_no as entryRuleVersionNo,
-        trade.ai_review_status as aiReviewStatus
-      from trade
-      join instrument on instrument.id = trade.instrument_id
-      left join entry_rule on entry_rule.id = trade.entry_rule_id
-      left join entry_rule_version on entry_rule_version.id = trade.entry_rule_version_id
-      where trade.id = ?`,
-    )
-    .get(id) as TradeSummary | undefined;
+  const trade = getTradeSummaryById(db, id);
 
   if (!trade) {
     throw new Error(`Trade ${id} was not found after insert.`);
   }
 
-  return trade;
+  return mapTradeSummaryRow(trade);
+}
+
+function createPersistClosedTradeRowInput(
+  input: CreateClosedTradeInput,
+  instrumentId: number,
+  entryRuleBinding: EntryRuleVersionBinding | undefined,
+  calculation: ClosedFuturesTradeCalculation,
+): PersistClosedTradeRowInput {
+  const dates = deriveTradeDateSemantics(input.openedAt);
+
+  return {
+    instrumentId,
+    entryRuleId: entryRuleBinding?.entryRuleId ?? null,
+    entryRuleVersionId: entryRuleBinding?.entryRuleVersionId ?? null,
+    direction: input.direction,
+    openedAt: input.openedAt,
+    userLocalDate: dates.userLocalDate,
+    marketSessionDate: dates.marketSessionDate,
+    closedAt: input.closedAt,
+    entryPrice: input.entryPrice,
+    exitPrice: input.exitPrice,
+    quantity: input.quantity,
+    stopLossPrice: input.stopLossPrice,
+    takeProfitPrice: input.takeProfitPrice ?? null,
+    feesTotal: input.feesTotal,
+    grossPnl: calculation.grossPnl,
+    netPnl: calculation.netPnl,
+    riskAmount: calculation.riskAmount,
+    rMultiple: calculation.rMultiple,
+    backgroundNote: input.backgroundNote ?? null,
+    entryReason: input.entryReason ?? null,
+    exitReason: input.exitReason ?? null,
+    emotionNote: input.emotionNote ?? null,
+    lessonNote: input.lessonNote ?? null,
+  };
 }
 
 function resolveEntryRuleBinding(

@@ -1,19 +1,11 @@
-export type AttachmentImageType =
-  | "before_entry"
-  | "entry"
-  | "holding"
-  | "exit"
-  | "review_marked";
+import type {
+  AttachmentImageType,
+  TradeAttachment,
+} from "../../shared/contracts/desktopApi";
 
-export type AttachmentSummary = {
-  id: number;
-  tradeId: number;
-  imageType: AttachmentImageType;
-  filePath: string;
-  caption: string | null;
-  sortOrder: number;
-  createdAt: string;
-};
+export type { AttachmentImageType } from "../../shared/contracts/desktopApi";
+
+export type AttachmentSummary = TradeAttachment;
 
 export type AttachmentPanelItem = {
   id: number;
