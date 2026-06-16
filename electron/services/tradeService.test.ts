@@ -12,7 +12,7 @@ import {
   type CreateClosedTradeInput,
 } from "./tradeService";
 import { createEntryRule } from "./ruleService";
-import { createReviewDraft } from "./reviewService";
+import { confirmReview, createReviewDraft } from "./reviewService";
 
 const tempDirs: string[] = [];
 
@@ -359,6 +359,30 @@ describe("listTrades", () => {
         rMultiple: 1.925,
       }),
     ]);
+
+    db.close();
+  });
+
+  it("includes normalized tag ids for stats drilldown filtering", () => {
+    const db = createTestDb();
+    const trade = createClosedTrade(db, validClosedTradeInput());
+    const review = createReviewDraft(db, {
+      tradeId: trade.id,
+      tags: ["late-entry"],
+    });
+
+    confirmReview(db, review.id);
+
+    const tagRow = db
+      .prepare("select id from tag where name = 'late-entry'")
+      .get() as { id: number };
+
+    expect(listTrades(db)[0]).toEqual(
+      expect.objectContaining({
+        id: trade.id,
+        tagIds: [tagRow.id],
+      }),
+    );
 
     db.close();
   });

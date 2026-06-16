@@ -1,21 +1,22 @@
 # Architecture Optimization Backlog
 
-Date: 2026-06-12
+Date: 2026-06-16
 Branch: `codex/safe-attachment-preview`
 
 ## Context
 
-The project has completed the main local desktop, trade recording, rule, AI review, stats, backup/restore, AI settings, and local data reset loops. The current architecture is workable, but several boundaries should be tightened before larger P1 features such as tag filtering, market session dates, AI cost reporting, and charting.
+The project has completed the main local desktop, trade recording, rule, AI review, stats, backup/restore, AI settings, local data reset, and AI tag statistics filtering loops. The current architecture is workable, but several boundaries should be tightened before larger P1 features such as AI cost reporting, packaging verification, and charting.
 
 ## Current Handoff
 
 - Current branch: `codex/safe-attachment-preview`.
-- Latest commit: `9145768 feat: add stats date semantics and workflow refactors`.
-- Worktree status after the feature commit: clean before this handoff note was edited.
+- Latest commit before this documentation update: `256796d polish app review workflow copy`.
+- Worktree status before this documentation update: clean.
 - Latest verified commands:
-  - `npm run test -- --run`: 45 test files and 174 tests passed.
+  - `npm run test -- --run`: 45 test files and 181 tests passed.
   - `npm run lint`: passed.
   - `npm run build`: passed.
+- Latest UI smoke check: Electron dev window showed the light-blue trade workspace and updated friendly Chinese copy after Vite HMR.
 - No local preview/dev server is expected to be running.
 - Important safety constraint: do not reset, delete, or clear real local SQLite or app data. Tests for reset, restore, migration, or destructive flows must use temporary directories.
 
@@ -31,20 +32,12 @@ sed -n '1,260p' docs/superpowers/2026-06-12-architecture-optimization-backlog.md
 
 Recommended next execution path:
 
-1. Confirm whether the handoff note should be committed, since this note was written after commit `9145768`.
-2. Continue with P1 tag statistics/filtering by deciding tag ownership and persistence:
-   - whether AI review tags should remain only in `ai_review.tags_json`;
-   - whether AI tags should be normalized into `tag` / `trade_tag_map`;
-   - whether manual tags need a maintenance UI before stats filtering.
-3. After the tag ownership decision, implement the smallest useful tag path:
-   - tests first;
-   - persist or derive tags consistently;
-   - expose stats filters and trade drilldown filters;
-   - keep preview-mode behavior deterministic.
-4. If tag work is paused, the next useful engineering item is AI review hardening:
+1. Confirm whether this documentation update should be committed.
+2. Continue with AI review hardening:
    - fixture evals for prompt/schema output;
    - error classification and retry policy;
    - usage/cost display.
+3. In parallel or afterward, run initial packaging verification for app data paths, `node:sqlite`, file pickers, backup/restore, and `safeStorage`.
 
 ## Execution Status
 
@@ -59,7 +52,11 @@ Recommended next execution path:
 - Done: extracted trade read-query SQL from `tradeService` into `electron/services/tradeRepository.ts`.
 - Done: extracted trade write repository helpers for closed trade row and execution persistence.
 - Done: formalized stats date semantics with user local day and market session day filters.
-- Next recommended execution item: decide tag ownership and persistence.
+- Done: added backup history listing, restore eligibility status, historical backup restore, and restore failure guidance.
+- Done: refreshed the renderer with a light-blue desktop workbench theme.
+- Done: rewrote user-facing empty states, validation guidance, confirmation prompts, action states, and destructive-operation copy in friendlier Chinese.
+- Done: decided tag ownership and persistence for the first useful slice: confirmed/corrected AI string tags remain in `ai_review.tags_json` and normalize into `tag` / `trade_tag_map` as `setup` tags for stats filtering and drilldown.
+- Next recommended execution item: AI review hardening or initial packaging verification.
 
 ## P0 Architecture Hygiene
 
@@ -92,11 +89,13 @@ Recommended next execution path:
    - Problem: DB has `tag` and `trade_tag_map`, but AI tags currently live in review JSON.
    - Target: define whether AI tags, manual tags, or both populate the normalized tag tables.
    - Benefit: unlocks reliable tag filtering, statistics, and trade drilldown.
+   - Progress: confirmed/corrected AI string tags now populate `tag` / `trade_tag_map`; stats filtering and trade drilldown support `tagId`. Manual tag maintenance and category editing remain future work.
 
 6. Harden destructive operation lifecycle.
    - Problem: backup restore and local reset close the database before file-level work.
    - Target: centralize validation, DB closing, failure guidance, and relaunch behavior.
    - Benefit: makes restore/reset failure modes easier to reason about and support.
+   - Progress: backup history, restore eligibility, safety backup, restore guidance, and local reset confirmation are in place. Future work should focus on packaged-app verification and schema-version migration policy.
 
 ## P2 Engineering Quality
 
@@ -107,12 +106,12 @@ Recommended next execution path:
 
 8. Add renderer workflow automation.
    - Problem: many UI flows are manually smoke-tested.
-   - Target: add focused Playwright or React Testing Library coverage for backup restore, settings danger zone, and review confirmation flows.
+   - Target: add focused Playwright or React Testing Library coverage for backup restore, settings danger zone, review confirmation flows, and responsive text/copy regressions.
    - Benefit: catches regressions in state wiring and disabled/enabled UI states.
 
 9. Modularize CSS as UI surface grows.
    - Problem: app-level CSS covers many unrelated views.
-   - Target: split feature CSS or introduce shared design tokens.
+   - Target: split feature CSS or introduce shared design tokens while preserving the current light-blue workbench theme.
    - Benefit: reduces style coupling across future stats/charting/settings work.
 
 ## Deferred

@@ -177,6 +177,7 @@ export function correctReview(
       id,
     );
     syncTradeReviewStatus(db, existing.tradeId, "corrected");
+    syncNormalizedReviewTags(db, existing.tradeId, input.tags ?? existing.tags);
     db.exec("commit");
     return getReviewById(db, id);
   } catch (error) {
@@ -230,6 +231,11 @@ function updateReviewStatus(
        where id = ?`,
     ).run(status, id);
     syncTradeReviewStatus(db, existing.tradeId, status);
+    if (status === "confirmed" || status === "corrected") {
+      syncNormalizedReviewTags(db, existing.tradeId, existing.tags);
+    } else if (status === "invalid") {
+      clearNormalizedReviewTags(db, existing.tradeId);
+    }
     db.exec("commit");
     return getReviewById(db, id);
   } catch (error) {
@@ -383,6 +389,58 @@ function syncTradeReviewStatus(
          updated_at = datetime('now')
      where id = ?`,
   ).run(status, tradeId);
+}
+
+function syncNormalizedReviewTags(
+  db: DatabaseSync,
+  tradeId: number,
+  rawTags: unknown[],
+) {
+  clearNormalizedReviewTags(db, tradeId);
+
+  const tagNames = normalizeTagNames(rawTags);
+  const insertTag = db.prepare(
+    `insert into tag (name, category)
+     values (?, 'setup')
+     on conflict(name, category) do nothing`,
+  );
+  const getTag = db.prepare(
+    `select id from tag where name = ? and category = 'setup'`,
+  );
+  const mapTag = db.prepare(
+    `insert into trade_tag_map (trade_id, tag_id)
+     values (?, ?)
+     on conflict(trade_id, tag_id) do nothing`,
+  );
+
+  for (const name of tagNames) {
+    insertTag.run(name);
+    const row = getTag.get(name) as { id: number } | undefined;
+    if (row) {
+      mapTag.run(tradeId, row.id);
+    }
+  }
+}
+
+function clearNormalizedReviewTags(db: DatabaseSync, tradeId: number) {
+  db.prepare("delete from trade_tag_map where trade_id = ?").run(tradeId);
+}
+
+function normalizeTagNames(rawTags: unknown[]) {
+  const names = new Set<string>();
+
+  for (const tag of rawTags) {
+    if (typeof tag !== "string") {
+      continue;
+    }
+
+    const name = tag.trim();
+    if (name.length > 0) {
+      names.add(name);
+    }
+  }
+
+  return [...names];
 }
 
 function mapReviewRow(row: AIReviewRow): AIReview {

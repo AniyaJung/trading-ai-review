@@ -1,4 +1,5 @@
 import type { StatsEntryRuleOption, StatsOverviewFilters } from "./statsPanel";
+import type { TagSummary } from "../../shared/contracts/desktopApi";
 import { deriveTradeDateSemantics } from "../../shared/trading/tradeDates";
 
 export function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
@@ -42,6 +43,7 @@ export function createPreviewTradeDetail(trade: TradeSummary): TradeDetail {
 export function formatStatsDrilldownLabel(
   filters: StatsOverviewFilters,
   entryRuleOptions: StatsEntryRuleOption[],
+  tagOptions: TagSummary[] = [],
 ) {
   const parts = ["统计筛选"];
 
@@ -54,6 +56,13 @@ export function formatStatsDrilldownLabel(
       entryRuleOptions.find((rule) => rule.id === filters.entryRuleId)?.label ??
       `规则 ${filters.entryRuleId}`;
     parts.push(ruleLabel);
+  }
+
+  if (filters.tagId != null) {
+    const tagLabel =
+      tagOptions.find((tag) => tag.id === filters.tagId)?.name ??
+      `标签 ${filters.tagId}`;
+    parts.push(tagLabel);
   }
 
   if (filters.openedFrom || filters.openedBefore) {

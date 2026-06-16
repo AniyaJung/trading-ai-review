@@ -34,6 +34,18 @@ function validClosedTradeInput(
   };
 }
 
+function getTagId(db: ReturnType<typeof createTestDb>, name: string) {
+  const row = db
+    .prepare("select id from tag where name = ? and category = 'setup'")
+    .get(name) as { id: number } | undefined;
+
+  if (!row) {
+    throw new Error(`Tag ${name} was not found.`);
+  }
+
+  return row.id;
+}
+
 afterEach(() => {
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
@@ -117,6 +129,7 @@ describe("getStatsOverview", () => {
           feesTotal: 3.6,
         },
       ],
+      byTag: [],
     });
 
     db.close();
@@ -160,6 +173,7 @@ describe("getStatsOverview", () => {
         profitFactor: 445 / 155,
       }),
     ]);
+    expect(overview.byTag).toEqual([]);
 
     db.close();
   });
@@ -177,6 +191,7 @@ describe("getStatsOverview", () => {
       profitFactor: null,
       totalFees: 0,
       byInstrument: [],
+      byTag: [],
     });
 
     db.close();
@@ -240,6 +255,7 @@ describe("getStatsOverview", () => {
           netPnl: 445,
         }),
       ],
+      byTag: [],
     });
 
     db.close();
@@ -287,6 +303,7 @@ describe("getStatsOverview", () => {
           netPnl: 445,
         }),
       ],
+      byTag: [],
     });
 
     db.close();
@@ -346,7 +363,122 @@ describe("getStatsOverview", () => {
           netPnl: 445,
         }),
       ],
+      byTag: [],
     });
+
+    db.close();
+  });
+
+  it("lists normalized review tags with confirmed trade counts", () => {
+    const db = createTestDb();
+    const lateEntryTrade = createClosedTrade(db, validClosedTradeInput());
+    const fomoTrade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        symbol: "MNQ",
+        direction: "short",
+        openedAt: "2026-06-09T15:18:00.000Z",
+        closedAt: "2026-06-09T16:02:00.000Z",
+        entryPrice: 19000,
+        exitPrice: 18984,
+        quantity: 3,
+        stopLossPrice: 19008,
+        takeProfitPrice: null,
+        feesTotal: 3.6,
+      }),
+    );
+    const draftOnlyTrade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        symbol: "MES",
+        openedAt: "2026-06-10T13:57:00.000Z",
+        closedAt: "2026-06-10T14:22:00.000Z",
+      }),
+    );
+
+    confirmReview(
+      db,
+      createReviewDraft(db, {
+        tradeId: lateEntryTrade.id,
+        tags: ["late-entry", "fomo"],
+      }).id,
+    );
+    confirmReview(
+      db,
+      createReviewDraft(db, {
+        tradeId: fomoTrade.id,
+        tags: ["fomo"],
+      }).id,
+    );
+    createReviewDraft(db, {
+      tradeId: draftOnlyTrade.id,
+      tags: ["draft-only"],
+    });
+
+    expect(getStatsOverview(db)).toEqual(
+      expect.objectContaining({
+        byTag: [
+          { id: getTagId(db, "fomo"), name: "fomo", category: "setup", tradeCount: 2 },
+          {
+            id: getTagId(db, "late-entry"),
+            name: "late-entry",
+            category: "setup",
+            tradeCount: 1,
+          },
+        ],
+      }),
+    );
+
+    db.close();
+  });
+
+  it("filters trade counts and confirmed metrics by normalized review tag", () => {
+    const db = createTestDb();
+    const lateEntryTrade = createClosedTrade(db, validClosedTradeInput());
+    const fomoTrade = createClosedTrade(
+      db,
+      validClosedTradeInput({
+        direction: "short",
+        openedAt: "2026-06-09T14:41:00.000Z",
+        closedAt: "2026-06-09T15:20:00.000Z",
+        entryPrice: 5300,
+        exitPrice: 5298.5,
+        stopLossPrice: 5302,
+        takeProfitPrice: null,
+      }),
+    );
+
+    confirmReview(
+      db,
+      createReviewDraft(db, {
+        tradeId: lateEntryTrade.id,
+        tags: ["late-entry"],
+      }).id,
+    );
+    confirmReview(
+      db,
+      createReviewDraft(db, {
+        tradeId: fomoTrade.id,
+        tags: ["fomo"],
+      }).id,
+    );
+
+    const filters = { tagId: getTagId(db, "late-entry") };
+
+    expect(getStatsOverview(db, filters)).toEqual(
+      expect.objectContaining({
+        totalTradeCount: 1,
+        confirmedReviewCount: 1,
+        totalNetPnl: 445,
+        byInstrument: [
+          expect.objectContaining({
+            symbol: "ES",
+            tradeCount: 1,
+            netPnl: 445,
+          }),
+        ],
+      }),
+    );
 
     db.close();
   });

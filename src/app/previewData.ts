@@ -19,6 +19,7 @@ export const sampleTrades: TradeSummary[] = [
     entryRuleVersionId: null,
     entryRuleName: null,
     entryRuleVersionNo: null,
+    tagIds: [],
     aiReviewStatus: "needs_review",
   },
   {
@@ -41,6 +42,7 @@ export const sampleTrades: TradeSummary[] = [
     entryRuleVersionId: null,
     entryRuleName: null,
     entryRuleVersionNo: null,
+    tagIds: [1],
     aiReviewStatus: "confirmed",
   },
   {
@@ -63,6 +65,7 @@ export const sampleTrades: TradeSummary[] = [
     entryRuleVersionId: null,
     entryRuleName: null,
     entryRuleVersionNo: null,
+    tagIds: [2],
     aiReviewStatus: "corrected",
   },
 ];

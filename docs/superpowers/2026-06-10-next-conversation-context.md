@@ -1,28 +1,32 @@
 # AI 交易复盘项目 - 下个对话上下文
 
-更新时间：2026-06-12
+更新时间：2026-06-16
 
 ## 0. 当前进度快照
 
-当前工作树已完成“本地数据重置最小闭环”，但尚未提交。
+当前主线已完成本地桌面交易复盘 MVP 的主要闭环，并在最近两轮完成 UI/UX 体验打磨。
 
 已完成并验证：
 
-- 备份恢复主链路：导出 zip、校验 manifest/checksum、恢复前安全备份。
-- AI 设置页：保存 API Key、模型、Prompt 版本；API Key 不回显，Electron 可用时用 `safeStorage`。
-- 本地数据重置入口：设置页危险区要求精确输入 `DELETE`，执行前自动创建 safety backup，然后重建空 SQLite 和 attachments 目录；浏览器预览模式始终禁用重置按钮。
+- 架构收敛：跨进程 DTO 已迁到 `shared/contracts`；交易、规则、复盘、附件、统计、备份/设置 workflow 已从 `src/App.tsx` 拆出到专用 hook。
+- 统计口径：数据库 v2 已写入 `user_local_date` / `market_session_date`，统计筛选支持用户本地日和市场会话日。
+- 备份恢复增强：备份历史列表、恢复资格状态、历史备份直接恢复、恢复失败友好指引已接入。
+- UI 打磨：交易工作台改为淡蓝色桌面工具风格，侧栏、卡片、选中态、按钮、表单焦点和状态卡片统一。
+- 文案打磨：空状态、错误提示、确认弹窗、保存/处理态、危险操作说明改为更友好的中文用户文案。
+- 标签统计 / 筛选：confirmed/corrected AI 复盘标签会规范化写入 `tag` / `trade_tag_map`，统计页支持标签筛选和交易下钻。
 
 最新验证：
 
-- `npm run test -- --run`：32 files / 132 tests passed。
+- `npm run test -- --run`：45 files / 181 tests passed。
 - `npm run lint`：passed。
 - `npm run build`：passed。
-- 浏览器视觉冒烟：设置页危险区在桌面和 390px 窄屏可见，无横向溢出；预览模式下输入 `DELETE` 后重置按钮仍禁用。
+- Electron 视觉冒烟：交易页淡蓝主题和新文案已通过 dev server 热更新显示。
 
 下一步建议：
 
-- 先 review 并提交当前本地数据重置与文档更新。
-- 继续 P0“备份恢复增强”：备份历史列表、恢复失败友好指引、备份包版本迁移策略 UI。
+- 先 review 并提交当前文档更新（如需要）。
+- 优先推进 AI 复盘硬化：prompt/schema fixture eval、错误分类、重试策略、使用量/成本展示。
+- 并行或随后做初始打包验证，确认 Electron 打包后的本地数据、文件选择器、备份/恢复和 `safeStorage` 行为。
 
 ## 1. 项目定位
 
@@ -91,9 +95,11 @@ codex/safe-attachment-preview
 最新功能提交：
 
 ```text
-5ebaeae feat: add backup restore and ai settings
-db34c60 style: refine trading workspace UI
-1cf5b14 docs: update m4 m5 handoff
+256796d polish app review workflow copy
+adec01b docs: update development handoff
+9145768 feat: add stats date semantics and workflow refactors
+ed202f4 feat: restore backups from history
+7f12e97 feat: show backup history and restore guidance
 ```
 
 继续开发前必须运行：
@@ -284,7 +290,7 @@ src/components/TradeReviewPanel.tsx
 
 M4 尾项：
 
-- AI 生成标签还没有真正接到 `tag` / `trade_tag_map`，也尚未进入统计闭环。
+- AI 生成标签已在 confirmed/corrected 复盘后接入 `tag` / `trade_tag_map` 并进入统计筛选；人工标签管理和标签分类编辑尚未实现。
 - 还缺真实 API 调用的手动验收脚本或开发说明，避免测试中打远程 API。
 - 还缺 prompt/schema fixture eval。
 - 后续可补失败重试、错误分类、使用量/成本展示。
@@ -321,9 +327,9 @@ src/components/StatsView.tsx
 
 M5 统计尾项：
 
-- 标签统计 / 筛选尚未完成。
-- 按时间、规则、标签聚合还没完整接入。
-- 当前日期口径仍基于 `opened_at` UTC 边界，尚未建模“用户本地日 + 市场会话日”。
+- 标签筛选和下钻已完成；按标签的图表化聚合和人工标签维护尚未完成。
+- 按时间趋势、规则聚合、标签聚合图表还没完整接入。
+- 日期口径已支持用户本地日和市场会话日，但还缺更丰富的趋势图表展示。
 - ECharts 暂未接入，建议等统计口径稳定后再做。
 
 ### 5.7 备份恢复
@@ -335,6 +341,8 @@ M5 统计尾项：
 - 恢复前会自动生成当前数据安全备份。
 - 恢复时校验 manifest、必需文件和 checksum。
 - 备份页 UI 支持立即备份、选择 zip 恢复、打开数据目录、打开备份目录。
+- 备份页 UI 支持备份历史列表、状态展示和从历史备份直接恢复。
+- 恢复失败会根据 checksum、manifest、schema version 等常见问题给出更友好的恢复指引。
 - 浏览器预览模式禁用本地文件操作按钮。
 - 设置页支持本地数据重置：必须输入 `DELETE`，并在执行前自动创建安全备份；重置后会重建干净 SQLite 和 attachments 目录。
 
@@ -362,7 +370,7 @@ src/components/BackupView.tsx
 M5 备份和数据管理尾项：
 
 - 初始打包验证仍未完成。
-- 后续增强：备份历史列表、恢复失败后的更友好指引、备份包版本迁移策略 UI。
+- 备份包未来版本迁移策略仍需随着 schema 演进继续完善。
 
 ### 5.8 设置页
 
@@ -405,13 +413,15 @@ src/components/SettingsView.tsx
 - 左侧导航：交易、规则、统计、备份、设置。
 - 主工作台 UI 已拆分到 `src/components`。
 - 交易页完成第一轮 data-dense dashboard 风格优化。
-- 统计页、备份页、设置页已有最小可用 UI。
+- 交易页完成淡蓝色桌面工具主题刷新。
+- 统计页、备份页、设置页已有可用 UI，并补齐备份历史、设置危险区和统计筛选的主要状态。
 - 已补导航 `aria-current`、基础 hover/focus/selected 状态、移动端布局。
+- 用户可见提示文本已完成一轮友好化：空状态、错误提示、确认弹窗、保存/处理态和危险操作说明都改为更明确的中文文案。
 
 当前限制：
 
-- `src/App.tsx` 仍然较长，状态和 Electron runtime 副作用仍集中。
-- 组件 props 仍偏多，后续可以继续拆 hooks 或 view model。
+- `src/App.tsx` 已明显瘦身，但仍承担跨 workflow 编排和页面装配。
+- 组件 props 仍偏多，后续可以继续拆 view model 或更细的容器组件。
 - 真实长文本、长规则名、多附件、多复盘结果场景仍需继续 QA。
 
 ## 6. M1-M5 状态
@@ -421,14 +431,14 @@ src/components/SettingsView.tsx
 - M1 桌面骨架和本地数据：已完成。
 - M2 交易记录闭环：已完成。
 - M3 规则库：已完成最小闭环。
-- M4 AI 复盘：主体完成，剩 AI 生成标签落库/统计、手动验收说明、eval、错误处理等尾项。
-- M5 统计和备份：主干完成，剩标签统计、初始打包验证和备份增强。
+- M4 AI 复盘：主体完成，AI 生成标签已接入统计筛选；剩手动验收说明、eval、错误处理、使用量/成本等尾项。
+- M5 统计和备份：主干完成，备份增强和标签筛选已完成第一轮；剩趋势/规则/标签图表聚合、人工标签管理、初始打包验证。
 
-所以当前不能说 M1-M5 全部完成；更准确是：M1-M3 完成，M4/M5 主链路完成但仍有尾项。
+所以当前不能说 M1-M5 全部完成；更准确是：M1-M3 完成，M4/M5 主链路完成且部分增强已落地，但仍有 AI hardening、图表、人工标签管理和打包尾项。
 
 ## 7. 最近验证状态
 
-当前工作树（含备份恢复、AI 设置和本地数据重置入口）完整验证通过：
+当前工作树完整验证通过：
 
 ```bash
 npm run test -- --run
@@ -438,32 +448,31 @@ npm run build
 
 结果：
 
-- Vitest：32 files / 132 tests passed。
+- Vitest：45 files / 181 tests passed。
 - Lint：passed。
 - Build：passed。
-- 浏览器视觉冒烟：备份页、设置页和设置页危险区在桌面与 390px 窄屏都可见，无横向溢出；浏览器预览模式下即使输入 `DELETE`，重置按钮仍保持禁用。
+- Electron 视觉冒烟：交易页淡蓝主题、复盘状态卡片和用户友好文案已通过运行中 dev session 热更新显示。
 
 ## 8. 下一步推荐
 
 优先级从高到低：
 
-P0 必须补齐，关系到本地工具长期安全使用：
+P0 收尾，关系到发布和长期安全使用：
 
-- 备份恢复增强：备份历史列表、恢复失败后的更友好指引、备份包版本迁移策略 UI。
+- 初始打包验证：确认 Electron 打包、应用数据目录、`node:sqlite`、文件选择器、备份/恢复和 `safeStorage` 在打包后可用。
+- 备份包未来版本迁移策略：当前已有 v1 恢复资格判断，后续 schema 变化时需要明确迁移路径。
 
 P1 高价值功能，直接提升复盘和统计闭环：
 
-- 标签统计 / 筛选：先明确 AI tags 如何落库或人工标签如何维护，再接统计筛选和交易下钻。
-- 统计日期口径：实现“用户本地日 + 市场会话日”，兼容美股期货跨自然日。
+- 统计图表和聚合：在已完成日期语义基础上，补按时间趋势、规则、标签聚合，并接入 ECharts。
 - AI 复盘打磨：真实 API 手动验收脚本或开发说明、prompt/schema fixture eval、失败重试、错误分类、使用量/成本展示。
+- 人工标签管理：补标签维护 UI、分类编辑和交易详情人工修正入口。
 
 P2 工程收敛和体验打磨：
 
-- 跨进程 DTO 迁移到 `shared/`：`StatsOverview`、`StatsOverviewFilters`、附件、复盘、备份和设置相关类型仍散落在 Electron service、Renderer helper 和 `src/vite-env.d.ts`。
-- 拆分 `src/App.tsx`：可逐步拆 `useTradesState`、`useStatsState`、`useRulesState`、`useReviewState`、`useBackupState`、`useSettingsState`。
+- 继续收敛 `src/App.tsx`：workflow hook 已拆出，后续可继续拆 view model 和页面容器，降低 prop 传递密度。
 - 品种配置管理：ES/MES/NQ/MNQ 目前来自 seed，尚无 UI 管理点值、tick 配置。
-- UI 深度打磨：规则页、统计页、备份页和设置页继续做真实长文本 QA。
-- ECharts 图表：等规则/标签筛选、下钻和统计口径稳定后再接。
+- UI 深度 QA：规则页、统计页、备份页和设置页继续做真实长文本、多附件、多复盘结果场景验证。
 - 在线图片标注：MVP 暂时接收用户外部标注后的图片。
 
 P3 明确暂缓或不在当前 MVP 范围：
@@ -473,8 +482,8 @@ P3 明确暂缓或不在当前 MVP 范围：
 推荐下一步：
 
 ```text
-优先做“备份恢复增强”或“标签统计/筛选”。
-备选做“跨进程 DTO 迁移到 shared/”。
+优先做“AI 复盘 hardening”或“初始打包验证”。
+备选做“统计图表和聚合”。
 继续先写 Vitest，再实现。
 不要删除或重置真实本地数据库。
 ```
@@ -534,7 +543,7 @@ npm audit --cache .npm-cache
 - 交易计算必须保持前后端一致，优先复用 `shared/trading/`。
 - 品种点值必须以 SQLite `instrument.point_value` 为权威来源。
 - 统计总览当前只纳入 `confirmed` / `corrected` 的复盘交易；新增筛选或图表时不要改变这个口径。
-- 跨进程 DTO 类型后续建议放入 `shared/`，避免 Electron service、Renderer helper 和 `vite-env.d.ts` 重复定义后漂移。
-- `src/App.tsx` 已经偏大；继续增加统计筛选、备份增强、设置增强或数据清理时，优先考虑拆分局部 state hook。
-- UI 目前是早期工作台，不要做营销式页面。
+- 跨进程 DTO 类型已经集中到 `shared/contracts`；新增 IPC 能力应继续优先放入 shared contract，避免再次漂移。
+- `src/App.tsx` 已拆出主要 workflow hook；继续增加统计筛选、AI hardening、打包状态或设置增强时，优先保持局部 state 在对应 hook/view model。
+- UI 是数据密集型桌面工作台，不要做营销式页面。
 - MVP 当前不支持 open trade，文档和 UI 要持续说明这个边界。

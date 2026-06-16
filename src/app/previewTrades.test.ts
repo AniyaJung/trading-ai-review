@@ -91,11 +91,13 @@ describe("previewTrades", () => {
         {
           symbol: "ES",
           entryRuleId: 2,
+          tagId: 7,
           openedFrom: "2026-06-01T00:00:00.000Z",
           openedBefore: "2026-06-08T00:00:00.000Z",
         },
         [{ id: 2, label: "ORB v1", source: "active" }],
+        [{ id: 7, name: "late-entry", category: "setup", tradeCount: 1 }],
       ),
-    ).toContain("统计筛选 / ES / ORB v1");
+    ).toContain("统计筛选 / ES / ORB v1 / late-entry");
   });
 });

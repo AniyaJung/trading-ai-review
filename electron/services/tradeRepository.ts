@@ -225,7 +225,7 @@ export function replaceTradeExecutions(
 }
 
 export function listTradeSummaries(db: DatabaseSync): TradeSummary[] {
-  return db
+  const rows = db
     .prepare(
       `select
         trade.id,
@@ -257,13 +257,15 @@ export function listTradeSummaries(db: DatabaseSync): TradeSummary[] {
       order by trade.opened_at desc, trade.id desc`,
     )
     .all() as unknown as TradeSummary[];
+
+  return attachTagIds(db, rows);
 }
 
 export function getTradeSummaryById(
   db: DatabaseSync,
   id: number,
 ): TradeSummary | undefined {
-  return db
+  const row = db
     .prepare(
       `select
         trade.id,
@@ -295,13 +297,15 @@ export function getTradeSummaryById(
       where trade.id = ?`,
     )
     .get(id) as TradeSummary | undefined;
+
+  return row ? attachTagIds(db, [row])[0] : undefined;
 }
 
 export function getTradeDetailRow(
   db: DatabaseSync,
   id: number,
 ): TradeDetailRow | undefined {
-  return db
+  const row = db
     .prepare(
       `select
         trade.id,
@@ -342,6 +346,53 @@ export function getTradeDetailRow(
       where trade.id = ?`,
     )
     .get(id) as TradeDetailRow | undefined;
+
+  return row ? { ...row, tagIds: listTagIdsForTrade(db, id) } : undefined;
+}
+
+function attachTagIds<T extends TradeSummary>(
+  db: DatabaseSync,
+  trades: T[],
+): T[] {
+  if (trades.length === 0) {
+    return trades;
+  }
+
+  const tagIdsByTradeId = listTagIdsByTradeId(
+    db,
+    trades.map((trade) => trade.id),
+  );
+
+  return trades.map((trade) => ({
+    ...trade,
+    tagIds: tagIdsByTradeId.get(trade.id) ?? [],
+  }));
+}
+
+function listTagIdsByTradeId(db: DatabaseSync, tradeIds: number[]) {
+  const placeholders = tradeIds.map(() => "?").join(", ");
+  const rows = db
+    .prepare(
+      `select trade_id as tradeId, tag_id as tagId
+       from trade_tag_map
+       where trade_id in (${placeholders})
+       order by trade_id asc, tag_id asc`,
+    )
+    .all(...tradeIds) as Array<{ tradeId: number; tagId: number }>;
+  const tagIdsByTradeId = new Map<number, number[]>();
+
+  for (const row of rows) {
+    tagIdsByTradeId.set(row.tradeId, [
+      ...(tagIdsByTradeId.get(row.tradeId) ?? []),
+      row.tagId,
+    ]);
+  }
+
+  return tagIdsByTradeId;
+}
+
+function listTagIdsForTrade(db: DatabaseSync, tradeId: number) {
+  return listTagIdsByTradeId(db, [tradeId]).get(tradeId) ?? [];
 }
 
 export function listTradeExecutions(

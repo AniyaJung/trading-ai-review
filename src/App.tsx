@@ -415,7 +415,11 @@ function App() {
     [tradeDrilldownFilters, trades],
   );
   const tradeDrilldownLabel = tradeDrilldownFilters
-    ? formatStatsDrilldownLabel(tradeDrilldownFilters, statsEntryRuleOptions)
+    ? formatStatsDrilldownLabel(
+        tradeDrilldownFilters,
+        statsEntryRuleOptions,
+        statsPanel.overview.byTag,
+      )
     : null;
   const selectedTrade =
     visibleTrades.find((trade) => trade.id === selectedTradeId) ??

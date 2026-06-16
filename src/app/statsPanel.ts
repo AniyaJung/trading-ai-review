@@ -3,6 +3,7 @@ import type {
   StatsDateBasis,
   StatsOverview,
   StatsOverviewFilters,
+  TagSummary,
 } from "../../shared/contracts/desktopApi";
 import {
   addDaysToDateString,
@@ -14,6 +15,7 @@ export type {
   StatsDateBasis,
   StatsOverview,
   StatsOverviewFilters,
+  TagSummary,
 } from "../../shared/contracts/desktopApi";
 
 export type StatsDateRangePreset = "all" | "last7" | "last30" | "custom";
@@ -23,6 +25,7 @@ export type StatsFilterState = {
   dateBasis: StatsDateBasis;
   symbol: string;
   entryRuleId: string;
+  tagId: string;
   customFrom: string;
   customTo: string;
 };
@@ -44,6 +47,8 @@ type StatsTrade = {
   feesTotal: number;
   rMultiple: number | null;
   entryRuleId: number | null;
+  tagIds?: number[];
+  tags?: Array<Pick<TagSummary, "id" | "name" | "category">>;
   aiReviewStatus: TradeSummary["aiReviewStatus"];
 };
 
@@ -84,6 +89,7 @@ export function getInitialStatsFilterState(): StatsFilterState {
     dateBasis: "user_local_day",
     symbol: "",
     entryRuleId: "",
+    tagId: "",
     customFrom: "",
     customTo: "",
   };
@@ -99,6 +105,7 @@ export function createEmptyStatsOverview(): StatsOverview {
     profitFactor: null,
     totalFees: 0,
     byInstrument: [],
+    byTag: [],
   };
 }
 
@@ -107,6 +114,10 @@ export function createPreviewStatsOverview(
   filters: StatsOverviewFilters = {},
 ): StatsOverview {
   const filteredTrades = filterStatsTrades(trades, filters);
+  const tagOptionFilters = { ...filters, tagId: null };
+  const tagOptionTrades = filterStatsTrades(trades, tagOptionFilters).filter(
+    (trade) => isReviewedTradeStatus(trade.aiReviewStatus),
+  );
   const reviewedTrades = filteredTrades.filter((trade) =>
     isReviewedTradeStatus(trade.aiReviewStatus),
   );
@@ -116,6 +127,7 @@ export function createPreviewStatsOverview(
     confirmedReviewCount: reviewedTrades.length,
     ...buildAggregate(reviewedTrades),
     byInstrument: groupByInstrument(reviewedTrades),
+    byTag: groupByTag(tagOptionTrades),
   };
 }
 
@@ -133,6 +145,11 @@ export function buildStatsOverviewFilters(
   const entryRuleId = Number(state.entryRuleId);
   if (Number.isInteger(entryRuleId) && entryRuleId > 0) {
     filters.entryRuleId = entryRuleId;
+  }
+
+  const tagId = Number(state.tagId);
+  if (Number.isInteger(tagId) && tagId > 0) {
+    filters.tagId = tagId;
   }
 
   if (state.dateRangePreset === "last7") {
@@ -245,6 +262,10 @@ function filterStatsTrades<T extends StatsTrade>(
       return false;
     }
 
+    if (filters.tagId != null && !(trade.tagIds ?? []).includes(filters.tagId)) {
+      return false;
+    }
+
     if (filters.dateFrom && getTradeStatsDate(trade, filters) < filters.dateFrom) {
       return false;
     }
@@ -313,6 +334,60 @@ function groupByInstrument(trades: StatsTrade[]): InstrumentStats[] {
       };
     })
     .sort((left, right) => right.netPnl - left.netPnl || left.symbol.localeCompare(right.symbol));
+}
+
+function groupByTag(trades: StatsTrade[]): TagSummary[] {
+  const groups = new Map<number, TagSummary>();
+
+  for (const trade of trades) {
+    for (const tag of getTradeTags(trade)) {
+      const existing = groups.get(tag.id);
+      groups.set(tag.id, {
+        id: tag.id,
+        name: tag.name,
+        category: tag.category,
+        tradeCount: (existing?.tradeCount ?? 0) + 1,
+      });
+    }
+  }
+
+  return [...groups.values()].sort(
+    (left, right) => right.tradeCount - left.tradeCount || left.name.localeCompare(right.name),
+  );
+}
+
+function getTradeTags(
+  trade: StatsTrade,
+): Array<Pick<TagSummary, "id" | "name" | "category">> {
+  if (trade.tags && trade.tags.length > 0) {
+    return dedupeTags(trade.tags);
+  }
+
+  return dedupeTags(
+    (trade.tagIds ?? []).map((id) => ({
+      id,
+      name: `标签 ${id}`,
+      category: "setup" as const,
+    })),
+  );
+}
+
+function dedupeTags(
+  tags: Array<Pick<TagSummary, "id" | "name" | "category">>,
+) {
+  const seen = new Set<number>();
+  const result: Array<Pick<TagSummary, "id" | "name" | "category">> = [];
+
+  for (const tag of tags) {
+    if (seen.has(tag.id)) {
+      continue;
+    }
+
+    seen.add(tag.id);
+    result.push(tag);
+  }
+
+  return result;
 }
 
 function calculateProfitFactor(trades: StatsTrade[]) {

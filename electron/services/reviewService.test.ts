@@ -47,6 +47,18 @@ function createTradeReadyForReview() {
   return { db, rule, trade };
 }
 
+function listNormalizedTradeTags(db: ReturnType<typeof createTestDb>, tradeId: number) {
+  return db
+    .prepare(
+      `select tag.name, tag.category
+       from trade_tag_map
+       join tag on tag.id = trade_tag_map.tag_id
+       where trade_tag_map.trade_id = ?
+       order by tag.name`,
+    )
+    .all(tradeId);
+}
+
 afterEach(() => {
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
@@ -101,6 +113,68 @@ describe("reviewService", () => {
     );
     expect(listTrades(db)[0].aiReviewStatus).toBe("needs_review");
     expect(getLatestReviewForTrade(db, trade.id)).toEqual(review);
+    expect(listNormalizedTradeTags(db, trade.id)).toEqual([]);
+
+    db.close();
+  });
+
+  it("normalizes review tags only after confirmation", () => {
+    const { db, trade } = createTradeReadyForReview();
+    const review = createReviewDraft(db, {
+      tradeId: trade.id,
+      tags: ["late-entry"],
+    });
+
+    expect(listNormalizedTradeTags(db, trade.id)).toEqual([]);
+
+    confirmReview(db, review.id);
+
+    expect(listNormalizedTradeTags(db, trade.id)).toEqual([
+      { name: "late-entry", category: "setup" },
+    ]);
+
+    db.close();
+  });
+
+  it("replaces normalized tags when a review is corrected", () => {
+    const { db, trade } = createTradeReadyForReview();
+    const review = createReviewDraft(db, {
+      tradeId: trade.id,
+      tags: ["late-entry", " late-entry ", "", { ignored: true }],
+    });
+
+    confirmReview(db, review.id);
+    expect(listNormalizedTradeTags(db, trade.id)).toEqual([
+      { name: "late-entry", category: "setup" },
+    ]);
+
+    correctReview(db, review.id, {
+      tags: ["rule-following", "patience"],
+    });
+
+    expect(listNormalizedTradeTags(db, trade.id)).toEqual([
+      { name: "patience", category: "setup" },
+      { name: "rule-following", category: "setup" },
+    ]);
+
+    db.close();
+  });
+
+  it("clears normalized tags when a review is invalidated", () => {
+    const { db, trade } = createTradeReadyForReview();
+    const review = createReviewDraft(db, {
+      tradeId: trade.id,
+      tags: ["late-entry"],
+    });
+
+    confirmReview(db, review.id);
+    expect(listNormalizedTradeTags(db, trade.id)).toEqual([
+      { name: "late-entry", category: "setup" },
+    ]);
+
+    invalidateReview(db, review.id);
+
+    expect(listNormalizedTradeTags(db, trade.id)).toEqual([]);
 
     db.close();
   });

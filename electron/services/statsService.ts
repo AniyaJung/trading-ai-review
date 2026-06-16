@@ -3,12 +3,14 @@ import type {
   InstrumentStats,
   StatsOverview,
   StatsOverviewFilters,
+  TagSummary,
 } from "../../shared/contracts/desktopApi.js";
 
 export type {
   InstrumentStats,
   StatsOverview,
   StatsOverviewFilters,
+  TagSummary,
 } from "../../shared/contracts/desktopApi.js";
 
 type AggregateRow = {
@@ -27,6 +29,13 @@ type InstrumentAggregateRow = AggregateRow & {
   instrumentName: string;
 };
 
+type TagAggregateRow = {
+  id: number;
+  name: string;
+  category: TagSummary["category"];
+  tradeCount: number;
+};
+
 const reviewedStatusSql = "('confirmed', 'corrected')";
 
 export function getStatsOverview(
@@ -34,6 +43,9 @@ export function getStatsOverview(
   filters: StatsOverviewFilters = {},
 ): StatsOverview {
   const queryFilters = buildTradeFilterClause(filters);
+  const tagOptionFilters = buildTradeFilterClause(filters, {
+    includeTagFilter: false,
+  });
   const totalTradeCount = getTradeCount(db, queryFilters);
   const aggregate = getReviewedAggregate(db, queryFilters);
 
@@ -46,6 +58,7 @@ export function getStatsOverview(
     profitFactor: calculateProfitFactor(aggregate),
     totalFees: roundMoney(aggregate.feesTotal ?? 0),
     byInstrument: getInstrumentAggregates(db, queryFilters).map(mapInstrumentStats),
+    byTag: getTagAggregates(db, tagOptionFilters),
   };
 }
 
@@ -54,9 +67,13 @@ type TradeFilterClause = {
   params: Array<number | string>;
 };
 
-function buildTradeFilterClause(filters: StatsOverviewFilters): TradeFilterClause {
+function buildTradeFilterClause(
+  filters: StatsOverviewFilters,
+  options: { includeTagFilter?: boolean } = {},
+): TradeFilterClause {
   const clauses = ["trade.status = 'closed'"];
   const params: Array<number | string> = [];
+  const includeTagFilter = options.includeTagFilter ?? true;
   const dateColumn =
     filters.dateBasis === "market_session_day"
       ? "trade.market_session_date"
@@ -70,6 +87,18 @@ function buildTradeFilterClause(filters: StatsOverviewFilters): TradeFilterClaus
   if (filters.entryRuleId != null) {
     clauses.push("trade.entry_rule_id = ?");
     params.push(filters.entryRuleId);
+  }
+
+  if (includeTagFilter && filters.tagId != null) {
+    clauses.push(
+      `exists (
+        select 1
+        from trade_tag_map
+        where trade_tag_map.trade_id = trade.id
+          and trade_tag_map.tag_id = ?
+      )`,
+    );
+    params.push(filters.tagId);
   }
 
   if (filters.dateFrom?.trim()) {
@@ -159,6 +188,36 @@ function getInstrumentAggregates(
       order by netPnl desc, instrument.symbol asc`,
     )
     .all(...filters.params) as unknown as InstrumentAggregateRow[];
+}
+
+function getTagAggregates(
+  db: DatabaseSync,
+  filters: TradeFilterClause,
+): TagSummary[] {
+  return (
+    db
+      .prepare(
+        `select
+          tag.id,
+          tag.name,
+          tag.category,
+          count(distinct trade.id) as tradeCount
+        from trade
+        join instrument on instrument.id = trade.instrument_id
+        join trade_tag_map on trade_tag_map.trade_id = trade.id
+        join tag on tag.id = trade_tag_map.tag_id
+        where ${filters.sql}
+          and trade.ai_review_status in ${reviewedStatusSql}
+        group by tag.id
+        order by tradeCount desc, tag.name asc`,
+      )
+      .all(...filters.params) as unknown as TagAggregateRow[]
+  ).map((row) => ({
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    tradeCount: row.tradeCount,
+  }));
 }
 
 function mapInstrumentStats(row: InstrumentAggregateRow): InstrumentStats {

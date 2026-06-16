@@ -23,6 +23,7 @@ describe("stats panel helpers", () => {
       profitFactor: null,
       totalFees: 8.6,
       byInstrument: [],
+      byTag: [],
     };
 
     expect(
@@ -90,7 +91,50 @@ describe("stats panel helpers", () => {
           winRate: 0,
         }),
       ],
+      byTag: [],
     });
+  });
+
+  it("filters browser preview stats by normalized tag", () => {
+    const trades = [
+      {
+        id: 1,
+        symbol: "ES",
+        instrumentName: "E-mini S&P 500",
+        openedAt: "2026-06-08T14:41:00.000Z",
+        netPnl: 445,
+        feesTotal: 5,
+        rMultiple: 2.225,
+        entryRuleId: null,
+        tagIds: [7],
+        aiReviewStatus: "confirmed" as const,
+      },
+      {
+        id: 2,
+        symbol: "MNQ",
+        instrumentName: "Micro E-mini Nasdaq-100",
+        openedAt: "2026-06-08T15:18:00.000Z",
+        netPnl: 92.4,
+        feesTotal: 3.6,
+        rMultiple: 1.925,
+        entryRuleId: null,
+        tagIds: [8],
+        aiReviewStatus: "confirmed" as const,
+      },
+    ];
+
+    expect(createPreviewStatsOverview(trades, { tagId: 7 })).toEqual(
+      expect.objectContaining({
+        totalTradeCount: 1,
+        confirmedReviewCount: 1,
+        totalNetPnl: 445,
+        byInstrument: [
+          expect.objectContaining({
+            symbol: "ES",
+          }),
+        ],
+      }),
+    );
   });
 
   it("filters browser preview stats by symbol and date window", () => {
@@ -222,12 +266,14 @@ describe("stats panel helpers", () => {
           dateRangePreset: "last7",
           symbol: "MNQ",
           entryRuleId: "42",
+          tagId: "7",
         },
         new Date("2026-06-11T10:30:00.000Z"),
       ),
     ).toEqual({
       symbol: "MNQ",
       entryRuleId: 42,
+      tagId: 7,
       dateBasis: "user_local_day",
       dateFrom: "2026-06-05",
       dateBefore: "2026-06-12",
@@ -240,6 +286,7 @@ describe("stats panel helpers", () => {
           dateBasis: "market_session_day",
           symbol: "",
           entryRuleId: "",
+          tagId: "",
           customFrom: "2026-06-01",
           customTo: "2026-06-10",
         },
@@ -259,40 +306,44 @@ describe("stats panel helpers", () => {
         symbol: "ES",
         instrumentName: "E-mini S&P 500",
         openedAt: "2026-06-08T14:41:00.000Z",
-        netPnl: 445,
-        feesTotal: 5,
-        rMultiple: 2.225,
-        entryRuleId: 10,
-        aiReviewStatus: "confirmed" as const,
-      },
+          netPnl: 445,
+          feesTotal: 5,
+          rMultiple: 2.225,
+          entryRuleId: 10,
+          tagIds: [7],
+          aiReviewStatus: "confirmed" as const,
+        },
       {
         id: 2,
         symbol: "MNQ",
         instrumentName: "Micro E-mini Nasdaq-100",
         openedAt: "2026-06-08T15:18:00.000Z",
-        netPnl: 92.4,
-        feesTotal: 3.6,
-        rMultiple: 1.925,
-        entryRuleId: 20,
-        aiReviewStatus: "confirmed" as const,
-      },
+          netPnl: 92.4,
+          feesTotal: 3.6,
+          rMultiple: 1.925,
+          entryRuleId: 20,
+          tagIds: [8],
+          aiReviewStatus: "confirmed" as const,
+        },
       {
         id: 3,
         symbol: "ES",
         instrumentName: "E-mini S&P 500",
         openedAt: "2026-05-30T14:41:00.000Z",
-        netPnl: 100,
-        feesTotal: 2,
-        rMultiple: 1,
-        entryRuleId: 10,
-        aiReviewStatus: "confirmed" as const,
-      },
+          netPnl: 100,
+          feesTotal: 2,
+          rMultiple: 1,
+          entryRuleId: 10,
+          tagIds: [7],
+          aiReviewStatus: "confirmed" as const,
+        },
     ];
 
     expect(
       filterTradesForStatsDrilldown(trades, {
         symbol: "ES",
         entryRuleId: 10,
+        tagId: 7,
         dateBasis: "user_local_day",
         dateFrom: "2026-06-01",
         dateBefore: "2026-06-11",
@@ -313,6 +364,7 @@ describe("stats panel helpers", () => {
         feesTotal: 2,
         rMultiple: 1,
         entryRuleId: null,
+        tagIds: [7],
         aiReviewStatus: "confirmed" as const,
       },
       {
@@ -326,6 +378,7 @@ describe("stats panel helpers", () => {
         feesTotal: 2,
         rMultiple: 2,
         entryRuleId: null,
+        tagIds: [8],
         aiReviewStatus: "confirmed" as const,
       },
     ];

@@ -173,6 +173,21 @@ export function StatsView({
           </select>
         </label>
 
+        <label>
+          标签
+          <select
+            value={filters.tagId}
+            onChange={(event) => updateFilter("tagId", event.target.value)}
+          >
+            <option value="">全部标签</option>
+            {overview.byTag.map((tag) => (
+              <option key={tag.id} value={tag.id}>
+                {tag.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
         {filters.dateRangePreset === "custom" ? (
           <>
             <label>
