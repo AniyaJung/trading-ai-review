@@ -8,6 +8,10 @@ import {
   restoreBackup,
   type BackupServiceOptions,
 } from "../services/backupService.js";
+import {
+  createCloseDatabaseOnce,
+  runDestructiveOperation,
+} from "./destructiveOperation.js";
 
 type BackupIpcOptions = {
   appVersion?: string;
@@ -41,20 +45,26 @@ export function createBackupIpcHandlers(
         return undefined;
       }
 
-      options.closeDatabase?.();
-      const result = await restoreBackup(paths, backupFilePath, getBackupOptions());
-      options.afterRestore?.();
-      return result;
+      return runDestructiveOperation(
+        {
+          closeDatabase: options.closeDatabase,
+          afterSuccess: options.afterRestore,
+        },
+        () => restoreBackup(paths, backupFilePath, getBackupOptions()),
+      );
     },
     restoreFromHistory: async (input: RestoreFromHistoryInput) => {
       const backupFilePath = requireBackupPathInsideBackupsDir(
         paths.backupsDir,
         input.filePath,
       );
-      options.closeDatabase?.();
-      const result = await restoreBackup(paths, backupFilePath, getBackupOptions());
-      options.afterRestore?.();
-      return result;
+      return runDestructiveOperation(
+        {
+          closeDatabase: options.closeDatabase,
+          afterSuccess: options.afterRestore,
+        },
+        () => restoreBackup(paths, backupFilePath, getBackupOptions()),
+      );
     },
     openDataDirectory: () => openPath(paths.appDataDir, options),
     openBackupsDirectory: () => openPath(paths.backupsDir, options),
@@ -62,7 +72,6 @@ export function createBackupIpcHandlers(
 }
 
 export function registerBackupIpc(db: DatabaseSync, paths: AppDataPaths) {
-  let databaseClosed = false;
   const handlers = createBackupIpcHandlers(paths, {
     appVersion: app.getVersion(),
     chooseBackupFile: async () => {
@@ -80,12 +89,7 @@ export function registerBackupIpc(db: DatabaseSync, paths: AppDataPaths) {
       return result.canceled ? undefined : result.filePaths[0];
     },
     openPath: (targetPath) => shell.openPath(targetPath),
-    closeDatabase: () => {
-      if (!databaseClosed) {
-        db.close();
-        databaseClosed = true;
-      }
-    },
+    closeDatabase: createCloseDatabaseOnce(db),
     afterRestore: () => {
       app.relaunch();
       app.exit(0);

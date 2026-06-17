@@ -12,6 +12,10 @@ import {
   type AISettingsInput,
   type SettingsServiceOptions,
 } from "../services/settingsService.js";
+import {
+  createCloseDatabaseOnce,
+  runDestructiveOperation,
+} from "./destructiveOperation.js";
 
 type SettingsIpcOptions = SettingsServiceOptions & {
   appVersion?: string;
@@ -37,14 +41,18 @@ export function createSettingsIpcHandlers(
         throw new Error("Type DELETE to reset local data.");
       }
 
-      options.closeDatabase?.();
-      const result = await resetLocalData(paths, {
-        confirmationText: input.confirmationText,
-        appVersion: options.appVersion ?? "0.0.0",
-        now: options.now?.() ?? new Date(),
-      });
-      options.afterReset?.();
-      return result;
+      return runDestructiveOperation(
+        {
+          closeDatabase: options.closeDatabase,
+          afterSuccess: options.afterReset,
+        },
+        () =>
+          resetLocalData(paths, {
+            confirmationText: input.confirmationText,
+            appVersion: options.appVersion ?? "0.0.0",
+            now: options.now?.() ?? new Date(),
+          }),
+      );
     },
     openDataDirectory: () => openPath(paths.appDataDir, options),
     openBackupsDirectory: () => openPath(paths.backupsDir, options),
@@ -52,17 +60,11 @@ export function createSettingsIpcHandlers(
 }
 
 export function registerSettingsIpc(db: DatabaseSync, paths: AppDataPaths) {
-  let databaseClosed = false;
   const handlers = createSettingsIpcHandlers(db, paths, {
     appVersion: app.getVersion(),
     secretCodec: createSafeStorageSecretCodec(),
     openPath: (targetPath) => shell.openPath(targetPath),
-    closeDatabase: () => {
-      if (!databaseClosed) {
-        db.close();
-        databaseClosed = true;
-      }
-    },
+    closeDatabase: createCloseDatabaseOnce(db),
     afterReset: () => {
       app.relaunch();
       app.exit(0);

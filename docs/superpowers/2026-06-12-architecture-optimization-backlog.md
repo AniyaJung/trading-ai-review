@@ -88,6 +88,7 @@ Recommended priority order:
    - Risk: restore, reset, future schema migration, and packaged relaunch behavior all need the same careful sequence: validate, close DB, create safety backup, perform file work, recover or guide the user on failure.
    - Target: introduce a small coordinator for destructive local-data operations.
    - Reason: it reduces the chance of inconsistent failure handling across reset, restore, and migration paths.
+   - Progress: backup restore and local reset now share `runDestructiveOperation` for close-before-operation and after-success hooks, and both registrations use `createCloseDatabaseOnce`.
 
 ## Execution Status
 
@@ -113,7 +114,8 @@ Recommended priority order:
 - Done: split shared desktop contracts into domain files while preserving `shared/contracts/desktopApi` as the public API surface.
 - Done: added tag mapping source ownership so future manual tags will not be overwritten by AI review tag sync.
 - Done: split stats filter and aggregate query helpers out of `statsService.ts`.
-- Next recommended execution item: harden destructive operation lifecycle and packaged manual checks, while keeping deeper stateful App container extraction and configurable AI pricing as follow-ups.
+- Done: centralized destructive operation lifecycle handling for backup restore and local reset IPC paths.
+- Next recommended execution item: renderer workflow automation or CSS modularization; packaged manual checks and configurable AI pricing remain follow-ups that need either UI/manual context or pricing policy.
 
 ## P0 Architecture Hygiene
 
@@ -161,7 +163,7 @@ Recommended priority order:
    - Problem: backup restore and local reset close the database before file-level work.
    - Target: centralize validation, DB closing, failure guidance, and relaunch behavior.
    - Benefit: makes restore/reset failure modes easier to reason about and support.
-   - Progress: backup history, restore eligibility, safety backup, restore guidance, and local reset confirmation are in place. Future work should focus on packaged-app verification and schema-version migration policy.
+   - Progress: backup history, restore eligibility, safety backup, restore guidance, local reset confirmation, shared destructive lifecycle execution, and close-once DB handling are in place. Future work should focus on packaged-app manual checks and schema-version migration policy.
 
 ## P2 Engineering Quality
 
