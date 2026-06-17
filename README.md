@@ -33,6 +33,10 @@ Current implemented scope:
 - Settings includes a local data reset workflow with an exact `DELETE` confirmation; reset creates a safety backup before rebuilding an empty database and attachments directory.
 - UI has been refreshed with a light blue desktop-workbench visual theme and friendlier Chinese user-facing copy.
 - Shared desktop API contracts live under `shared/contracts` and are reused across Electron, preload, and renderer boundaries.
+- AI review prompt/schema/client/response/error boundaries are split, with fixture coverage, retryable error classification, and usage metadata display.
+- Stats SQL helpers are split into focused filter and aggregate modules.
+- Backup/settings styles are split into `src/styles/backup-settings.css`.
+- Unsigned local macOS directory packaging and smoke verification are available through `npm run pack:dir` and `npm run smoke:packaged`.
 - Initial instrument presets: ES, MES, NQ, MNQ.
 - Design spec and implementation plans are stored under `docs/superpowers`.
 
@@ -41,8 +45,9 @@ MVP does not support open trades. A trade is one complete trading plan, not a si
 Not implemented yet:
 
 - Manual tag management UI and tag category editing are not implemented yet; AI tags currently normalize as `setup`.
-- Initial packaging verification is still pending.
-- AI prompt/schema fixture evals, retry/error classification, and usage/cost reporting are still pending.
+- Release packaging, signing/notarization, and distributable DMG/ZIP artifacts are not implemented yet.
+- Packaged UI manual checks remain to be done for native file picker, attachment preview, backup restore, and AI key relaunch/decrypt.
+- Configurable AI pricing or billing import is not implemented yet; provider cost metadata is displayed only when available.
 - Instrument configuration management UI is not implemented yet; the first presets are still seeded locally.
 
 ## Development
@@ -76,6 +81,15 @@ Build renderer and Electron main/preload:
 ```bash
 npm run build
 ```
+
+Create and smoke-test an unsigned local macOS directory package:
+
+```bash
+npm run pack:dir
+npm run smoke:packaged
+```
+
+This packaging path is for local runtime verification, not release distribution.
 
 ## Toolchain Note
 

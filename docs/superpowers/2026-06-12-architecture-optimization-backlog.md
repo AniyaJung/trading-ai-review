@@ -10,8 +10,8 @@ The project has completed the main local desktop, trade recording, rule, AI revi
 ## Current Handoff
 
 - Current branch: `codex/safe-attachment-preview`.
-- Latest commit before this documentation update: `6cb894a docs: clarify desktop app test scope`.
-- Worktree status before this documentation update: clean; branch is ahead of origin by 14 commits.
+- Latest commit before this documentation update: `be2cffd docs: clarify packaging priority wording`.
+- Worktree status before this documentation update: clean; branch is ahead of origin by 16 commits.
 - Latest verified commands:
   - `npm run test -- --run`: 49 test files and 202 tests passed.
   - `npm run lint`: passed.
@@ -20,6 +20,7 @@ The project has completed the main local desktop, trade recording, rule, AI revi
 - No local preview/dev server is expected to be running.
 - Browser-preview Playwright coverage was tried and then reverted because this project targets the desktop App, not the Vite browser preview as a product surface.
 - Release packaging, signing/notarization, and manual packaged UI checks are not the immediate next track; keep the existing local directory package and smoke scripts available for when packaging work resumes.
+- `docs/superpowers/2026-06-10-next-conversation-context.md` is the concise handoff entry for starting the next conversation.
 - Important safety constraint: do not reset, delete, or clear real local SQLite or app data. Tests for reset, restore, migration, or destructive flows must use temporary directories.
 
 ## Next Conversation Bootstrap
