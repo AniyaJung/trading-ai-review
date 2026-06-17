@@ -38,7 +38,7 @@ Current implemented scope:
 - Backup/settings styles are split into `src/styles/backup-settings.css`.
 - Unsigned local macOS directory packaging and smoke verification are available through `npm run pack:dir` and `npm run smoke:packaged`.
 - Initial instrument presets: ES, MES, NQ, MNQ.
-- Design spec and implementation plans are stored under `docs/superpowers`.
+- Current handoff, architecture backlog, packaging notes, and design specs are stored under `docs/superpowers`.
 
 MVP does not support open trades. A trade is one complete trading plan, not a single execution fill.
 

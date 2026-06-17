@@ -1,6 +1,6 @@
 # AI 交易复盘桌面应用设计文档
 
-> 状态说明：本文是产品和技术设计目标，不是当前实现状态清单。当前已完成能力、M4/M5 尾项和下一步优先级见 `docs/superpowers/2026-06-10-next-conversation-context.md`。截至 2026-06-12，本地数据重置最小闭环已完成，仍未完成的 M5 尾项主要是备份恢复增强、标签统计和初始打包验证。
+> 状态说明：本文是产品和技术设计目标，不是当前实现状态清单。当前已完成能力、剩余工作和下一步优先级见 `docs/superpowers/2026-06-10-next-conversation-context.md` 与 `docs/superpowers/2026-06-12-architecture-optimization-backlog.md`。
 
 ## 1. 概述
 
@@ -763,4 +763,4 @@ MVP 接收已经标注好的截图。后续可增加：
 - 导出备份。
 - 导入备份。
 - 清除本地数据。
-- 初始打包验证。
+- 本地 package smoke 与 release packaging 决策。
