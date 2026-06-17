@@ -117,7 +117,8 @@ Recommended priority order:
 - Done: centralized destructive operation lifecycle handling for backup restore and local reset IPC paths.
 - Done: added the first renderer workflow guard automation slice by giving backup history restore actions testable disabled reasons and surfacing them in button titles.
 - Done: completed the first CSS modularization slice by moving backup/settings view styles and responsive overrides into a feature stylesheet imported by `App.css`.
-- Next recommended execution item: browser-level renderer workflow automation or the remaining packaged manual checks; configurable AI pricing remains a follow-up that needs pricing policy.
+- Done: added the first browser-level renderer workflow automation with Playwright against the Vite preview for backup/settings preview-mode safeguards.
+- Next recommended execution item: remaining packaged manual checks when packaging resumes, or configurable AI pricing once a pricing policy is chosen.
 
 ## P0 Architecture Hygiene
 
@@ -191,7 +192,7 @@ Recommended priority order:
    - Problem: many UI flows are manually smoke-tested.
    - Target: add focused Playwright or React Testing Library coverage for backup restore, settings danger zone, review confirmation flows, and responsive text/copy regressions.
    - Benefit: catches regressions in state wiring and disabled/enabled UI states.
-   - Progress: without adding a browser-test dependency yet, backup history restore guard reasons are now covered in pure renderer state tests and surfaced in button titles. Future work can add Playwright or React Testing Library for full click-through flows.
+   - Progress: backup history restore guard reasons are covered in pure renderer state tests and surfaced in button titles. Playwright now runs the Vite browser preview and verifies backup/settings preview-mode safeguards through real navigation and DOM interaction. Future browser slices can cover review confirmation/correction and responsive text regressions.
 
 12. Modularize CSS as UI surface grows.
    - Problem: app-level CSS covers many unrelated views.

@@ -9,6 +9,7 @@
     "web:dev": "vite --host 127.0.0.1",
     "electron:dev": "tsc -p tsconfig.electron.json && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron dist-electron/electron/main.js",
     "test": "vitest",
+    "test:e2e": "playwright test",
     "build": "tsc -b && vite build",
     "pack:dir": "npm run build && node scripts/package-dir.mjs",
     "smoke:packaged": "node scripts/smoke-packaged-app.mjs",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.0",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
