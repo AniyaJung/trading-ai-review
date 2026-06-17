@@ -116,7 +116,8 @@ Recommended priority order:
 - Done: split stats filter and aggregate query helpers out of `statsService.ts`.
 - Done: centralized destructive operation lifecycle handling for backup restore and local reset IPC paths.
 - Done: added the first renderer workflow guard automation slice by giving backup history restore actions testable disabled reasons and surfacing them in button titles.
-- Next recommended execution item: CSS modularization or browser-level renderer workflow automation; packaged manual checks and configurable AI pricing remain follow-ups that need either UI/manual context or pricing policy.
+- Done: completed the first CSS modularization slice by moving backup/settings view styles and responsive overrides into a feature stylesheet imported by `App.css`.
+- Next recommended execution item: browser-level renderer workflow automation or the remaining packaged manual checks; configurable AI pricing remains a follow-up that needs pricing policy.
 
 ## P0 Architecture Hygiene
 
@@ -196,6 +197,7 @@ Recommended priority order:
    - Problem: app-level CSS covers many unrelated views.
    - Target: split feature CSS or introduce shared design tokens while preserving the current light-blue workbench theme.
    - Benefit: reduces style coupling across future stats/charting/settings work.
+   - Progress: backup/settings view styles now live in `src/styles/backup-settings.css`, with `src/App.css` kept as the global entrypoint. Future slices can extract stats, rules, and trade-desk styles using the same pattern.
 
 ## Deferred
 
