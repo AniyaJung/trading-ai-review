@@ -64,6 +64,7 @@ Recommended priority order:
    - Risk: `src/App.tsx` has improved, but it is still the cross-workflow assembly point and remains one of the largest runtime files.
    - Target: introduce focused containers such as `TradesWorkspaceContainer`, `StatsViewContainer`, and `BackupSettingsContainer`.
    - Reason: this reduces prop threading and makes cross-workflow side effects easier to inspect.
+   - Progress: extracted `AppWorkspaceView` for top-level view routing and `TradeDeskView` for the trade list/form/review layout. `App.tsx` still owns workflow hooks, derived props, and cross-workflow mutation synchronization; the next meaningful reduction should move stateful view props and side-effect coordination behind feature containers.
 
 4. **Split shared desktop contracts by domain before they grow again.**
    - Risk: `shared/contracts/desktopApi.ts` now centralizes contracts correctly, but it is becoming a large mixed-domain file.
@@ -105,7 +106,8 @@ Recommended priority order:
 - Done: completed an architecture re-review and recorded prioritized optimization targets.
 - Done: added a local macOS directory packaging path and packaged smoke verification for app startup, temp app data, SQLite migration, backup zip creation, and `safeStorage`.
 - Done: completed the first AI review hardening slice by splitting OpenAI prompt/schema/client/response/error boundaries, adding retryable error classification, fixture evals, provider usage preservation, and review-panel usage/cost metadata display.
-- Next recommended execution item: shrink `App.tsx` by extracting view container components, while keeping manual packaged UI checks and configurable AI pricing as release follow-ups.
+- Done: completed the first `App.tsx` view-container split by extracting workspace routing and trade desk layout containers while keeping state ownership stable.
+- Next recommended execution item: split shared desktop contracts by domain, while keeping deeper stateful App container extraction, manual packaged UI checks, and configurable AI pricing as follow-ups.
 
 ## P0 Architecture Hygiene
 
@@ -118,8 +120,8 @@ Recommended priority order:
    - Problem: `App.tsx` still owns trade, rule, review, attachment, backup, settings, and stats workflows.
    - Target: extract workflow hooks/controllers such as `useTradesWorkflow`, `useReviewWorkflow`, `useAttachmentWorkflow`, and `useBackupSettingsWorkflow`.
    - Benefit: makes feature changes easier to test without rendering the whole app shell.
-   - Progress: `useBackupSettingsWorkflow`, `useAttachmentWorkflow`, `useReviewWorkflow`, `useTradeWorkflow`, `useRuleWorkflow`, and `useStatsWorkflow` now own their respective state/actions.
-   - Next: extract feature containers so `App.tsx` becomes mostly shell routing and top-level composition.
+   - Progress: `useBackupSettingsWorkflow`, `useAttachmentWorkflow`, `useReviewWorkflow`, `useTradeWorkflow`, `useRuleWorkflow`, and `useStatsWorkflow` now own their respective state/actions. `AppWorkspaceView` and `TradeDeskView` now own the top-level view switch and trade desk layout.
+   - Next: extract stateful feature containers so `App.tsx` becomes mostly shell routing and top-level composition.
 
 3. Split large Electron services into repositories and mappers.
    - Problem: `tradeService` mixes SQL, row mapping, validation, and use-case orchestration.

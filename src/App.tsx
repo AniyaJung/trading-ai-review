@@ -36,14 +36,8 @@ import {
 } from "./app/backupSettingsWorkflow";
 import { AppSidebar } from "./components/AppSidebar";
 import { AppTopbar } from "./components/AppTopbar";
-import { BackupView } from "./components/BackupView";
+import { AppWorkspaceView } from "./components/AppWorkspaceView";
 import { ImagePreviewOverlay } from "./components/ImagePreviewOverlay";
-import { RulesView } from "./components/RulesView";
-import { SettingsView } from "./components/SettingsView";
-import { StatsView } from "./components/StatsView";
-import { TradeFormPanel } from "./components/TradeFormPanel";
-import { TradeListPanel } from "./components/TradeListPanel";
-import { TradeReviewPanel } from "./components/TradeReviewPanel";
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
@@ -528,137 +522,132 @@ function App() {
           onRefreshRules={() => void refreshRules()}
         />
 
-        {currentView === "rules" ? (
-          <RulesView
-            entryRules={entryRules}
-            isLoadingRules={isLoadingRules}
-            isSavingRule={isSavingRule}
-            ruleDraft={ruleDraft}
-            versionDraft={versionDraft}
-            ruleErrors={ruleErrors}
-            ruleMessage={ruleMessage}
-            onRuleDraftChange={setRuleDraft}
-            onVersionDraftChange={setVersionDraft}
-            onCreateRule={() => void handleCreateRule()}
-            onCreateRuleVersion={() => void handleCreateRuleVersion()}
-            onArchiveRule={(rule) => void handleArchiveRule(rule)}
-          />
-        ) : currentView === "stats" ? (
-          <StatsView
-            overview={statsPanel.overview}
-            isLoading={isLoadingStats}
-            error={statsError}
-            isPreview={statsPanel.isPreview}
-            filters={statsFilters}
-            instruments={statsInstrumentOptions}
-            entryRuleOptions={statsEntryRuleOptions}
-            onFiltersChange={handleStatsFiltersChange}
-            onDrillDown={handleStatsDrillDown}
-            onRefresh={() => void refreshStats()}
-          />
-        ) : currentView === "backup" ? (
-          <BackupView
-            runtime={desktopRuntime}
-            isBusy={isBackupBusy}
-            error={backupError}
-            lastBackup={lastBackup}
-            lastRestore={lastRestore}
-            backupHistory={backupHistory}
-            onCreateBackup={() => void handleCreateBackup()}
-            onRestoreBackup={() => void handleRestoreBackup()}
-            onRestoreBackupFile={(filePath) => void handleRestoreBackupFile(filePath)}
-            onOpenDataDirectory={() => void handleOpenDataDirectory()}
-            onOpenBackupsDirectory={() => void handleOpenBackupsDirectory()}
-          />
-        ) : currentView === "settings" ? (
-          <SettingsView
-            runtime={desktopRuntime}
-            summary={settingsSummary}
-            draft={settingsDraft}
-            dataResetDraft={dataResetDraft}
-            isLoading={isLoadingSettings}
-            isSaving={isSavingSettings}
-            isResettingLocalData={isResettingLocalData}
-            error={settingsError}
-            message={settingsMessage}
-            onDraftChange={setSettingsDraft}
-            onDataResetDraftChange={setDataResetDraft}
-            onSaveAI={() => void handleSaveAISettings()}
-            onResetLocalData={() => void handleResetLocalData()}
-            onOpenDataDirectory={() => void handleOpenSettingsDataDirectory()}
-            onOpenBackupsDirectory={() =>
-              void handleOpenSettingsBackupsDirectory()
-            }
-          />
-        ) : (
-        <section className="desk-grid">
-          <TradeListPanel
-            trades={visibleTrades}
-            selectedTradeId={selectedTrade?.id}
-            isLoadingTrades={isLoadingTrades}
-            tradeLoadError={tradeLoadError}
-            activeFilterLabel={tradeDrilldownLabel}
-            onClearFilter={() => setTradeDrilldownFilters(null)}
-            onSelectTrade={(tradeId) => {
-              setSelectedTradeId(tradeId);
-              setActiveAttachmentPreviewId(null);
-              handleCancelRuleCheckEdit();
-            }}
-          />
-
-          <TradeFormPanel
-            tradeForm={tradeForm}
-            entryRules={entryRules}
-            instruments={instruments}
-            formPreview={formPreview}
-            formErrors={formErrors}
-            formMessage={formMessage}
-            editingTradeId={editingTradeId}
-            onChange={updateTradeForm}
-          />
-
-          <TradeReviewPanel
-            reviewPanel={reviewPanel}
-            reviewAction={reviewAction}
-            latestReview={latestReview}
-            selectedTrade={selectedTrade}
-            selectedTradeDetail={selectedTradeDetail}
-            isLoadingTradeDetail={isLoadingTradeDetail}
-            tradeDetailError={tradeDetailError}
-            isLoadingReview={isLoadingReview}
-            reviewError={reviewError}
-            isSavingReview={isSavingReview}
-            isDeletingTrade={isDeletingTrade}
-            editingRuleCheckId={editingRuleCheckId}
-            ruleCheckEditDraft={ruleCheckEditDraft}
-            canSaveRuleCheck={canSaveRuleCheck}
-            savingRuleCheckId={savingRuleCheckId}
-            attachmentPanel={attachmentPanel}
-            attachmentDraft={attachmentDraft}
-            isLoadingAttachments={isLoadingAttachments}
-            attachmentError={attachmentError}
-            isSavingAttachment={isSavingAttachment}
-            deletingAttachmentId={deletingAttachmentId}
-            attachmentImageDataUrls={attachmentImageDataUrls}
-            onEditSelectedTrade={() => handleEditSelectedTrade(selectedTradeDetail)}
-            onDeleteSelectedTrade={handleDeleteSelectedTrade}
-            onCreateReviewDraft={() => void handleCreateReviewDraft()}
-            onConfirmReview={() => void handleConfirmReview()}
-            onCorrectReview={() => void handleCorrectReview()}
-            onInvalidateReview={() => void handleInvalidateReview()}
-            onStartRuleCheckEdit={handleStartRuleCheckEdit}
-            onRuleCheckDraftChange={handleRuleCheckDraftChange}
-            onCancelRuleCheckEdit={handleCancelRuleCheckEdit}
-            onSaveRuleCheck={(checkId) => void handleSaveRuleCheck(checkId)}
-            onAttachmentDraftChange={setAttachmentDraft}
-            onChooseAndAttach={() => void handleChooseAndAttach(selectedTrade)}
-            onDeleteAttachment={(attachmentId) =>
-              void handleDeleteAttachment(selectedTrade, attachmentId)
-            }
-            onPreviewAttachment={setActiveAttachmentPreviewId}
-          />
-        </section>
-        )}
+        <AppWorkspaceView
+          currentView={currentView}
+          rules={{
+            entryRules,
+            isLoadingRules,
+            isSavingRule,
+            ruleDraft,
+            versionDraft,
+            ruleErrors,
+            ruleMessage,
+            onRuleDraftChange: setRuleDraft,
+            onVersionDraftChange: setVersionDraft,
+            onCreateRule: () => void handleCreateRule(),
+            onCreateRuleVersion: () => void handleCreateRuleVersion(),
+            onArchiveRule: (rule) => void handleArchiveRule(rule),
+          }}
+          stats={{
+            overview: statsPanel.overview,
+            isLoading: isLoadingStats,
+            error: statsError,
+            isPreview: statsPanel.isPreview,
+            filters: statsFilters,
+            instruments: statsInstrumentOptions,
+            entryRuleOptions: statsEntryRuleOptions,
+            onFiltersChange: handleStatsFiltersChange,
+            onDrillDown: handleStatsDrillDown,
+            onRefresh: () => void refreshStats(),
+          }}
+          backup={{
+            runtime: desktopRuntime,
+            isBusy: isBackupBusy,
+            error: backupError,
+            lastBackup,
+            lastRestore,
+            backupHistory,
+            onCreateBackup: () => void handleCreateBackup(),
+            onRestoreBackup: () => void handleRestoreBackup(),
+            onRestoreBackupFile: (filePath) =>
+              void handleRestoreBackupFile(filePath),
+            onOpenDataDirectory: () => void handleOpenDataDirectory(),
+            onOpenBackupsDirectory: () => void handleOpenBackupsDirectory(),
+          }}
+          settings={{
+            runtime: desktopRuntime,
+            summary: settingsSummary,
+            draft: settingsDraft,
+            dataResetDraft,
+            isLoading: isLoadingSettings,
+            isSaving: isSavingSettings,
+            isResettingLocalData,
+            error: settingsError,
+            message: settingsMessage,
+            onDraftChange: setSettingsDraft,
+            onDataResetDraftChange: setDataResetDraft,
+            onSaveAI: () => void handleSaveAISettings(),
+            onResetLocalData: () => void handleResetLocalData(),
+            onOpenDataDirectory: () => void handleOpenSettingsDataDirectory(),
+            onOpenBackupsDirectory: () =>
+              void handleOpenSettingsBackupsDirectory(),
+          }}
+          tradeDesk={{
+            tradeList: {
+              trades: visibleTrades,
+              selectedTradeId: selectedTrade?.id,
+              isLoadingTrades,
+              tradeLoadError,
+              activeFilterLabel: tradeDrilldownLabel,
+              onClearFilter: () => setTradeDrilldownFilters(null),
+              onSelectTrade: (tradeId) => {
+                setSelectedTradeId(tradeId);
+                setActiveAttachmentPreviewId(null);
+                handleCancelRuleCheckEdit();
+              },
+            },
+            tradeForm: {
+              tradeForm,
+              entryRules,
+              instruments,
+              formPreview,
+              formErrors,
+              formMessage,
+              editingTradeId,
+              onChange: updateTradeForm,
+            },
+            tradeReview: {
+              reviewPanel,
+              reviewAction,
+              latestReview,
+              selectedTrade,
+              selectedTradeDetail,
+              isLoadingTradeDetail,
+              tradeDetailError,
+              isLoadingReview,
+              reviewError,
+              isSavingReview,
+              isDeletingTrade,
+              editingRuleCheckId,
+              ruleCheckEditDraft,
+              canSaveRuleCheck,
+              savingRuleCheckId,
+              attachmentPanel,
+              attachmentDraft,
+              isLoadingAttachments,
+              attachmentError,
+              isSavingAttachment,
+              deletingAttachmentId,
+              attachmentImageDataUrls,
+              onEditSelectedTrade: () =>
+                handleEditSelectedTrade(selectedTradeDetail),
+              onDeleteSelectedTrade: handleDeleteSelectedTrade,
+              onCreateReviewDraft: () => void handleCreateReviewDraft(),
+              onConfirmReview: () => void handleConfirmReview(),
+              onCorrectReview: () => void handleCorrectReview(),
+              onInvalidateReview: () => void handleInvalidateReview(),
+              onStartRuleCheckEdit: handleStartRuleCheckEdit,
+              onRuleCheckDraftChange: handleRuleCheckDraftChange,
+              onCancelRuleCheckEdit: handleCancelRuleCheckEdit,
+              onSaveRuleCheck: (checkId) => void handleSaveRuleCheck(checkId),
+              onAttachmentDraftChange: setAttachmentDraft,
+              onChooseAndAttach: () => void handleChooseAndAttach(selectedTrade),
+              onDeleteAttachment: (attachmentId) =>
+                void handleDeleteAttachment(selectedTrade, attachmentId),
+              onPreviewAttachment: setActiveAttachmentPreviewId,
+            },
+          }}
+        />
       </section>
 
       {activeAttachmentPreview && activeAttachmentPreviewDataUrl ? (
