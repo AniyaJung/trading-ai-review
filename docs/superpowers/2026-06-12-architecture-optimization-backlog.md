@@ -115,7 +115,8 @@ Recommended priority order:
 - Done: added tag mapping source ownership so future manual tags will not be overwritten by AI review tag sync.
 - Done: split stats filter and aggregate query helpers out of `statsService.ts`.
 - Done: centralized destructive operation lifecycle handling for backup restore and local reset IPC paths.
-- Next recommended execution item: renderer workflow automation or CSS modularization; packaged manual checks and configurable AI pricing remain follow-ups that need either UI/manual context or pricing policy.
+- Done: added the first renderer workflow guard automation slice by giving backup history restore actions testable disabled reasons and surfacing them in button titles.
+- Next recommended execution item: CSS modularization or browser-level renderer workflow automation; packaged manual checks and configurable AI pricing remain follow-ups that need either UI/manual context or pricing policy.
 
 ## P0 Architecture Hygiene
 
@@ -189,6 +190,7 @@ Recommended priority order:
    - Problem: many UI flows are manually smoke-tested.
    - Target: add focused Playwright or React Testing Library coverage for backup restore, settings danger zone, review confirmation flows, and responsive text/copy regressions.
    - Benefit: catches regressions in state wiring and disabled/enabled UI states.
+   - Progress: without adding a browser-test dependency yet, backup history restore guard reasons are now covered in pure renderer state tests and surfaced in button titles. Future work can add Playwright or React Testing Library for full click-through flows.
 
 12. Modularize CSS as UI surface grows.
    - Problem: app-level CSS covers many unrelated views.

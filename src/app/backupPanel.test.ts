@@ -133,6 +133,15 @@ describe("getBackupPanelState", () => {
     ).toBe(false);
     expect(
       getBackupPanelState({
+        runtime: "electron",
+        isBusy: true,
+        lastBackup: null,
+        lastRestore: null,
+        backupHistory,
+      }).historyItems[0].restoreDisabledReason,
+    ).toBe("备份或恢复正在处理中，请稍候。");
+    expect(
+      getBackupPanelState({
         runtime: "browser-preview",
         isBusy: false,
         lastBackup: null,
@@ -140,5 +149,43 @@ describe("getBackupPanelState", () => {
         backupHistory,
       }).historyItems[0].canRestore,
     ).toBe(false);
+    expect(
+      getBackupPanelState({
+        runtime: "browser-preview",
+        isBusy: false,
+        lastBackup: null,
+        lastRestore: null,
+        backupHistory,
+      }).historyItems[0].restoreDisabledReason,
+    ).toBe("请在桌面应用中恢复备份。");
+  });
+
+  it("explains why unsupported history backups cannot be restored", () => {
+    const state = getBackupPanelState({
+      runtime: "electron",
+      isBusy: false,
+      lastBackup: null,
+      lastRestore: null,
+      backupHistory: [
+        {
+          filePath: "/backups/future.zip",
+          fileName: "future.zip",
+          sizeBytes: 1000,
+          modifiedAt: "2026-06-11T10:00:00.000Z",
+          backupSchemaVersion: 999,
+          appVersion: "9.0.0",
+          exportedAt: "2026-06-11T09:30:00.000Z",
+          status: "unsupported-version",
+          problem: "Backup schema version 999 is not supported.",
+        },
+      ],
+    });
+
+    expect(state.historyItems[0]).toEqual(
+      expect.objectContaining({
+        canRestore: false,
+        restoreDisabledReason: "Backup schema version 999 is not supported.",
+      }),
+    );
   });
 });

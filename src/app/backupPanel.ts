@@ -51,7 +51,8 @@ export function getBackupPanelState({
     errorGuidance: error ? getErrorGuidance(error) : null,
     historyItems: backupHistory.map((item) =>
       formatHistoryItem(item, {
-        canUseLocalFiles: !isPreview && !isBusy,
+        isPreview,
+        isBusy,
       }),
     ),
   };
@@ -73,11 +74,16 @@ function formatBackupDate(value: string) {
 
 function formatHistoryItem(
   item: BackupHistoryItem,
-  options: { canUseLocalFiles: boolean },
+  options: { isPreview: boolean; isBusy: boolean },
 ) {
+  const canRestore = !options.isPreview && !options.isBusy && item.status === "restorable";
+
   return {
     ...item,
-    canRestore: options.canUseLocalFiles && item.status === "restorable",
+    canRestore,
+    restoreDisabledReason: canRestore
+      ? null
+      : getRestoreDisabledReason(item, options),
     metadataLabel: [
       item.exportedAt ? formatBackupDate(item.exportedAt) : "未知导出时间",
       item.backupSchemaVersion === null ? "未知版本" : `v${item.backupSchemaVersion}`,
@@ -86,6 +92,25 @@ function formatHistoryItem(
     statusLabel: getHistoryStatusLabel(item.status),
     statusTone: getHistoryStatusTone(item.status),
   };
+}
+
+function getRestoreDisabledReason(
+  item: BackupHistoryItem,
+  options: { isPreview: boolean; isBusy: boolean },
+) {
+  if (options.isPreview) {
+    return "请在桌面应用中恢复备份。";
+  }
+
+  if (options.isBusy) {
+    return "备份或恢复正在处理中，请稍候。";
+  }
+
+  if (item.status !== "restorable") {
+    return item.problem ?? getHistoryStatusLabel(item.status);
+  }
+
+  return "备份或恢复正在处理中，请稍候。";
 }
 
 function getHistoryStatusLabel(status: BackupHistoryItem["status"]) {

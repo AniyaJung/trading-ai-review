@@ -152,6 +152,7 @@ export function BackupView({
                   className="danger-button backup-history-restore"
                   onClick={() => onRestoreBackupFile(item.filePath)}
                   disabled={!item.canRestore}
+                  title={item.restoreDisabledReason ?? "恢复此备份"}
                 >
                   <RotateCcw aria-hidden="true" size={15} />
                   恢复此备份
