@@ -70,6 +70,7 @@ Recommended priority order:
    - Risk: `shared/contracts/desktopApi.ts` now centralizes contracts correctly, but it is becoming a large mixed-domain file.
    - Target: split into domain files such as `tradeContracts.ts`, `reviewContracts.ts`, `statsContracts.ts`, and `backupSettingsContracts.ts`, with `desktopApi.ts` re-exporting the public surface.
    - Reason: future charting, AI usage, packaging status, and manual tagging contracts will otherwise make the contract file harder to navigate.
+   - Progress: domain contract files now exist for common, database, trade, rule, review, attachment, stats, backup, and settings/reset DTOs. `desktopApi.ts` remains the public aggregator and still owns the `DesktopApi` interface, so downstream imports can migrate gradually.
 
 5. **Revisit tag modeling before manual tag UI.**
    - Risk: the first useful slice normalizes confirmed/corrected AI tags as `setup`; it does not express tag source, ownership, or category editing.
@@ -107,7 +108,8 @@ Recommended priority order:
 - Done: added a local macOS directory packaging path and packaged smoke verification for app startup, temp app data, SQLite migration, backup zip creation, and `safeStorage`.
 - Done: completed the first AI review hardening slice by splitting OpenAI prompt/schema/client/response/error boundaries, adding retryable error classification, fixture evals, provider usage preservation, and review-panel usage/cost metadata display.
 - Done: completed the first `App.tsx` view-container split by extracting workspace routing and trade desk layout containers while keeping state ownership stable.
-- Next recommended execution item: split shared desktop contracts by domain, while keeping deeper stateful App container extraction, manual packaged UI checks, and configurable AI pricing as follow-ups.
+- Done: split shared desktop contracts into domain files while preserving `shared/contracts/desktopApi` as the public API surface.
+- Next recommended execution item: revisit tag modeling before manual tag UI, while keeping stats query splitting, deeper stateful App container extraction, manual packaged UI checks, and configurable AI pricing as follow-ups.
 
 ## P0 Architecture Hygiene
 
@@ -169,6 +171,7 @@ Recommended priority order:
    - Problem: `shared/contracts/desktopApi.ts` successfully centralizes the IPC contract, but it is becoming a large mixed-domain file.
    - Target: split contract types by feature domain and keep `desktopApi.ts` as the public aggregator.
    - Benefit: keeps future AI usage, charts, packaging, and manual tag contracts readable.
+   - Progress: split DTOs into focused domain files under `shared/contracts/` and kept `desktopApi.ts` as an aggregator plus `DesktopApi` interface owner.
 
 10. Split stats query boundaries before charting.
    - Problem: stats overview, instrument aggregation, and tag aggregation already live together in one service entry point.
