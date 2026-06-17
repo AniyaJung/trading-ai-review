@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { AIReviewAdapterInput } from "./aiReviewService";
+import { OpenAIReviewError } from "./openAiReviewErrors";
 import {
   createOpenAIReviewAdapter,
   type FetchLike,
@@ -258,4 +260,114 @@ describe("createOpenAIReviewAdapter", () => {
     );
     expect(result.promptVersion).toBe("configured-prompt-v2");
   });
+
+  it("retries retryable OpenAI failures before returning a generated review", async () => {
+    const requests: Array<{ url: string; init: Parameters<FetchLike>[1] }> = [];
+    const fetch: FetchLike = async (url, init) => {
+      requests.push({ url, init });
+
+      if (requests.length === 1) {
+        return {
+          ok: false,
+          status: 429,
+          text: async () => "rate limited",
+        };
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            output_text: JSON.stringify({
+              summary: "Retried summary",
+              scoreTotal: null,
+              facts: {},
+              missingInfo: [],
+              imageObservations: [],
+              strengths: [],
+              weaknesses: [],
+              suggestions: [],
+              tags: [],
+              confidence: null,
+              ruleChecks: [],
+            }),
+          }),
+      };
+    };
+    const adapter = createOpenAIReviewAdapter({
+      apiKey: "sk-test",
+      fetch,
+      maxAttempts: 2,
+      retryDelayMs: 0,
+    });
+
+    const result = await adapter.generate(createAdapterInput());
+
+    expect(requests).toHaveLength(2);
+    expect(result.summary).toBe("Retried summary");
+  });
+
+  it("does not retry non-retryable OpenAI request failures", async () => {
+    const requests: Array<{ url: string; init: Parameters<FetchLike>[1] }> = [];
+    const fetch: FetchLike = async (url, init) => {
+      requests.push({ url, init });
+      return {
+        ok: false,
+        status: 400,
+        text: async () => "bad request",
+      };
+    };
+    const adapter = createOpenAIReviewAdapter({
+      apiKey: "sk-test",
+      fetch,
+      maxAttempts: 2,
+      retryDelayMs: 0,
+    });
+
+    await expect(adapter.generate(createAdapterInput())).rejects.toMatchObject({
+      category: "bad_request",
+      retryable: false,
+    } satisfies Partial<OpenAIReviewError>);
+    expect(requests).toHaveLength(1);
+  });
 });
+
+function createAdapterInput(): AIReviewAdapterInput {
+  return {
+    trade: {
+      id: 1,
+      symbol: "ES",
+      instrumentName: "E-mini S&P 500",
+      direction: "long",
+      status: "closed",
+      openedAt: "2026-06-08T14:41:00.000Z",
+      closedAt: "2026-06-08T15:20:00.000Z",
+      entryPriceAvg: 5300,
+      exitPriceAvg: 5304.5,
+      quantity: 2,
+      stopLossPrice: 5298,
+      takeProfitPrice: null,
+      feesTotal: 5,
+      grossPnl: 450,
+      netPnl: 445,
+      riskAmount: 200,
+      rMultiple: 2.225,
+      entryRuleId: null,
+      entryRuleVersionId: null,
+      entryRuleName: null,
+      entryRuleVersionNo: null,
+      entryRuleContent: null,
+      entryRuleChecklist: [],
+      backgroundNote: null,
+      entryReason: null,
+      exitReason: null,
+      emotionNote: null,
+      lessonNote: null,
+      aiReviewStatus: "not_generated",
+      ruleChecks: [],
+      executions: [],
+    },
+    attachments: [],
+  };
+}

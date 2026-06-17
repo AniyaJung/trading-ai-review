@@ -3,6 +3,7 @@ import {
   buildRuleCheckUpdateInput,
   canSaveRuleCheckEdit,
   createRuleCheckEditDraft,
+  getAIReviewUsageSummary,
   getReviewActionState,
   getReviewPanelState,
 } from "./reviewPanel";
@@ -239,5 +240,70 @@ describe("rule check edit state", () => {
         isSavingRuleCheck: true,
       }),
     ).toBe(false);
+  });
+});
+
+describe("AI review usage summary", () => {
+  const review: AIReview = {
+    id: 10,
+    tradeId: 1,
+    status: "needs_review",
+    model: "gpt-4.1",
+    promptVersion: "single-trade-v1",
+    ruleVersionSnapshot: null,
+    scoreTotal: 82,
+    summary: "Draft summary",
+    facts: {},
+    missingInfo: [],
+    imageObservations: [],
+    strengths: [],
+    weaknesses: [],
+    suggestions: [],
+    tags: [],
+    confidence: 0.7,
+    rawResult: {},
+    createdAt: "2026-06-08T16:00:00.000Z",
+    confirmedAt: null,
+  };
+
+  it("formats token usage from provider snake_case usage metadata", () => {
+    expect(
+      getAIReviewUsageSummary({
+        ...review,
+        rawResult: {
+          usage: {
+            input_tokens: 100,
+            output_tokens: 23,
+            total_tokens: 123,
+          },
+        },
+      }),
+    ).toEqual({
+      tokenLabel: "123 tokens",
+      costLabel: "未估算",
+    });
+  });
+
+  it("formats token usage from camelCase usage metadata and cost values", () => {
+    expect(
+      getAIReviewUsageSummary({
+        ...review,
+        rawResult: {
+          usage: {
+            inputTokens: 100,
+            outputTokens: 23,
+            totalTokens: 123,
+          },
+          estimatedCostUsd: 0.0123,
+        },
+      }),
+    ).toEqual({
+      tokenLabel: "123 tokens",
+      costLabel: "$0.0123",
+    });
+  });
+
+  it("returns null when no usage or cost metadata exists", () => {
+    expect(getAIReviewUsageSummary(review)).toBeNull();
   });
 });

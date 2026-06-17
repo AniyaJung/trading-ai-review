@@ -11,7 +11,11 @@ import {
 } from "lucide-react";
 import { AttachmentSection } from "./AttachmentSection";
 import type { AttachmentImageType, AttachmentPanelItem } from "../app/attachmentPanel";
-import type { ReviewActionState, RuleCheckEditDraft } from "../app/reviewPanel";
+import {
+  getAIReviewUsageSummary,
+  type ReviewActionState,
+  type RuleCheckEditDraft,
+} from "../app/reviewPanel";
 
 type ReviewPanelState = {
   badge: string;
@@ -112,6 +116,7 @@ export function TradeReviewPanel({
   const checklistCount = selectedTradeDetail?.entryRuleChecklist.length ?? 0;
   const ruleChecks = selectedTradeDetail?.ruleChecks ?? [];
   const evidenceCount = attachmentPanel.items.length;
+  const usageSummary = getAIReviewUsageSummary(latestReview);
 
   return (
     <section className="panel review-panel" aria-label="AI 复盘">
@@ -375,6 +380,18 @@ export function TradeReviewPanel({
                       <span>置信度</span>
                       <strong>{formatPercent(latestReview.confidence)}</strong>
                     </div>
+                    {usageSummary ? (
+                      <>
+                        <div>
+                          <span>Token</span>
+                          <strong>{usageSummary.tokenLabel}</strong>
+                        </div>
+                        <div>
+                          <span>成本</span>
+                          <strong>{usageSummary.costLabel}</strong>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                   <ReviewChipList title="优势" items={latestReview.strengths} />
                   <ReviewChipList title="建议" items={latestReview.suggestions} />

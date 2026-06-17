@@ -104,7 +104,8 @@ Recommended priority order:
 - Done: decided tag ownership and persistence for the first useful slice: confirmed/corrected AI string tags remain in `ai_review.tags_json` and normalize into `tag` / `trade_tag_map` as `setup` tags for stats filtering and drilldown.
 - Done: completed an architecture re-review and recorded prioritized optimization targets.
 - Done: added a local macOS directory packaging path and packaged smoke verification for app startup, temp app data, SQLite migration, backup zip creation, and `safeStorage`.
-- Next recommended execution item: AI review hardening, while keeping manual packaged UI checks on the release checklist.
+- Done: completed the first AI review hardening slice by splitting OpenAI prompt/schema/client/response/error boundaries, adding retryable error classification, fixture evals, provider usage preservation, and review-panel usage/cost metadata display.
+- Next recommended execution item: shrink `App.tsx` by extracting view container components, while keeping manual packaged UI checks and configurable AI pricing as release follow-ups.
 
 ## P0 Architecture Hygiene
 
@@ -160,6 +161,7 @@ Recommended priority order:
    - Problem: model defaults, prompt, schema, raw fetch, normalization, and error handling sit in one file.
    - Target: separate prompt/schema/client/normalizer and add fixture evals.
    - Benefit: enables retry policy, error classes, and usage/cost display.
+   - Progress: prompt, schema, response normalizer, OpenAI client, and error classification are now split into focused service modules. The adapter has retryable 408/429/5xx/network handling, fixture coverage for nested Responses API output, raw usage preservation, and renderer display for token usage plus available cost metadata. Pricing is intentionally not hard-coded; future work should add configurable rates or provider billing import before showing estimated costs for models without provider cost data.
 
 9. Split shared contracts by domain.
    - Problem: `shared/contracts/desktopApi.ts` successfully centralizes the IPC contract, but it is becoming a large mixed-domain file.

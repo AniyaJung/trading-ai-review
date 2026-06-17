@@ -21,6 +21,11 @@ export type RuleCheckEditDraft = {
   comment: string;
 };
 
+export type AIReviewUsageSummary = {
+  tokenLabel: string;
+  costLabel: string;
+};
+
 export function getReviewPanelState(
   trade: TradeSummary | undefined,
 ): ReviewPanelState {
@@ -201,7 +206,42 @@ export function canSaveRuleCheckEdit({
   return Boolean(selectedTrade && hasDesktopRuntime && !isSavingRuleCheck);
 }
 
+export function getAIReviewUsageSummary(
+  review: AIReview | undefined,
+): AIReviewUsageSummary | null {
+  if (!review) {
+    return null;
+  }
+
+  const rawResult = review.rawResult;
+  const usage = isRecord(rawResult.usage) ? rawResult.usage : {};
+  const totalTokens = numberValue(usage.total_tokens ?? usage.totalTokens);
+  const costUsd = numberValue(
+    rawResult.costUsd ??
+      rawResult.cost_usd ??
+      rawResult.estimatedCostUsd ??
+      rawResult.estimated_cost_usd,
+  );
+
+  if (totalTokens == null && costUsd == null) {
+    return null;
+  }
+
+  return {
+    tokenLabel: totalTokens == null ? "未记录" : `${totalTokens} tokens`,
+    costLabel: costUsd == null ? "未估算" : `$${costUsd.toFixed(4)}`,
+  };
+}
+
 function normalizeOptionalText(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
