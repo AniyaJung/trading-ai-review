@@ -117,7 +117,7 @@ Recommended priority order:
 - Done: centralized destructive operation lifecycle handling for backup restore and local reset IPC paths.
 - Done: added the first renderer workflow guard automation slice by giving backup history restore actions testable disabled reasons and surfacing them in button titles.
 - Done: completed the first CSS modularization slice by moving backup/settings view styles and responsive overrides into a feature stylesheet imported by `App.css`.
-- Next recommended execution item: browser-level renderer workflow automation or the remaining packaged manual checks; configurable AI pricing remains a follow-up that needs pricing policy.
+- Next recommended execution item: continue desktop-app architecture work by extracting the next stateful `App.tsx` feature container. Browser-preview Playwright coverage is not a priority unless the browser preview becomes a supported product surface; packaged manual checks remain paused until packaging work resumes, and configurable AI pricing needs a pricing policy first.
 
 ## P0 Architecture Hygiene
 
@@ -189,9 +189,9 @@ Recommended priority order:
 
 11. Add renderer workflow automation.
    - Problem: many UI flows are manually smoke-tested.
-   - Target: add focused Playwright or React Testing Library coverage for backup restore, settings danger zone, review confirmation flows, and responsive text/copy regressions.
+   - Target: add focused app-level coverage for backup restore, settings danger zone, review confirmation flows, and responsive text/copy regressions, prioritizing pure renderer state tests or Electron/app-runtime checks over browser-preview tests.
    - Benefit: catches regressions in state wiring and disabled/enabled UI states.
-   - Progress: without adding a browser-test dependency yet, backup history restore guard reasons are now covered in pure renderer state tests and surfaced in button titles. Future work can add Playwright or React Testing Library for full click-through flows.
+   - Progress: backup history restore guard reasons are covered in pure renderer state tests and surfaced in button titles. Browser-preview Playwright coverage was explicitly deprioritized because this project targets the desktop app, not the Vite preview as a supported product surface.
 
 12. Modularize CSS as UI surface grows.
    - Problem: app-level CSS covers many unrelated views.
