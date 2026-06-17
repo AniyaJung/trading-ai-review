@@ -82,6 +82,7 @@ Recommended priority order:
    - Risk: `getStatsOverview` now handles overview metrics plus instrument and tag breakdowns.
    - Target: split stats query helpers or introduce a stats repository before adding time trends, rule aggregation, and chart data.
    - Reason: charting will otherwise turn the overview function into a broad reporting endpoint.
+   - Progress: `statsFilters.ts` now owns reusable trade filter SQL, and `statsAggregates.ts` owns aggregate query helpers. `statsService.ts` remains the public API and handles DTO mapping plus ratio/money calculations.
 
 7. **Centralize destructive operation lifecycle.**
    - Risk: restore, reset, future schema migration, and packaged relaunch behavior all need the same careful sequence: validate, close DB, create safety backup, perform file work, recover or guide the user on failure.
@@ -111,7 +112,8 @@ Recommended priority order:
 - Done: completed the first `App.tsx` view-container split by extracting workspace routing and trade desk layout containers while keeping state ownership stable.
 - Done: split shared desktop contracts into domain files while preserving `shared/contracts/desktopApi` as the public API surface.
 - Done: added tag mapping source ownership so future manual tags will not be overwritten by AI review tag sync.
-- Next recommended execution item: split stats query boundaries before charting, while keeping deeper stateful App container extraction, manual packaged UI checks, and configurable AI pricing as follow-ups.
+- Done: split stats filter and aggregate query helpers out of `statsService.ts`.
+- Next recommended execution item: harden destructive operation lifecycle and packaged manual checks, while keeping deeper stateful App container extraction and configurable AI pricing as follow-ups.
 
 ## P0 Architecture Hygiene
 
@@ -179,6 +181,7 @@ Recommended priority order:
    - Problem: stats overview, instrument aggregation, and tag aggregation already live together in one service entry point.
    - Target: extract focused query helpers or a stats repository before adding time-series, rule, and tag chart datasets.
    - Benefit: keeps reporting additions testable without overloading `getStatsOverview`.
+   - Progress: extracted reusable filter SQL and aggregate query helpers; future chart datasets can add query helpers without expanding `statsService.ts`.
 
 11. Add renderer workflow automation.
    - Problem: many UI flows are manually smoke-tested.
