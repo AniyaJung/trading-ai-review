@@ -25,3 +25,18 @@ export function ensureAppDataDirectories(paths: AppDataPaths) {
   fs.mkdirSync(paths.attachmentsDir, { recursive: true });
   fs.mkdirSync(paths.backupsDir, { recursive: true });
 }
+
+export function applyUserDataPathOverride(
+  app: Pick<App, "setPath">,
+  userDataDir: string | undefined,
+) {
+  const trimmedPath = userDataDir?.trim();
+
+  if (!trimmedPath) {
+    return null;
+  }
+
+  const resolvedPath = path.resolve(trimmedPath);
+  app.setPath("userData", resolvedPath);
+  return resolvedPath;
+}

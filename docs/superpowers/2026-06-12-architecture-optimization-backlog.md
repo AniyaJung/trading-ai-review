@@ -34,14 +34,15 @@ Recommended next execution path:
 
 1. Confirm whether this documentation update should be committed.
 2. Decide whether to push the local tag statistics commit.
-3. Continue with initial packaging verification:
-   - choose packaging tool/configuration deliberately;
-   - verify packaged app data paths, `node:sqlite`, file pickers, backup/restore, and `safeStorage`;
-   - document any blocker before adding more product scope.
-4. Continue with AI review hardening:
+3. Continue with AI review hardening:
    - fixture evals for prompt/schema output;
    - error classification and retry policy;
    - usage/cost display.
+4. Before release, complete the remaining manual packaged-app checks:
+   - native file picker and attachment preview;
+   - backup restore through the packaged UI;
+   - AI key save/relaunch/decrypt flow;
+   - signed/notarized distribution tool decision.
 
 ## 2026-06-17 Architecture Re-Review
 
@@ -50,9 +51,9 @@ Current judgment: the architecture is healthy enough to keep building. Electron 
 Recommended priority order:
 
 1. **Packaging and release path first.**
-   - Risk: there is still no committed packaging setup, and `node:sqlite` is an Electron/Node experimental API.
-   - Target: verify a packaged macOS app can start, initialize app data, use `node:sqlite`, open file pickers, export/restore backups, and read/write AI key state through `safeStorage`.
-   - Reason: this is the highest release-readiness risk and should be settled before deeper feature work.
+   - Risk: `node:sqlite` is an Electron/Node experimental API, and distribution packaging is still not a signed/notarized release path.
+   - Target: keep the local directory package smoke-verified, then complete manual packaged UI checks and choose a real release tool for signing/notarization.
+   - Reason: packaged startup, SQLite, app data, backup creation, and `safeStorage` are now automatically verified; file picker, restore UI, and distribution artifacts remain release-readiness risks.
 
 2. **AI review hardening next.**
    - Risk: `electron/services/openAiReviewAdapter.ts` still combines model defaults, prompt construction, schema, fetch, parsing, normalization, and error handling.
@@ -102,7 +103,8 @@ Recommended priority order:
 - Done: rewrote user-facing empty states, validation guidance, confirmation prompts, action states, and destructive-operation copy in friendlier Chinese.
 - Done: decided tag ownership and persistence for the first useful slice: confirmed/corrected AI string tags remain in `ai_review.tags_json` and normalize into `tag` / `trade_tag_map` as `setup` tags for stats filtering and drilldown.
 - Done: completed an architecture re-review and recorded prioritized optimization targets.
-- Next recommended execution item: initial packaging verification, then AI review hardening.
+- Done: added a local macOS directory packaging path and packaged smoke verification for app startup, temp app data, SQLite migration, backup zip creation, and `safeStorage`.
+- Next recommended execution item: AI review hardening, while keeping manual packaged UI checks on the release checklist.
 
 ## P0 Architecture Hygiene
 
@@ -131,6 +133,7 @@ Recommended priority order:
    - Problem: the app has build output but no committed packaging path; packaged runtime behavior is still unverified.
    - Target: choose and commit a packaging setup only after verifying macOS packaged startup, app data paths, `node:sqlite`, file pickers, backup/restore, and `safeStorage`.
    - Benefit: turns the project from a dev-only Electron app into a locally shippable desktop tool.
+   - Progress: `npm run pack:dir` and `npm run smoke:packaged` verify local unsigned packaged startup, temp `userData`, SQLite migration v2, backup zip creation, and `safeStorage`. Manual checks remain for file picker, attachment preview, restore UI, AI key relaunch/decrypt, and signed/notarized distribution.
 
 5. Formalize statistics date semantics.
    - Problem: current stats filters use raw UTC `opened_at`.

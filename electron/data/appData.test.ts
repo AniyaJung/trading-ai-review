@@ -2,7 +2,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ensureAppDataDirectories, resolveAppDataPaths } from "./appData";
+import {
+  applyUserDataPathOverride,
+  ensureAppDataDirectories,
+  resolveAppDataPaths,
+} from "./appData";
 
 const tempDirs: string[] = [];
 
@@ -48,5 +52,36 @@ describe("ensureAppDataDirectories", () => {
 
     expect(() => rmSync(paths.attachmentsDir, { recursive: true })).not.toThrow();
     expect(() => rmSync(paths.backupsDir, { recursive: true })).not.toThrow();
+  });
+});
+
+describe("applyUserDataPathOverride", () => {
+  it("sets Electron userData path when an override is provided", () => {
+    const userDataDir = createTempUserDataDir();
+    const calls: Array<[string, string]> = [];
+
+    expect(
+      applyUserDataPathOverride(
+        {
+          setPath: (name, value) => calls.push([name, value]),
+        },
+        userDataDir,
+      ),
+    ).toBe(userDataDir);
+    expect(calls).toEqual([["userData", userDataDir]]);
+  });
+
+  it("ignores empty overrides", () => {
+    const calls: Array<[string, string]> = [];
+
+    expect(
+      applyUserDataPathOverride(
+        {
+          setPath: (name, value) => calls.push([name, value]),
+        },
+        "   ",
+      ),
+    ).toBeNull();
+    expect(calls).toEqual([]);
   });
 });
