@@ -19,7 +19,7 @@ The project has completed the main local desktop, trade recording, rule, AI revi
 - Latest packaged smoke check: `npm run pack:dir` and `npm run smoke:packaged` verified unsigned local app startup, temp `userData`, SQLite migration v3, backup zip creation, and `safeStorage`.
 - No local preview/dev server is expected to be running.
 - Browser-preview Playwright coverage was tried and then reverted because this project targets the desktop App, not the Vite browser preview as a product surface.
-- Packaging is intentionally paused for now per user direction; do not resume packaging/manual packaged checks unless explicitly requested.
+- Release packaging, signing/notarization, and manual packaged UI checks are not the immediate next track; keep the existing local directory package and smoke scripts available for when packaging work resumes.
 - Important safety constraint: do not reset, delete, or clear real local SQLite or app data. Tests for reset, restore, migration, or destructive flows must use temporary directories.
 
 ## Next Conversation Bootstrap
@@ -40,14 +40,14 @@ Recommended next execution path:
    - prefer pure renderer state/workflow tests for state transitions;
    - prefer Electron/app-runtime checks only when testing preload, filesystem, SQLite, `safeStorage`, or packaged behavior;
    - do not reintroduce browser-preview Playwright coverage unless the browser preview becomes a supported product surface.
-4. Leave packaging/manual packaged checks paused until packaging work resumes.
+4. Leave release packaging, signing/notarization, and manual packaged UI checks out of the immediate next slice; the existing package/smoke scripts remain available when packaging work resumes.
 5. Leave configurable AI pricing paused until a pricing-source policy is chosen.
 
 ## Current Progress Snapshot
 
 Recent completed work:
 
-- Packaging smoke path exists, but release packaging is paused: `npm run pack:dir` and `npm run smoke:packaged` verify unsigned local startup and core runtime services.
+- Packaging smoke path exists: `npm run pack:dir` and `npm run smoke:packaged` verify unsigned local startup and core runtime services. Release packaging/signing is not the immediate next track.
 - AI review adapter boundaries are split into prompt/schema/client/response/error modules, with fixture coverage, retryable error classification, raw usage preservation, and token/cost metadata display when provider data exists.
 - `src/App.tsx` has been reduced by workflow hooks plus view containers: `AppWorkspaceView` handles top-level routing and `TradeDeskView` handles the trade list/form/review layout.
 - Shared desktop contracts are split by domain while `shared/contracts/desktopApi.ts` remains the public aggregator.
@@ -73,7 +73,7 @@ Not active unless explicitly resumed:
 
 Current judgment: the architecture is healthy enough to keep building. Electron main owns SQLite, files, backups, and local secrets; renderer logic stays behind preload APIs; shared contracts now prevent most cross-process drift. The next phase should avoid broad rewrites and instead tighten specific boundaries before adding larger features.
 
-Current priority override: packaging remains the highest release-readiness risk, but the user has paused packaging work for now. While packaging is paused, the active engineering track is desktop App architecture cleanup, especially reducing `src/App.tsx` by extracting stateful feature containers.
+Current priority override: packaging remains a release-readiness risk, but the immediate next track is desktop App architecture cleanup rather than release packaging/signing. Keep reducing `src/App.tsx` by extracting stateful feature containers, and return to packaged UI checks when release work becomes the active priority.
 
 Recommended priority order:
 
@@ -144,7 +144,7 @@ Recommended priority order:
 - Done: centralized destructive operation lifecycle handling for backup restore and local reset IPC paths.
 - Done: added the first renderer workflow guard automation slice by giving backup history restore actions testable disabled reasons and surfacing them in button titles.
 - Done: completed the first CSS modularization slice by moving backup/settings view styles and responsive overrides into a feature stylesheet imported by `App.css`.
-- Next recommended execution item: continue desktop-app architecture work by extracting the next stateful `App.tsx` feature container. Browser-preview Playwright coverage is not a priority unless the browser preview becomes a supported product surface; packaged manual checks remain paused until packaging work resumes, and configurable AI pricing needs a pricing policy first.
+- Next recommended execution item: continue desktop-app architecture work by extracting the next stateful `App.tsx` feature container. Browser-preview Playwright coverage is not a priority unless the browser preview becomes a supported product surface; release packaging/manual packaged checks are not the immediate next track, and configurable AI pricing needs a pricing policy first.
 
 ## P0 Architecture Hygiene
 
