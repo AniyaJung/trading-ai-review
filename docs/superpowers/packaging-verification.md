@@ -60,7 +60,7 @@ Verified:
 - Preload path resolves inside `dist-electron/electron/preload.js`.
 - Temporary `userData` override works through `AI_TRADING_REVIEW_USER_DATA_DIR`.
 - SQLite initializes through Electron `node:sqlite`.
-- Database migration version is `2`.
+- Database migration version is `3`.
 - `attachments/` and `backups/` directories are created.
 - Backup zip creation works in the packaged app.
 - `safeStorage.isEncryptionAvailable()` is callable and returned `true` on this machine.

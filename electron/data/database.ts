@@ -4,7 +4,7 @@ import path from "node:path";
 import type { InstrumentConfig } from "../../shared/contracts/desktopApi.js";
 import { deriveTradeDateSemantics } from "../../shared/trading/tradeDates.js";
 
-const supportedDatabaseVersion = 2;
+const supportedDatabaseVersion = 3;
 
 export type InstrumentPreset = InstrumentConfig;
 
@@ -84,6 +84,10 @@ export function runMigrations(db: DatabaseSync) {
 
   if (currentVersion < 2) {
     migrateToVersionTwo(db);
+  }
+
+  if (currentVersion < 3) {
+    migrateToVersionThree(db);
   }
 }
 
@@ -249,6 +253,7 @@ function createVersionOneSchema(db: DatabaseSync) {
     create table trade_tag_map (
       trade_id integer not null references trade(id) on delete cascade,
       tag_id integer not null references tag(id) on delete cascade,
+      source text not null default 'ai_review' check (source in ('ai_review', 'manual')),
       primary key (trade_id, tag_id)
     );
 
@@ -307,6 +312,27 @@ function migrateToVersionTwo(db: DatabaseSync) {
       create index if not exists idx_trade_market_session_date on trade(market_session_date);
       pragma user_version = 2;
     `);
+    db.exec("commit");
+  } catch (error) {
+    db.exec("rollback");
+    throw error;
+  }
+}
+
+function migrateToVersionThree(db: DatabaseSync) {
+  db.exec("begin immediate");
+  try {
+    const columns = getTableColumns(db, "trade_tag_map");
+
+    if (columns.size > 0 && !columns.has("source")) {
+      db.exec(
+        `alter table trade_tag_map
+         add column source text not null default 'ai_review'
+         check (source in ('ai_review', 'manual'))`,
+      );
+    }
+
+    db.exec("pragma user_version = 3");
     db.exec("commit");
   } catch (error) {
     db.exec("rollback");

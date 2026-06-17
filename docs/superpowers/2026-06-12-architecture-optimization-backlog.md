@@ -76,6 +76,7 @@ Recommended priority order:
    - Risk: the first useful slice normalizes confirmed/corrected AI tags as `setup`; it does not express tag source, ownership, or category editing.
    - Target: decide whether to add source/ownership metadata before implementing manual tag maintenance.
    - Reason: without this decision, future manual tags could be overwritten by AI correction flows or become indistinguishable in statistics.
+   - Progress: `trade_tag_map.source` now records `ai_review` vs `manual` ownership. AI review confirmation/correction/invalidation only rewrites AI-owned mappings, so future manual tag UI can write manual mappings without being erased by AI sync.
 
 6. **Split stats queries before adding charts.**
    - Risk: `getStatsOverview` now handles overview metrics plus instrument and tag breakdowns.
@@ -109,7 +110,8 @@ Recommended priority order:
 - Done: completed the first AI review hardening slice by splitting OpenAI prompt/schema/client/response/error boundaries, adding retryable error classification, fixture evals, provider usage preservation, and review-panel usage/cost metadata display.
 - Done: completed the first `App.tsx` view-container split by extracting workspace routing and trade desk layout containers while keeping state ownership stable.
 - Done: split shared desktop contracts into domain files while preserving `shared/contracts/desktopApi` as the public API surface.
-- Next recommended execution item: revisit tag modeling before manual tag UI, while keeping stats query splitting, deeper stateful App container extraction, manual packaged UI checks, and configurable AI pricing as follow-ups.
+- Done: added tag mapping source ownership so future manual tags will not be overwritten by AI review tag sync.
+- Next recommended execution item: split stats query boundaries before charting, while keeping deeper stateful App container extraction, manual packaged UI checks, and configurable AI pricing as follow-ups.
 
 ## P0 Architecture Hygiene
 
@@ -138,7 +140,7 @@ Recommended priority order:
    - Problem: the app has build output but no committed packaging path; packaged runtime behavior is still unverified.
    - Target: choose and commit a packaging setup only after verifying macOS packaged startup, app data paths, `node:sqlite`, file pickers, backup/restore, and `safeStorage`.
    - Benefit: turns the project from a dev-only Electron app into a locally shippable desktop tool.
-   - Progress: `npm run pack:dir` and `npm run smoke:packaged` verify local unsigned packaged startup, temp `userData`, SQLite migration v2, backup zip creation, and `safeStorage`. Manual checks remain for file picker, attachment preview, restore UI, AI key relaunch/decrypt, and signed/notarized distribution.
+   - Progress: `npm run pack:dir` and `npm run smoke:packaged` verify local unsigned packaged startup, temp `userData`, SQLite migration v3, backup zip creation, and `safeStorage`. Manual checks remain for file picker, attachment preview, restore UI, AI key relaunch/decrypt, and signed/notarized distribution.
 
 5. Formalize statistics date semantics.
    - Problem: current stats filters use raw UTC `opened_at`.
@@ -150,8 +152,8 @@ Recommended priority order:
    - Problem: DB has `tag` and `trade_tag_map`, but AI tags currently live in review JSON.
    - Target: define whether AI tags, manual tags, or both populate the normalized tag tables.
    - Benefit: unlocks reliable tag filtering, statistics, and trade drilldown.
-   - Progress: confirmed/corrected AI string tags now populate `tag` / `trade_tag_map`; stats filtering and trade drilldown support `tagId`. Manual tag maintenance and category editing remain future work.
-   - Next: decide tag source/ownership metadata before building manual tag maintenance UI.
+   - Progress: confirmed/corrected AI string tags now populate `tag` / `trade_tag_map`; stats filtering and trade drilldown support `tagId`. `trade_tag_map.source` separates `ai_review` and `manual` ownership so AI tag sync only rewrites AI-owned mappings.
+   - Next: implement manual tag maintenance UI and category editing when that product scope is prioritized.
 
 7. Harden destructive operation lifecycle.
    - Problem: backup restore and local reset close the database before file-level work.

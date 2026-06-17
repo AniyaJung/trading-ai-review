@@ -53,7 +53,7 @@ describe("initializeAppDatabase", () => {
       "trade_rule_check",
       "trade_tag_map",
     ]);
-    expect(userVersion).toBe(2);
+    expect(userVersion).toBe(3);
 
     const tradeColumns = db
       .prepare("pragma table_info(trade)")
@@ -73,6 +73,12 @@ describe("initializeAppDatabase", () => {
         "idx_trade_market_session_date",
       ]),
     );
+
+    const tradeTagMapColumns = db
+      .prepare("pragma table_info(trade_tag_map)")
+      .all()
+      .map((row) => (row as { name: string }).name);
+    expect(tradeTagMapColumns).toEqual(expect.arrayContaining(["source"]));
 
     db.close();
   });
@@ -224,7 +230,42 @@ describe("runMigrations", () => {
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(2);
+    ).toBe(3);
+
+    db.close();
+  });
+
+  it("migrates v2 tag mappings with AI review ownership", () => {
+    const db = new DatabaseSync(createTempDbPath());
+    db.exec(`
+      create table tag (
+        id integer primary key autoincrement,
+        name text not null,
+        category text not null,
+        created_at text not null default (datetime('now')),
+        unique (name, category)
+      );
+      create table trade_tag_map (
+        trade_id integer not null,
+        tag_id integer not null references tag(id) on delete cascade,
+        primary key (trade_id, tag_id)
+      );
+      insert into tag (name, category) values ('late-entry', 'setup');
+      insert into trade_tag_map (trade_id, tag_id) values (1, 1);
+      pragma user_version = 2;
+    `);
+
+    runMigrations(db);
+
+    const row = db
+      .prepare("select source from trade_tag_map where trade_id = 1 and tag_id = 1")
+      .get() as { source: string };
+
+    expect(row.source).toBe("ai_review");
+    expect(
+      (db.prepare("pragma user_version").get() as { user_version: number })
+        .user_version,
+    ).toBe(3);
 
     db.close();
   });
@@ -234,7 +275,7 @@ describe("runMigrations", () => {
     db.exec("pragma user_version = 99");
 
     expect(() => runMigrations(db)).toThrow(
-      "Database version 99 is newer than supported version 2.",
+      "Database version 99 is newer than supported version 3.",
     );
 
     db.close();

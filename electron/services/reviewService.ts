@@ -408,8 +408,8 @@ function syncNormalizedReviewTags(
     `select id from tag where name = ? and category = 'setup'`,
   );
   const mapTag = db.prepare(
-    `insert into trade_tag_map (trade_id, tag_id)
-     values (?, ?)
+    `insert into trade_tag_map (trade_id, tag_id, source)
+     values (?, ?, 'ai_review')
      on conflict(trade_id, tag_id) do nothing`,
   );
 
@@ -423,7 +423,9 @@ function syncNormalizedReviewTags(
 }
 
 function clearNormalizedReviewTags(db: DatabaseSync, tradeId: number) {
-  db.prepare("delete from trade_tag_map where trade_id = ?").run(tradeId);
+  db.prepare(
+    "delete from trade_tag_map where trade_id = ? and source = 'ai_review'",
+  ).run(tradeId);
 }
 
 function normalizeTagNames(rawTags: unknown[]) {

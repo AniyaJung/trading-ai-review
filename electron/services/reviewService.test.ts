@@ -118,6 +118,36 @@ describe("reviewService", () => {
     db.close();
   });
 
+  it("does not overwrite manual tag mappings when AI review tags change", () => {
+    const { db, trade } = createTradeReadyForReview();
+    const review = createReviewDraft(db, {
+      tradeId: trade.id,
+      tags: ["late-entry"],
+    });
+
+    confirmReview(db, review.id);
+    db.prepare("insert into tag (name, category) values ('manual-note', 'setup')")
+      .run();
+    const manualTag = db
+      .prepare("select id from tag where name = 'manual-note'")
+      .get() as { id: number };
+    db.prepare(
+      `insert into trade_tag_map (trade_id, tag_id, source)
+       values (?, ?, 'manual')`,
+    ).run(trade.id, manualTag.id);
+
+    correctReview(db, review.id, {
+      tags: ["rule-following"],
+    });
+    invalidateReview(db, review.id);
+
+    expect(listNormalizedTradeTags(db, trade.id)).toEqual([
+      { name: "manual-note", category: "setup" },
+    ]);
+
+    db.close();
+  });
+
   it("normalizes review tags only after confirmation", () => {
     const { db, trade } = createTradeReadyForReview();
     const review = createReviewDraft(db, {
