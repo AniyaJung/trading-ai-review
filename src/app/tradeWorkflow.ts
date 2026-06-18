@@ -339,3 +339,5 @@ export function useTradeWorkflow(
     },
   };
 }
+
+export type TradeWorkflow = ReturnType<typeof useTradeWorkflow>;

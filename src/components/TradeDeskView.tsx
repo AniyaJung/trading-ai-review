@@ -1,12 +1,12 @@
 import type { ComponentProps } from "react";
-import { TradeFormPanel } from "./TradeFormPanel";
-import { TradeListPanel } from "./TradeListPanel";
-import { TradeReviewPanel } from "./TradeReviewPanel";
+import { TradeFormContainer } from "./TradeFormContainer";
+import { TradeListContainer } from "./TradeListContainer";
+import { TradeReviewContainer } from "./TradeReviewContainer";
 
 type TradeDeskViewProps = {
-  tradeList: ComponentProps<typeof TradeListPanel>;
-  tradeForm: ComponentProps<typeof TradeFormPanel>;
-  tradeReview: ComponentProps<typeof TradeReviewPanel>;
+  tradeList: ComponentProps<typeof TradeListContainer>;
+  tradeForm: ComponentProps<typeof TradeFormContainer>;
+  tradeReview: ComponentProps<typeof TradeReviewContainer>;
 };
 
 export function TradeDeskView({
@@ -16,9 +16,9 @@ export function TradeDeskView({
 }: TradeDeskViewProps) {
   return (
     <section className="desk-grid">
-      <TradeListPanel {...tradeList} />
-      <TradeFormPanel {...tradeForm} />
-      <TradeReviewPanel {...tradeReview} />
+      <TradeListContainer {...tradeList} />
+      <TradeFormContainer {...tradeForm} />
+      <TradeReviewContainer {...tradeReview} />
     </section>
   );
 }

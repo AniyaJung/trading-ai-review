@@ -1,22 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
-import {
-  getAttachmentPanelState,
-} from "./app/attachmentPanel";
 import { useAttachmentWorkflow } from "./app/attachmentWorkflow";
 import { useTradeWorkflow } from "./app/tradeWorkflow";
 import { loadDesktopBootstrapState } from "./app/desktopBootstrap";
 import { sampleTrades } from "./app/previewData";
-import {
-  getSelectedTradeDetail,
-  getTradeScopedStateValue,
-} from "./app/tradeDetailSelection";
-import {
-  canSaveRuleCheckEdit,
-  getReviewActionState,
-  getReviewPanelState,
-} from "./app/reviewPanel";
 import { useReviewWorkflow } from "./app/reviewWorkflow";
 import { useRuleWorkflow } from "./app/ruleWorkflow";
 import {
@@ -28,7 +16,6 @@ import {
   useStatsWorkflow,
 } from "./app/statsWorkflow";
 import {
-  createPreviewTradeDetail,
   formatStatsDrilldownLabel,
 } from "./app/previewTrades";
 import {
@@ -37,7 +24,6 @@ import {
 import { AppSidebar } from "./components/AppSidebar";
 import { AppTopbar } from "./components/AppTopbar";
 import { AppWorkspaceView } from "./components/AppWorkspaceView";
-import { ImagePreviewOverlay } from "./components/ImagePreviewOverlay";
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>("trades");
@@ -61,91 +47,28 @@ function App() {
     },
   );
   const {
-    isBackupBusy,
-    backupError,
-    lastBackup,
-    lastRestore,
-    backupHistory,
-    settingsSummary,
-    settingsDraft,
-    dataResetDraft,
-    isLoadingSettings,
-    isSavingSettings,
-    isResettingLocalData,
-    settingsError,
-    settingsMessage,
-  } = backupSettingsWorkflow.state;
-  const {
     applyBootstrapState,
     clearLoadErrors: clearBackupSettingsLoadErrors,
     setIsLoadingSettings,
     setSettingsError,
-    setSettingsDraft,
-    setDataResetDraft,
-    handleCreateBackup,
-    handleRestoreBackup,
-    handleRestoreBackupFile,
-    handleOpenDataDirectory,
-    handleOpenBackupsDirectory,
-    handleSaveAISettings,
-    handleOpenSettingsDataDirectory,
-    handleOpenSettingsBackupsDirectory,
-    handleResetLocalData,
   } = backupSettingsWorkflow.actions;
   const {
-    attachmentsByTradeId,
-    attachmentDraft,
-    loadingAttachmentTradeId,
-    attachmentErrorState,
-    isSavingAttachment,
-    deletingAttachmentId,
-    attachmentImageDataUrls,
-    activeAttachmentPreviewId,
-  } = attachmentWorkflow.state;
-  const {
-    setAttachmentDraft,
     setActiveAttachmentPreviewId,
     removeTradeAttachments,
-    refreshAttachmentsForTrade,
-    handleChooseAndAttach,
-    handleDeleteAttachment,
   } = attachmentWorkflow.actions;
   const {
-    latestReviewByTradeId,
-    loadingReviewTradeId,
-    reviewErrorState,
-    isSavingReview,
-    editingRuleCheckId,
-    ruleCheckEditDraft,
-    savingRuleCheckId,
-  } = reviewWorkflow.state;
-  const {
-    loadLatestReviewForTrade,
     handleConfirmReview: confirmReview,
     handleCreateReviewDraft: generateReviewDraft,
     handleCorrectReview: correctReview,
     handleInvalidateReview: invalidateReview,
-    handleStartRuleCheckEdit,
     handleCancelRuleCheckEdit,
-    setRuleCheckEditDraft: handleRuleCheckDraftChange,
     handleSaveRuleCheck: saveRuleCheck,
     removeReviewForTrade,
   } = reviewWorkflow.actions;
   const {
     trades,
-    tradeForm,
-    formPreview,
-    formMessage,
-    formErrors,
     isSavingTrade,
-    isDeletingTrade,
     editingTradeId,
-    isLoadingTrades,
-    tradeLoadError,
-    selectedTradeId,
-    selectedTradeDetailState,
-    loadingTradeDetailId,
-    tradeDetailErrorState,
   } = tradeWorkflow.state;
   const {
     setTrades,
@@ -154,11 +77,8 @@ function App() {
     setSelectedTradeId,
     setSelectedTradeDetailState,
     setFormMessage,
-    updateTradeForm,
-    loadTradeDetail,
     handleCreateClosedTrade,
     handleDeleteSelectedTrade: deleteSelectedTrade,
-    handleEditSelectedTrade,
     handleCancelEdit,
     applyBootstrapTrades,
     setTradeLoadFailure,
@@ -173,9 +93,6 @@ function App() {
     });
   });
   const {
-    isLoadingStats,
-    statsError,
-    statsFilters,
     tradeDrilldownFilters,
     statsOverviewFilters,
   } = statsWorkflow.state;
@@ -183,27 +100,16 @@ function App() {
     setIsLoadingStats,
     setTradeDrilldownFilters,
     refreshStats,
-    handleStatsFiltersChange,
     applyBootstrapStats,
     setStatsLoadFailure,
   } = statsWorkflow.actions;
   const {
     entryRules,
     isLoadingRules,
-    ruleMessage,
-    ruleErrors,
-    ruleDraft,
-    versionDraft,
-    isSavingRule,
   } = ruleWorkflow.state;
   const {
     setIsLoadingRules,
-    setRuleDraft,
-    setVersionDraft,
     refreshRules,
-    handleCreateRule,
-    handleCreateRuleVersion,
-    handleArchiveRule,
     applyBootstrapRules,
     setRuleLoadFailure,
   } = ruleWorkflow.actions;
@@ -285,19 +191,18 @@ function App() {
     handleCancelRuleCheckEdit();
   };
 
-  const handleDeleteSelectedTrade = async () => {
+  const handleDeleteSelectedTrade = async (selectedTrade: TradeSummary) => {
     const deleted = await deleteSelectedTrade(selectedTrade);
-    if (deleted && selectedTrade) {
+    if (deleted) {
       removeTradeAttachments(selectedTrade.id);
       removeReviewForTrade(selectedTrade.id);
     }
   };
 
-  const handleConfirmReview = async () => {
-    if (!selectedTrade) {
-      return;
-    }
-
+  const handleConfirmReview = async (
+    selectedTrade: TradeSummary,
+    latestReview: AIReview | undefined,
+  ) => {
     const review = await confirmReview(selectedTrade, latestReview);
     if (review) {
       await syncAfterReviewMutation(selectedTrade.id);
@@ -305,11 +210,7 @@ function App() {
     }
   };
 
-  const handleCreateReviewDraft = async () => {
-    if (!selectedTrade) {
-      return;
-    }
-
+  const handleCreateReviewDraft = async (selectedTrade: TradeSummary) => {
     const review = await generateReviewDraft(selectedTrade);
     if (review) {
       await syncAfterReviewMutation(selectedTrade.id);
@@ -317,11 +218,10 @@ function App() {
     }
   };
 
-  const handleCorrectReview = async () => {
-    if (!selectedTrade) {
-      return;
-    }
-
+  const handleCorrectReview = async (
+    selectedTrade: TradeSummary,
+    latestReview: AIReview | undefined,
+  ) => {
     const review = await correctReview(selectedTrade, latestReview);
     if (review) {
       await syncAfterReviewMutation(selectedTrade.id);
@@ -329,11 +229,10 @@ function App() {
     }
   };
 
-  const handleInvalidateReview = async () => {
-    if (!selectedTrade) {
-      return;
-    }
-
+  const handleInvalidateReview = async (
+    selectedTrade: TradeSummary,
+    latestReview: AIReview | undefined,
+  ) => {
     const review = await invalidateReview(selectedTrade, latestReview);
     if (review) {
       await syncAfterReviewMutation(selectedTrade.id);
@@ -341,11 +240,10 @@ function App() {
     }
   };
 
-  const handleSaveRuleCheck = async (checkId: number) => {
-    if (!selectedTrade) {
-      return;
-    }
-
+  const handleSaveRuleCheck = async (
+    selectedTrade: TradeSummary,
+    checkId: number,
+  ) => {
     const saved = await saveRuleCheck(selectedTrade, checkId);
     if (saved) {
       const detail = await desktopApi?.trades.get(selectedTrade.id);
@@ -377,26 +275,6 @@ function App() {
     trades,
     statsOverviewFilters,
   );
-  const statsInstrumentOptions = useMemo(() => {
-    if (instruments.length > 0) {
-      return instruments;
-    }
-
-    const previewInstruments = new Map<string, InstrumentConfig>();
-    for (const trade of trades) {
-      previewInstruments.set(trade.symbol, {
-        symbol: trade.symbol,
-        name: trade.instrumentName,
-        assetClass: "futures",
-        exchange: "CME",
-        currency: "USD",
-        tickSize: 0.25,
-        tickValue: 0,
-        pointValue: 0,
-      });
-    }
-    return [...previewInstruments.values()];
-  }, [instruments, trades]);
   const statsEntryRuleOptions = useMemo(
     () => createStatsEntryRuleOptions(entryRules, trades),
     [entryRules, trades],
@@ -415,92 +293,6 @@ function App() {
         statsPanel.overview.byTag,
       )
     : null;
-  const selectedTrade =
-    visibleTrades.find((trade) => trade.id === selectedTradeId) ??
-    visibleTrades[0];
-  const reviewPanel = getReviewPanelState(selectedTrade);
-  const latestReview = selectedTrade
-    ? latestReviewByTradeId[selectedTrade.id]
-    : undefined;
-  const reviewAction = getReviewActionState({
-    trade: selectedTrade,
-    latestReview,
-    hasDesktopRuntime: Boolean(window.desktopApi),
-    isSavingReview,
-  });
-  const canSaveRuleCheck = canSaveRuleCheckEdit({
-    selectedTrade,
-    hasDesktopRuntime: Boolean(window.desktopApi),
-    isSavingRuleCheck: savingRuleCheckId != null,
-  });
-  const previewTradeDetail =
-    selectedTrade && !window.desktopApi
-      ? createPreviewTradeDetail(selectedTrade)
-      : undefined;
-  const selectedTradeDetail = getSelectedTradeDetail({
-    previewTradeDetail,
-    selectedTrade,
-    selectedTradeDetailState,
-  });
-  const isLoadingTradeDetail = loadingTradeDetailId === selectedTrade?.id;
-  const tradeDetailError =
-    getTradeScopedStateValue({
-      selectedTrade,
-      state: tradeDetailErrorState,
-      readValue: (state) => state.error,
-    }) ?? null;
-  const attachmentPanel = getAttachmentPanelState(
-    selectedTrade ? (attachmentsByTradeId[selectedTrade.id] ?? []) : [],
-  );
-  const isLoadingAttachments = loadingAttachmentTradeId === selectedTrade?.id;
-  const attachmentError =
-    getTradeScopedStateValue({
-      selectedTrade,
-      state: attachmentErrorState,
-      readValue: (state) => state.error,
-    }) ?? null;
-  const isLoadingReview = loadingReviewTradeId === selectedTrade?.id;
-  const reviewError =
-    getTradeScopedStateValue({
-      selectedTrade,
-      state: reviewErrorState,
-      readValue: (state) => state.error,
-    }) ?? null;
-  const activeAttachmentPreview =
-    activeAttachmentPreviewId == null
-      ? undefined
-      : attachmentPanel.items.find(
-          (attachment) => attachment.id === activeAttachmentPreviewId,
-        );
-  const activeAttachmentPreviewDataUrl =
-    activeAttachmentPreviewId == null
-      ? undefined
-      : attachmentImageDataUrls[activeAttachmentPreviewId];
-
-  useEffect(() => {
-    if (!selectedTrade || !desktopApi) {
-      return;
-    }
-
-    void loadTradeDetail(selectedTrade.id);
-  }, [desktopApi, loadTradeDetail, selectedTrade]);
-
-  useEffect(() => {
-    if (!selectedTrade || !desktopApi) {
-      return;
-    }
-
-    void loadLatestReviewForTrade(selectedTrade.id);
-  }, [desktopApi, loadLatestReviewForTrade, selectedTrade]);
-
-  useEffect(() => {
-    if (!selectedTrade || !desktopApi) {
-      return;
-    }
-
-    void refreshAttachmentsForTrade(selectedTrade.id);
-  }, [desktopApi, refreshAttachmentsForTrade, selectedTrade]);
-
   return (
     <main className="app-shell">
       <AppSidebar
@@ -525,69 +317,24 @@ function App() {
         <AppWorkspaceView
           currentView={currentView}
           rules={{
-            entryRules,
-            isLoadingRules,
-            isSavingRule,
-            ruleDraft,
-            versionDraft,
-            ruleErrors,
-            ruleMessage,
-            onRuleDraftChange: setRuleDraft,
-            onVersionDraftChange: setVersionDraft,
-            onCreateRule: () => void handleCreateRule(),
-            onCreateRuleVersion: () => void handleCreateRuleVersion(),
-            onArchiveRule: (rule) => void handleArchiveRule(rule),
+            workflow: ruleWorkflow,
           }}
           stats={{
-            overview: statsPanel.overview,
-            isLoading: isLoadingStats,
-            error: statsError,
-            isPreview: statsPanel.isPreview,
-            filters: statsFilters,
-            instruments: statsInstrumentOptions,
-            entryRuleOptions: statsEntryRuleOptions,
-            onFiltersChange: handleStatsFiltersChange,
+            runtime: desktopRuntime,
+            workflow: statsWorkflow,
+            trades,
+            instruments,
+            entryRules,
             onDrillDown: handleStatsDrillDown,
-            onRefresh: () => void refreshStats(),
           }}
-          backup={{
+          backupSettings={{
             runtime: desktopRuntime,
-            isBusy: isBackupBusy,
-            error: backupError,
-            lastBackup,
-            lastRestore,
-            backupHistory,
-            onCreateBackup: () => void handleCreateBackup(),
-            onRestoreBackup: () => void handleRestoreBackup(),
-            onRestoreBackupFile: (filePath) =>
-              void handleRestoreBackupFile(filePath),
-            onOpenDataDirectory: () => void handleOpenDataDirectory(),
-            onOpenBackupsDirectory: () => void handleOpenBackupsDirectory(),
-          }}
-          settings={{
-            runtime: desktopRuntime,
-            summary: settingsSummary,
-            draft: settingsDraft,
-            dataResetDraft,
-            isLoading: isLoadingSettings,
-            isSaving: isSavingSettings,
-            isResettingLocalData,
-            error: settingsError,
-            message: settingsMessage,
-            onDraftChange: setSettingsDraft,
-            onDataResetDraftChange: setDataResetDraft,
-            onSaveAI: () => void handleSaveAISettings(),
-            onResetLocalData: () => void handleResetLocalData(),
-            onOpenDataDirectory: () => void handleOpenSettingsDataDirectory(),
-            onOpenBackupsDirectory: () =>
-              void handleOpenSettingsBackupsDirectory(),
+            workflow: backupSettingsWorkflow,
           }}
           tradeDesk={{
             tradeList: {
+              workflow: tradeWorkflow,
               trades: visibleTrades,
-              selectedTradeId: selectedTrade?.id,
-              isLoadingTrades,
-              tradeLoadError,
               activeFilterLabel: tradeDrilldownLabel,
               onClearFilter: () => setTradeDrilldownFilters(null),
               onSelectTrade: (tradeId) => {
@@ -597,66 +344,32 @@ function App() {
               },
             },
             tradeForm: {
-              tradeForm,
+              workflow: tradeWorkflow,
               entryRules,
               instruments,
-              formPreview,
-              formErrors,
-              formMessage,
-              editingTradeId,
-              onChange: updateTradeForm,
             },
             tradeReview: {
-              reviewPanel,
-              reviewAction,
-              latestReview,
-              selectedTrade,
-              selectedTradeDetail,
-              isLoadingTradeDetail,
-              tradeDetailError,
-              isLoadingReview,
-              reviewError,
-              isSavingReview,
-              isDeletingTrade,
-              editingRuleCheckId,
-              ruleCheckEditDraft,
-              canSaveRuleCheck,
-              savingRuleCheckId,
-              attachmentPanel,
-              attachmentDraft,
-              isLoadingAttachments,
-              attachmentError,
-              isSavingAttachment,
-              deletingAttachmentId,
-              attachmentImageDataUrls,
-              onEditSelectedTrade: () =>
-                handleEditSelectedTrade(selectedTradeDetail),
-              onDeleteSelectedTrade: handleDeleteSelectedTrade,
-              onCreateReviewDraft: () => void handleCreateReviewDraft(),
-              onConfirmReview: () => void handleConfirmReview(),
-              onCorrectReview: () => void handleCorrectReview(),
-              onInvalidateReview: () => void handleInvalidateReview(),
-              onStartRuleCheckEdit: handleStartRuleCheckEdit,
-              onRuleCheckDraftChange: handleRuleCheckDraftChange,
-              onCancelRuleCheckEdit: handleCancelRuleCheckEdit,
-              onSaveRuleCheck: (checkId) => void handleSaveRuleCheck(checkId),
-              onAttachmentDraftChange: setAttachmentDraft,
-              onChooseAndAttach: () => void handleChooseAndAttach(selectedTrade),
-              onDeleteAttachment: (attachmentId) =>
-                void handleDeleteAttachment(selectedTrade, attachmentId),
-              onPreviewAttachment: setActiveAttachmentPreviewId,
+              runtime: desktopRuntime,
+              trades: visibleTrades,
+              tradeWorkflow,
+              reviewWorkflow,
+              attachmentWorkflow,
+              onDeleteSelectedTrade: (trade) =>
+                void handleDeleteSelectedTrade(trade),
+              onCreateReviewDraft: (trade) =>
+                void handleCreateReviewDraft(trade),
+              onConfirmReview: (trade, review) =>
+                void handleConfirmReview(trade, review),
+              onCorrectReview: (trade, review) =>
+                void handleCorrectReview(trade, review),
+              onInvalidateReview: (trade, review) =>
+                void handleInvalidateReview(trade, review),
+              onSaveRuleCheck: (trade, checkId) =>
+                void handleSaveRuleCheck(trade, checkId),
             },
           }}
         />
       </section>
-
-      {activeAttachmentPreview && activeAttachmentPreviewDataUrl ? (
-        <ImagePreviewOverlay
-          attachment={activeAttachmentPreview}
-          imageDataUrl={activeAttachmentPreviewDataUrl}
-          onClose={() => setActiveAttachmentPreviewId(null)}
-        />
-      ) : null}
     </main>
   );
 }

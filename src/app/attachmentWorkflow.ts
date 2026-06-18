@@ -275,3 +275,5 @@ export function useAttachmentWorkflow(
     },
   };
 }
+
+export type AttachmentWorkflow = ReturnType<typeof useAttachmentWorkflow>;

@@ -36,7 +36,7 @@ sed -n '1,260p' docs/superpowers/2026-06-12-architecture-optimization-backlog.md
 Recommended next execution path:
 
 1. Continue desktop-app architecture work by extracting the next stateful feature container from `src/App.tsx`.
-2. Recommended first slice: `BackupSettingsContainer`, because backup/settings state and handlers are already isolated in `useBackupSettingsWorkflow`, and the view styles have just been split into `src/styles/backup-settings.css`.
+2. The desktop App container cleanup has reached its stopping point. Do not continue extracting shell coordination without a concrete ownership problem.
 3. Keep tests aligned with the desktop App scope:
    - prefer pure renderer state/workflow tests for state transitions;
    - prefer Electron/app-runtime checks only when testing preload, filesystem, SQLite, `safeStorage`, or packaged behavior;
@@ -50,7 +50,7 @@ Recent completed work:
 
 - Packaging smoke path exists: `npm run pack:dir` and `npm run smoke:packaged` verify unsigned local startup and core runtime services. Release packaging/signing is not the immediate next track.
 - AI review adapter boundaries are split into prompt/schema/client/response/error modules, with fixture coverage, retryable error classification, raw usage preservation, and token/cost metadata display when provider data exists.
-- `src/App.tsx` has been reduced by workflow hooks plus view containers: `AppWorkspaceView` handles top-level routing and `TradeDeskView` handles the trade list/form/review layout.
+- `src/App.tsx` has been reduced by workflow hooks plus focused containers for rules, backup/settings, statistics, trade list, trade form, and trade review. `AppWorkspaceView` handles routing and `TradeDeskView` retains layout composition.
 - Shared desktop contracts are split by domain while `shared/contracts/desktopApi.ts` remains the public aggregator.
 - Tag mapping ownership is tracked with `trade_tag_map.source`, so AI review sync rewrites only AI-owned tags and future manual tags have a safe persistence path.
 - Stats SQL boundaries are split into `statsFilters.ts` and `statsAggregates.ts`.
@@ -61,7 +61,7 @@ Recent completed work:
 
 Active next goal:
 
-- Extract the next stateful desktop App container from `src/App.tsx`, starting with backup/settings unless a higher-priority product task supersedes it.
+- Architecture cleanup complete for the current scope. Keep bootstrap, navigation, topbar composition, and explicit cross-workflow mutation synchronization in the shell.
 
 Not active unless explicitly resumed:
 
@@ -145,7 +145,12 @@ Recommended priority order:
 - Done: centralized destructive operation lifecycle handling for backup restore and local reset IPC paths.
 - Done: added the first renderer workflow guard automation slice by giving backup history restore actions testable disabled reasons and surfacing them in button titles.
 - Done: completed the first CSS modularization slice by moving backup/settings view styles and responsive overrides into a feature stylesheet imported by `App.css`.
-- Next recommended execution item: continue desktop-app architecture work by extracting the next stateful `App.tsx` feature container. Browser-preview Playwright coverage is not a priority unless the browser preview becomes a supported product surface; release packaging/manual packaged checks are not the immediate next track, and configurable AI pricing needs a pricing policy first.
+- Done: extracted `BackupSettingsContainer` and `StatsViewContainer`, moving their feature-view state/action mapping and statistics preview option derivation out of `App.tsx`.
+- Done: extracted narrow `TradeListContainer` and `TradeFormContainer` adapters so `App.tsx` no longer assembles their fine-grained panel props.
+- Done: extracted `TradeReviewContainer`, including selected-trade display derivation, scoped loading/errors, selected-trade loading effects, panel mapping, and attachment preview overlay; cross-workflow mutations remain explicit callbacks in `App.tsx`.
+- Done: extracted `RulesViewContainer`; all current stateful views now map workflow state/actions outside `App.tsx`.
+- Done: re-reviewed the cleanup stopping point. `App.tsx` now retains only shell/bootstrap concerns, shared view inputs, and explicit cross-workflow mutation coordination; further extraction is not recommended without a concrete ownership problem.
+- Next recommended execution item: return to product work, with manual tag maintenance UI and category editing as the strongest ready candidate because tag source ownership is already implemented. Browser-preview Playwright coverage is not a priority unless the browser preview becomes a supported product surface; release packaging/manual packaged checks are not the immediate next track, and configurable AI pricing needs a pricing policy first.
 
 ## P0 Architecture Hygiene
 
@@ -158,8 +163,8 @@ Recommended priority order:
    - Problem: `App.tsx` still owns trade, rule, review, attachment, backup, settings, and stats workflows.
    - Target: extract workflow hooks/controllers such as `useTradesWorkflow`, `useReviewWorkflow`, `useAttachmentWorkflow`, and `useBackupSettingsWorkflow`.
    - Benefit: makes feature changes easier to test without rendering the whole app shell.
-   - Progress: `useBackupSettingsWorkflow`, `useAttachmentWorkflow`, `useReviewWorkflow`, `useTradeWorkflow`, `useRuleWorkflow`, and `useStatsWorkflow` now own their respective state/actions. `AppWorkspaceView` and `TradeDeskView` now own the top-level view switch and trade desk layout.
-   - Next: extract stateful feature containers so `App.tsx` becomes mostly shell routing and top-level composition.
+   - Progress: `useBackupSettingsWorkflow`, `useAttachmentWorkflow`, `useReviewWorkflow`, `useTradeWorkflow`, `useRuleWorkflow`, and `useStatsWorkflow` own their respective state/actions. Focused containers map every current stateful view; `TradeDeskView` owns layout composition. `App.tsx` is 377 lines and retains explicit shell and mutation coordination.
+   - Next: stop container extraction unless a new concrete ownership problem is identified.
 
 3. Split large Electron services into repositories and mappers.
    - Problem: `tradeService` mixes SQL, row mapping, validation, and use-case orchestration.

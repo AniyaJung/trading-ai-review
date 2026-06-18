@@ -306,3 +306,5 @@ export function useBackupSettingsWorkflow(
     },
   };
 }
+
+export type BackupSettingsWorkflow = ReturnType<typeof useBackupSettingsWorkflow>;

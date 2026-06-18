@@ -110,3 +110,5 @@ export function useStatsWorkflow(
     },
   };
 }
+
+export type StatsWorkflow = ReturnType<typeof useStatsWorkflow>;

@@ -250,3 +250,5 @@ export function useRuleWorkflow(
     },
   };
 }
+
+export type RuleWorkflow = ReturnType<typeof useRuleWorkflow>;

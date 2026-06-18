@@ -300,3 +300,5 @@ export function useReviewWorkflow(
     },
   };
 }
+
+export type ReviewWorkflow = ReturnType<typeof useReviewWorkflow>;

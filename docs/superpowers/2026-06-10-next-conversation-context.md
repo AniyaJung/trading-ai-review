@@ -1,6 +1,6 @@
 # AI 交易复盘项目 - 新对话入口
 
-更新时间：2026-06-17
+更新时间：2026-06-18
 
 ## 0. 当前状态
 
@@ -50,7 +50,7 @@ sed -n '1,260p' docs/superpowers/2026-06-12-architecture-optimization-backlog.md
 - AI review adapter 已拆分为 prompt/schema/client/response/error 模块，并包含 retryable 408/429/5xx/network 错误分类、fixture eval、usage metadata 保留和 UI 展示。
 - Stats 查询边界已拆到 `statsFilters.ts` / `statsAggregates.ts`。
 - Shared desktop contracts 已按 domain 拆分，`shared/contracts/desktopApi.ts` 保持公共聚合入口。
-- `src/App.tsx` 已拆出 workflow hooks、`AppWorkspaceView` 和 `TradeDeskView`，但仍承担较多跨 workflow 编排。
+- `src/App.tsx` 已拆出 workflow hooks，以及 Rules、Backup/Settings、Stats、Trade List/Form/Review 等 focused containers；当前仅保留 bootstrap、导航、顶栏和显式跨 workflow mutation coordination。
 - 备份/设置 workflow、附件 workflow、review workflow、trade/rule/stats workflow 均已从 `App.tsx` 拆出。
 - 备份恢复和本地 reset 已共享 destructive operation lifecycle。
 - 备份历史、恢复资格、历史备份恢复、恢复失败指引和 restore button disabled reason 已接入。
@@ -67,7 +67,7 @@ npm run build
 
 最近一次完整验证结果：
 
-- Vitest：49 files / 202 tests passed。
+- Vitest：54 files / 209 tests passed。
 - Lint：passed。
 - Build：passed。
 
@@ -156,23 +156,22 @@ docs/superpowers/packaging-verification.md
 下一轮新对话建议优先做：
 
 ```text
-提取下一个 stateful desktop App feature container，建议从 BackupSettingsContainer 开始。
+桌面 App 架构清理已达到停止点。下一步回到产品功能，优先设计 manual tag maintenance UI 和 tag category editing。
 ```
 
 原因：
 
-- `useBackupSettingsWorkflow` 已经隔离 state/actions。
-- `BackupView` 和 `SettingsView` 已经是独立视图组件。
-- 备份/设置 CSS 也已经独立到 `src/styles/backup-settings.css`。
-- 这一刀可以继续降低 `src/App.tsx` 的 props 拼装和跨 workflow 编排密度。
+- 所有当前 stateful view 已由 focused container 负责 workflow 映射。
+- `App.tsx` 已降至 377 行，剩余内容属于合理的 shell/bootstrap 和跨 workflow 协调。
+- 继续为减少行数而抽取协调代码会隐藏副作用，不再建议继续容器化。
 
 建议执行方式：
 
-1. 先写一个简短计划到 `docs/superpowers/plans/YYYY-MM-DD-backup-settings-container.md`。
-2. 保持 `App.tsx` 顶层 shell/router 职责，不改产品行为。
-3. 新增 `src/components/BackupSettingsContainer.tsx` 或更合适的 feature container 文件。
-4. 尽量复用现有 `useBackupSettingsWorkflow` 和现有 `BackupView` / `SettingsView` props。
-5. 先跑现有 backup/settings workflow 和 panel tests，再跑全量验证。
+1. 先为 manual tag maintenance UI 明确创建、重命名、分类和绑定/解绑范围。
+2. 复用现有 `trade_tag_map.source = manual` 所有权边界，禁止覆盖 AI-owned mappings。
+3. 在添加 UI 前先补 shared contracts、service/repository API 和临时数据库测试。
+4. 保持统计筛选继续读取统一的 normalized tag tables。
+5. 不恢复 browser-preview Playwright；优先纯 renderer 状态测试和 Electron service 测试。
 
 推荐验证：
 
