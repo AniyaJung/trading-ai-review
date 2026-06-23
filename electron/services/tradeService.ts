@@ -14,6 +14,7 @@ import {
 import {
   getTradeDetailRow,
   getTradeSummaryById,
+  invalidateTradeReviewDerivedState,
   insertClosedTradeExecutions,
   insertClosedTradeRow,
   listAttachmentFileRows,
@@ -252,6 +253,7 @@ export function updateClosedTrade(
       feesTotal: input.feesTotal,
       currency: instrument.currency,
     });
+    invalidateTradeReviewDerivedState(db, id);
     db.exec("commit");
     return getTradeById(db, id);
   } catch (error) {

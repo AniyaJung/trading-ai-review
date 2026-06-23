@@ -3,7 +3,10 @@ import "./App.css";
 import { navigationItems, type AppView } from "./app/views";
 import { useAttachmentWorkflow } from "./app/attachmentWorkflow";
 import { useTradeWorkflow } from "./app/tradeWorkflow";
-import { loadDesktopBootstrapState } from "./app/desktopBootstrap";
+import {
+  loadDesktopBackupHistory,
+  loadDesktopBootstrapState,
+} from "./app/desktopBootstrap";
 import { sampleTrades } from "./app/previewData";
 import { useReviewWorkflow } from "./app/reviewWorkflow";
 import { useRuleWorkflow } from "./app/ruleWorkflow";
@@ -48,7 +51,9 @@ function App() {
   );
   const {
     applyBootstrapState,
+    applyBackupHistory,
     clearLoadErrors: clearBackupSettingsLoadErrors,
+    setBackupLoadFailure,
     setIsLoadingSettings,
     setSettingsError,
   } = backupSettingsWorkflow.actions;
@@ -127,6 +132,21 @@ function App() {
       setIsLoadingRules(true);
       setIsLoadingStats(true);
       setIsLoadingSettings(true);
+      clearBackupSettingsLoadErrors();
+      void loadDesktopBackupHistory(desktopApi).then(
+        (history) => {
+          if (!cancelled) {
+            applyBackupHistory(history);
+          }
+        },
+        (error: unknown) => {
+          if (!cancelled) {
+            setBackupLoadFailure(
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        },
+      );
       try {
         const desktopState = await loadDesktopBootstrapState(desktopApi);
 
@@ -138,9 +158,7 @@ function App() {
           applyBootstrapStats(desktopState.statsOverview);
           applyBootstrapState({
             settingsSummary: desktopState.settingsSummary,
-            backupHistory: desktopState.backupHistory,
           });
-          clearBackupSettingsLoadErrors();
         }
       } catch (error) {
         if (!cancelled) {
@@ -167,6 +185,7 @@ function App() {
     };
   }, [
     applyBootstrapState,
+    applyBackupHistory,
     applyBootstrapTrades,
     applyBootstrapRules,
     clearBackupSettingsLoadErrors,
@@ -176,6 +195,7 @@ function App() {
     setIsLoadingStats,
     setIsLoadingSettings,
     setSettingsError,
+    setBackupLoadFailure,
     setRuleLoadFailure,
     setStatsLoadFailure,
     setTradeLoadFailure,

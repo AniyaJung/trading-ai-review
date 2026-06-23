@@ -459,6 +459,79 @@ describe("getTradeDetail", () => {
 });
 
 describe("updateClosedTrade", () => {
+  it("invalidates review-derived state while preserving review history and manual tags", () => {
+    const db = createTestDb();
+    const rule = createEntryRule(db, {
+      name: "Opening range pullback",
+      marketType: "index_futures",
+      content: "Break, retest, enter with defined risk.",
+      checklist: ["Break confirmed", "Retest held"],
+    });
+    const created = createClosedTrade(
+      db,
+      validClosedTradeInput({ entryRuleVersionId: rule.latestVersion.id }),
+    );
+    const review = createReviewDraft(db, {
+      tradeId: created.id,
+      summary: "Original review history",
+      tags: ["late-entry"],
+    });
+    confirmReview(db, review.id);
+    db.prepare("insert into tag (name, category) values ('manual-note', 'setup')")
+      .run();
+    const manualTag = db
+      .prepare("select id from tag where name = 'manual-note'")
+      .get() as { id: number };
+    db.prepare(
+      `insert into trade_tag_map (trade_id, tag_id, source)
+       values (?, ?, 'manual')`,
+    ).run(created.id, manualTag.id);
+
+    const updated = updateClosedTrade(
+      db,
+      created.id,
+      validClosedTradeInput({
+        entryRuleVersionId: rule.latestVersion.id,
+        exitPrice: 5305,
+      }),
+    );
+
+    expect(updated?.aiReviewStatus).toBe("invalid");
+    expect(
+      db
+        .prepare(
+          `select id, status, summary
+           from ai_review
+           where trade_id = ?`,
+        )
+        .all(created.id),
+    ).toEqual([
+      {
+        id: review.id,
+        status: "invalid",
+        summary: "Original review history",
+      },
+    ]);
+    expect(
+      db
+        .prepare(
+          `select tag.name, trade_tag_map.source
+           from trade_tag_map
+           join tag on tag.id = trade_tag_map.tag_id
+           where trade_tag_map.trade_id = ?
+           order by tag.name`,
+        )
+        .all(created.id),
+    ).toEqual([{ name: "manual-note", source: "manual" }]);
+    expect(
+      db
+        .prepare("select count(*) as count from trade_rule_check where trade_id = ?")
+        .get(created.id),
+    ).toEqual({ count: 0 });
+
+    db.close();
+  });
+
   it("updates the bound entry rule version", () => {
     const db = createTestDb();
     const firstRule = createEntryRule(db, {

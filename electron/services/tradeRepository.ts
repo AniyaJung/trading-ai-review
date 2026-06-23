@@ -224,6 +224,28 @@ export function replaceTradeExecutions(
   insertClosedTradeExecutions(db, input);
 }
 
+export function invalidateTradeReviewDerivedState(
+  db: DatabaseSync,
+  tradeId: number,
+) {
+  db.prepare(
+    `update ai_review
+     set status = 'invalid',
+         confirmed_at = null
+     where trade_id = ? and status <> 'invalid'`,
+  ).run(tradeId);
+  db.prepare(
+    `update trade
+     set ai_review_status = 'invalid',
+         updated_at = datetime('now')
+     where id = ?`,
+  ).run(tradeId);
+  db.prepare(
+    "delete from trade_tag_map where trade_id = ? and source = 'ai_review'",
+  ).run(tradeId);
+  db.prepare("delete from trade_rule_check where trade_id = ?").run(tradeId);
+}
+
 export function listTradeSummaries(db: DatabaseSync): TradeSummary[] {
   const rows = db
     .prepare(

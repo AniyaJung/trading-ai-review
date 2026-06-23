@@ -5,7 +5,6 @@ export type DesktopBootstrapState = {
   instruments: InstrumentConfig[];
   statsOverview: StatsOverview;
   settingsSummary: SettingsSummary;
-  backupHistory: BackupHistoryItem[];
 };
 
 export async function loadDesktopBootstrapState(
@@ -18,7 +17,6 @@ export async function loadDesktopBootstrapState(
     instruments,
     statsOverview,
     settingsSummary,
-    backupHistory,
   ] = await Promise.all([
     desktopApi.database.getStatus(),
     desktopApi.trades.list(),
@@ -26,7 +24,6 @@ export async function loadDesktopBootstrapState(
     desktopApi.database.listInstruments(),
     desktopApi.stats.getOverview({}),
     desktopApi.settings.getSummary(),
-    desktopApi.backup.listHistory(),
   ]);
 
   return {
@@ -36,6 +33,9 @@ export async function loadDesktopBootstrapState(
     instruments,
     statsOverview,
     settingsSummary,
-    backupHistory,
   };
+}
+
+export function loadDesktopBackupHistory(desktopApi: DesktopApi) {
+  return desktopApi.backup.listHistory();
 }

@@ -8,6 +8,8 @@ function createWorkflow() {
     state: createBackupSettingsInitialState(),
     actions: {
       applyBootstrapState: vi.fn(),
+      applyBackupHistory: vi.fn(),
+      setBackupLoadFailure: vi.fn(),
       clearLoadErrors: vi.fn(),
       setIsLoadingSettings: vi.fn(),
       setSettingsError: vi.fn(),

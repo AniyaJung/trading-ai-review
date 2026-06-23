@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { loadDesktopBootstrapState } from "./desktopBootstrap";
+import {
+  loadDesktopBackupHistory,
+  loadDesktopBootstrapState,
+} from "./desktopBootstrap";
 
 describe("loadDesktopBootstrapState", () => {
   it("loads all desktop startup data and formats database status", async () => {
@@ -85,7 +88,9 @@ describe("loadDesktopBootstrapState", () => {
         }),
       },
       backup: {
-        listHistory: async () => [],
+        listHistory: async () => {
+          throw new Error("history scan failed");
+        },
       },
     } as unknown as DesktopApi;
 
@@ -94,6 +99,17 @@ describe("loadDesktopBootstrapState", () => {
     expect(state.databaseStatus).toBe("SQLite v1 / 4 个品种");
     expect(state.trades).toHaveLength(1);
     expect(state.instruments[0].symbol).toBe("ES");
-    expect(state.backupHistory).toEqual([]);
+    expect(state).not.toHaveProperty("backupHistory");
+  });
+
+  it("loads backup history independently", async () => {
+    const history = [{ filePath: "/tmp/backup.zip" }] as BackupHistoryItem[];
+    const desktopApi = {
+      backup: {
+        listHistory: async () => history,
+      },
+    } as unknown as DesktopApi;
+
+    await expect(loadDesktopBackupHistory(desktopApi)).resolves.toBe(history);
   });
 });

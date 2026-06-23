@@ -10,9 +10,11 @@ export async function runDestructiveOperation<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   lifecycle.closeDatabase?.();
-  const result = await operation();
-  lifecycle.afterSuccess?.();
-  return result;
+  try {
+    return await operation();
+  } finally {
+    lifecycle.afterSuccess?.();
+  }
 }
 
 export function createCloseDatabaseOnce(db: Pick<DatabaseSync, "close">) {

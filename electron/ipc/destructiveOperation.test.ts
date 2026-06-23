@@ -24,7 +24,7 @@ describe("destructive operation lifecycle", () => {
     expect(events).toEqual(["close", "operation", "after"]);
   });
 
-  it("does not call afterSuccess when the operation fails", async () => {
+  it("calls the completion hook when the operation fails after close", async () => {
     const events: string[] = [];
 
     await expect(
@@ -40,7 +40,7 @@ describe("destructive operation lifecycle", () => {
       ),
     ).rejects.toThrow("restore failed");
 
-    expect(events).toEqual(["close", "operation"]);
+    expect(events).toEqual(["close", "operation", "after"]);
   });
 
   it("creates a close hook that only closes the active database once", () => {

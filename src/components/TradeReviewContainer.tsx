@@ -89,9 +89,14 @@ export function TradeReviewContainer({
     trades.find(
       (trade) => trade.id === tradeWorkflow.state.selectedTradeId,
     ) ?? trades[0];
-  const latestReview = selectedTrade
+  const cachedReview = selectedTrade
     ? reviewWorkflow.state.latestReviewByTradeId[selectedTrade.id]
     : undefined;
+  const latestReview =
+    selectedTrade?.aiReviewStatus === "invalid" &&
+    cachedReview?.status !== "invalid"
+      ? undefined
+      : cachedReview;
   const reviewPanel = getReviewPanelState(selectedTrade);
   const reviewAction = getReviewActionState({
     trade: selectedTrade,

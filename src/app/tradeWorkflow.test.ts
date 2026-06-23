@@ -1,11 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
   createTradeWorkflowInitialState,
+  createLatestTradeDetailRequestCoordinator,
   getDeleteTradeConfirmationMessage,
   getTradeRuntimePreviewSaveMessage,
   getTradeValidationFailureMessage,
   resetTradeDetailStateForTrade,
 } from "./tradeWorkflow";
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
+}
+
+type DetailRequestState = {
+  detailTradeId?: number;
+  errorTradeId?: number;
+  loadingTradeId: number | null;
+};
 
 const trade = {
   id: 7,
@@ -31,6 +49,97 @@ const trade = {
 } satisfies TradeSummary;
 
 describe("tradeWorkflow", () => {
+  it("keeps B detail when B completes before A", async () => {
+    const coordinator = createLatestTradeDetailRequestCoordinator();
+    const requestA = createDeferred<number>();
+    const requestB = createDeferred<number>();
+    const state: DetailRequestState = { loadingTradeId: null };
+
+    const runA = coordinator.run({
+      tradeId: 1,
+      request: () => requestA.promise,
+      onLoading: (tradeId) => {
+        state.loadingTradeId = tradeId;
+      },
+      onSuccess: (tradeId) => {
+        state.detailTradeId = tradeId;
+        state.errorTradeId = undefined;
+      },
+      onError: (tradeId) => {
+        state.errorTradeId = tradeId;
+      },
+      onSettled: () => {
+        state.loadingTradeId = null;
+      },
+    });
+    const runB = coordinator.run({
+      tradeId: 2,
+      request: () => requestB.promise,
+      onLoading: (tradeId) => {
+        state.loadingTradeId = tradeId;
+      },
+      onSuccess: (tradeId) => {
+        state.detailTradeId = tradeId;
+        state.errorTradeId = undefined;
+      },
+      onError: (tradeId) => {
+        state.errorTradeId = tradeId;
+      },
+      onSettled: () => {
+        state.loadingTradeId = null;
+      },
+    });
+
+    requestB.resolve(2);
+    await runB;
+    expect(state).toEqual({ detailTradeId: 2, loadingTradeId: null });
+
+    requestA.resolve(1);
+    await runA;
+    expect(state).toEqual({ detailTradeId: 2, loadingTradeId: null });
+  });
+
+  it("keeps B error when B fails before A succeeds", async () => {
+    const coordinator = createLatestTradeDetailRequestCoordinator();
+    const requestA = createDeferred<number>();
+    const requestB = createDeferred<number>();
+    const state: DetailRequestState = { loadingTradeId: null };
+    const callbacks = {
+      onLoading: (tradeId: number) => {
+        state.loadingTradeId = tradeId;
+      },
+      onSuccess: (tradeId: number) => {
+        state.detailTradeId = tradeId;
+        state.errorTradeId = undefined;
+      },
+      onError: (tradeId: number) => {
+        state.errorTradeId = tradeId;
+      },
+      onSettled: () => {
+        state.loadingTradeId = null;
+      },
+    };
+
+    const runA = coordinator.run({
+      tradeId: 1,
+      request: () => requestA.promise,
+      ...callbacks,
+    });
+    const runB = coordinator.run({
+      tradeId: 2,
+      request: () => requestB.promise,
+      ...callbacks,
+    });
+
+    requestB.reject(new Error("B failed"));
+    await runB;
+    expect(state).toEqual({ errorTradeId: 2, loadingTradeId: null });
+
+    requestA.resolve(1);
+    await runA;
+    expect(state).toEqual({ errorTradeId: 2, loadingTradeId: null });
+  });
+
   it("creates initial trade workflow state", () => {
     const state = createTradeWorkflowInitialState("electron", [trade]);
 

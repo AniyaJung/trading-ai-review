@@ -61,4 +61,81 @@ describe("TradeReviewContainer", () => {
     expect(html).toContain("ES");
     expect(html).toContain("已读取");
   });
+
+  it("hides a cached confirmed review after the trade is invalidated", () => {
+    const invalidTrade = { ...sampleTrades[0], aiReviewStatus: "invalid" as const };
+    const tradeState = createTradeWorkflowInitialState(
+      "browser-preview",
+      [invalidTrade],
+    );
+    const reviewState = createReviewWorkflowInitialState();
+    reviewState.latestReviewByTradeId[invalidTrade.id] = {
+      id: 10,
+      tradeId: invalidTrade.id,
+      status: "confirmed",
+      model: "test-model",
+      promptVersion: "v1",
+      ruleVersionSnapshot: null,
+      scoreTotal: 80,
+      summary: "这是编辑前的旧复盘",
+      facts: {},
+      missingInfo: [],
+      imageObservations: [],
+      strengths: [],
+      weaknesses: [],
+      suggestions: [],
+      tags: [],
+      confidence: 0.8,
+      rawResult: {},
+      createdAt: "2026-06-18T00:00:00.000Z",
+      confirmedAt: "2026-06-18T00:01:00.000Z",
+    };
+
+    const html = renderToStaticMarkup(
+      <TradeReviewContainer
+        runtime="browser-preview"
+        trades={[invalidTrade]}
+        tradeWorkflow={{
+          state: {
+            selectedTradeId: tradeState.selectedTradeId,
+            selectedTradeDetailState: tradeState.selectedTradeDetailState,
+            loadingTradeDetailId: tradeState.loadingTradeDetailId,
+            tradeDetailErrorState: tradeState.tradeDetailErrorState,
+            isDeletingTrade: tradeState.isDeletingTrade,
+          },
+          actions: {
+            loadTradeDetail: vi.fn(),
+            handleEditSelectedTrade: vi.fn(),
+          },
+        }}
+        reviewWorkflow={{
+          state: reviewState,
+          actions: {
+            loadLatestReviewForTrade: vi.fn(),
+            handleStartRuleCheckEdit: vi.fn(),
+            handleCancelRuleCheckEdit: vi.fn(),
+            setRuleCheckEditDraft: vi.fn(),
+          },
+        }}
+        attachmentWorkflow={{
+          state: createAttachmentWorkflowInitialState(),
+          actions: {
+            setAttachmentDraft: vi.fn(),
+            setActiveAttachmentPreviewId: vi.fn(),
+            refreshAttachmentsForTrade: vi.fn(),
+            handleChooseAndAttach: vi.fn(),
+            handleDeleteAttachment: vi.fn(),
+          },
+        }}
+        onDeleteSelectedTrade={vi.fn()}
+        onCreateReviewDraft={vi.fn()}
+        onConfirmReview={vi.fn()}
+        onCorrectReview={vi.fn()}
+        onInvalidateReview={vi.fn()}
+        onSaveRuleCheck={vi.fn()}
+      />,
+    );
+
+    expect(html).not.toContain("这是编辑前的旧复盘");
+  });
 });

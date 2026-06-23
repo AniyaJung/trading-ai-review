@@ -81,6 +81,48 @@ export function resetTradeDetailStateForTrade(
   return state?.tradeId === tradeId ? undefined : state;
 }
 
+type LatestTradeDetailRequest<T> = {
+  tradeId: number;
+  request: () => Promise<T>;
+  onLoading: (tradeId: number) => void;
+  onSuccess: (tradeId: number, result: T) => void;
+  onError: (tradeId: number, error: unknown) => void;
+  onSettled: (tradeId: number) => void;
+};
+
+export function createLatestTradeDetailRequestCoordinator() {
+  let latestRequestToken = 0;
+
+  return {
+    async run<T>({
+      tradeId,
+      request,
+      onLoading,
+      onSuccess,
+      onError,
+      onSettled,
+    }: LatestTradeDetailRequest<T>) {
+      const requestToken = ++latestRequestToken;
+      onLoading(tradeId);
+
+      try {
+        const result = await request();
+        if (requestToken === latestRequestToken) {
+          onSuccess(tradeId, result);
+        }
+      } catch (error) {
+        if (requestToken === latestRequestToken) {
+          onError(tradeId, error);
+        }
+      } finally {
+        if (requestToken === latestRequestToken) {
+          onSettled(tradeId);
+        }
+      }
+    },
+  };
+}
+
 export function useTradeWorkflow(
   desktopApi: DesktopApi | undefined,
   runtime: RendererRuntime,
@@ -130,6 +172,10 @@ export function useTradeWorkflow(
   const [tradeDetailErrorState, setTradeDetailErrorState] = useState<
     TradeDetailErrorState | undefined
   >(initialState.tradeDetailErrorState);
+  const tradeDetailRequestCoordinator = useMemo(
+    () => createLatestTradeDetailRequestCoordinator(),
+    [],
+  );
 
   const formPreview = useMemo(
     () => calculateTradeFormPreview(tradeForm, instruments),
@@ -147,23 +193,24 @@ export function useTradeWorkflow(
         return;
       }
 
-      setLoadingTradeDetailId(tradeId);
-      try {
-        const detail = await desktopApi.trades.get(tradeId);
-        setSelectedTradeDetailState({ tradeId, detail });
-        setTradeDetailErrorState(undefined);
-      } catch (error) {
-        setTradeDetailErrorState({
-          tradeId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      } finally {
-        setLoadingTradeDetailId((current) =>
-          current === tradeId ? null : current,
-        );
-      }
+      await tradeDetailRequestCoordinator.run({
+        tradeId,
+        request: () => desktopApi.trades.get(tradeId),
+        onLoading: setLoadingTradeDetailId,
+        onSuccess: (latestTradeId, detail) => {
+          setSelectedTradeDetailState({ tradeId: latestTradeId, detail });
+          setTradeDetailErrorState(undefined);
+        },
+        onError: (latestTradeId, error) => {
+          setTradeDetailErrorState({
+            tradeId: latestTradeId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        },
+        onSettled: () => setLoadingTradeDetailId(null),
+      });
     },
-    [desktopApi],
+    [desktopApi, tradeDetailRequestCoordinator],
   );
 
   const handleCreateClosedTrade = async () => {

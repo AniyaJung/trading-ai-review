@@ -29,7 +29,6 @@ export type BackupSettingsWorkflowState = {
 
 export type BackupSettingsBootstrapState = {
   settingsSummary: SettingsSummary;
-  backupHistory: BackupHistoryItem[];
 };
 
 export function createBackupSettingsInitialState(): BackupSettingsWorkflowState {
@@ -99,16 +98,21 @@ export function useBackupSettingsWorkflow(
   const [settingsMessage, setSettingsMessage] = useState(defaultSettingsMessage);
 
   const applyBootstrapState = useCallback(
-    ({
-      settingsSummary: nextSettingsSummary,
-      backupHistory: nextBackupHistory,
-    }: BackupSettingsBootstrapState) => {
+    ({ settingsSummary: nextSettingsSummary }: BackupSettingsBootstrapState) => {
       setSettingsSummary(nextSettingsSummary);
-      setBackupHistory(nextBackupHistory);
       setSettingsDraft(createSettingsDraft(nextSettingsSummary));
     },
     [],
   );
+
+  const applyBackupHistory = useCallback((history: BackupHistoryItem[]) => {
+    setBackupHistory(history);
+    setBackupError(null);
+  }, []);
+
+  const setBackupLoadFailure = useCallback((error: string) => {
+    setBackupError(error);
+  }, []);
 
   const clearLoadErrors = useCallback(() => {
     setBackupError(null);
@@ -289,6 +293,8 @@ export function useBackupSettingsWorkflow(
     },
     actions: {
       applyBootstrapState,
+      applyBackupHistory,
+      setBackupLoadFailure,
       clearLoadErrors,
       setIsLoadingSettings,
       setSettingsError,

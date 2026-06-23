@@ -1,14 +1,24 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import JSZip from "jszip";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { initializeAppDatabase } from "../data/database";
 import { attachExistingFile } from "./attachmentService";
 import {
   createBackup,
   listBackupHistory,
+  prepareRestoreBackup,
   restoreBackup,
   type BackupManifest,
   type BackupServicePaths,
@@ -61,7 +71,57 @@ function createSeededDatabase(paths: BackupServicePaths) {
   return { trade, attachment };
 }
 
+function checksum(buffer: Buffer) {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+async function writeCustomBackup(
+  paths: BackupServicePaths,
+  options: {
+    attachmentPath: string;
+    includeAttachmentInFiles?: boolean;
+    attachmentManifestSha256?: string;
+    extraArchiveAttachmentPath?: string;
+  },
+) {
+  const database = readFileSync(paths.databasePath);
+  const attachment = Buffer.from("attachment contents");
+  const databaseFile = {
+    path: "app.sqlite",
+    sha256: checksum(database),
+    bytes: database.byteLength,
+  };
+  const attachmentFile = {
+    path: options.attachmentPath,
+    sha256: options.attachmentManifestSha256 ?? checksum(attachment),
+    bytes: attachment.byteLength,
+  };
+  const manifest: BackupManifest = {
+    backupSchemaVersion: 1,
+    appVersion: "0.0.0-test",
+    exportedAt: "2026-06-11T09:30:00.000Z",
+    databaseFile: "app.sqlite",
+    attachments: [attachmentFile],
+    files:
+      options.includeAttachmentInFiles === false
+        ? [databaseFile]
+        : [databaseFile, { ...attachmentFile, sha256: checksum(attachment) }],
+  };
+  const zip = new JSZip();
+  zip.file("app.sqlite", database);
+  zip.file(options.attachmentPath, attachment);
+  if (options.extraArchiveAttachmentPath) {
+    zip.file(options.extraArchiveAttachmentPath, "unchecked contents");
+  }
+  zip.file("manifest.json", JSON.stringify(manifest));
+  mkdirSync(paths.backupsDir, { recursive: true });
+  const backupPath = path.join(paths.backupsDir, `custom-${Date.now()}.zip`);
+  writeFileSync(backupPath, await zip.generateAsync({ type: "nodebuffer" }));
+  return backupPath;
+}
+
 afterEach(() => {
+  vi.restoreAllMocks();
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
     if (dir) {
@@ -187,6 +247,45 @@ describe("listBackupHistory", () => {
       }),
     );
   });
+
+  it("parses backup packages newest first with only one full package active", async () => {
+    const paths = createPaths();
+    createSeededDatabase(paths);
+    const older = await createBackup(paths, {
+      now: new Date("2026-06-11T09:30:00.000Z"),
+      appVersion: "older",
+    });
+    const newer = await createBackup(paths, {
+      now: new Date("2026-06-11T10:30:00.000Z"),
+      appVersion: "newer",
+    });
+    utimesSync(older.filePath, new Date("2026-06-11T09:30:00.000Z"), new Date("2026-06-11T09:30:00.000Z"));
+    utimesSync(newer.filePath, new Date("2026-06-11T10:30:00.000Z"), new Date("2026-06-11T10:30:00.000Z"));
+    const olderBuffer = readFileSync(older.filePath);
+    const newerBuffer = readFileSync(newer.filePath);
+    const processingOrder: string[] = [];
+    let activePackages = 0;
+    let maxActivePackages = 0;
+    const originalLoadAsync = JSZip.loadAsync.bind(JSZip);
+    vi.spyOn(JSZip, "loadAsync").mockImplementation(async (data) => {
+      const buffer = data as Buffer;
+      processingOrder.push(buffer.equals(newerBuffer) ? "newer" : buffer.equals(olderBuffer) ? "older" : "unknown");
+      activePackages += 1;
+      maxActivePackages = Math.max(maxActivePackages, activePackages);
+      try {
+        const zip = await originalLoadAsync(buffer);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return zip;
+      } finally {
+        activePackages -= 1;
+      }
+    });
+
+    await listBackupHistory(paths);
+
+    expect(processingOrder).toEqual(["newer", "older"]);
+    expect(maxActivePackages).toBe(1);
+  });
 });
 
 describe("restoreBackup", () => {
@@ -224,5 +323,71 @@ describe("restoreBackup", () => {
     expect(existsSync(attachment.filePath)).toBe(true);
     expect(existsSync(path.join(paths.attachmentsDir, "current-only.png"))).toBe(false);
     expect(restored.manifest.databaseFile).toBe("app.sqlite");
+  });
+
+  it.each([
+    "/absolute.png",
+    "attachments/../escape.png",
+    "attachments\\escape.png",
+  ])("rejects non-canonical attachment path %s during prepare", async (attachmentPath) => {
+    const paths = createPaths();
+    createSeededDatabase(paths);
+    const backupPath = await writeCustomBackup(paths, { attachmentPath });
+
+    await expect(prepareRestoreBackup(paths, backupPath)).rejects.toThrow(
+      "Backup manifest contains an invalid attachment path.",
+    );
+  });
+
+  it("rejects a manifest attachment omitted from manifest.files", async () => {
+    const paths = createPaths();
+    createSeededDatabase(paths);
+    const backupPath = await writeCustomBackup(paths, {
+      attachmentPath: "attachments/entry.png",
+      includeAttachmentInFiles: false,
+    });
+
+    await expect(prepareRestoreBackup(paths, backupPath)).rejects.toThrow(
+      "Backup attachment is not covered by manifest.files.",
+    );
+  });
+
+  it("rejects an archive attachment omitted from the manifest", async () => {
+    const paths = createPaths();
+    createSeededDatabase(paths);
+    const backupPath = await writeCustomBackup(paths, {
+      attachmentPath: "attachments/entry.png",
+      extraArchiveAttachmentPath: "attachments/unchecked.png",
+    });
+
+    await expect(prepareRestoreBackup(paths, backupPath)).rejects.toThrow(
+      "Backup archive contains an undeclared attachment.",
+    );
+  });
+
+  it("rejects an undeclared archive attachment that uses backslashes", async () => {
+    const paths = createPaths();
+    createSeededDatabase(paths);
+    const backupPath = await writeCustomBackup(paths, {
+      attachmentPath: "attachments/entry.png",
+      extraArchiveAttachmentPath: "attachments\\unchecked.png",
+    });
+
+    await expect(prepareRestoreBackup(paths, backupPath)).rejects.toThrow(
+      "Backup archive contains an undeclared payload.",
+    );
+  });
+
+  it("rejects attachment checksum metadata that differs from manifest.files", async () => {
+    const paths = createPaths();
+    createSeededDatabase(paths);
+    const backupPath = await writeCustomBackup(paths, {
+      attachmentPath: "attachments/entry.png",
+      attachmentManifestSha256: "0".repeat(64),
+    });
+
+    await expect(prepareRestoreBackup(paths, backupPath)).rejects.toThrow(
+      "Backup attachment metadata does not match manifest.files.",
+    );
   });
 });

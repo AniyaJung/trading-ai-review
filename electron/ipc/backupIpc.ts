@@ -5,7 +5,7 @@ import type { AppDataPaths } from "../data/appData.js";
 import {
   createBackup,
   listBackupHistory,
-  restoreBackup,
+  prepareRestoreBackup,
   type BackupServiceOptions,
 } from "../services/backupService.js";
 import {
@@ -45,30 +45,38 @@ export function createBackupIpcHandlers(
         return undefined;
       }
 
-      return runDestructiveOperation(
-        {
-          closeDatabase: options.closeDatabase,
-          afterSuccess: options.afterRestore,
-        },
-        () => restoreBackup(paths, backupFilePath, getBackupOptions()),
-      );
+      return restorePreparedBackup(backupFilePath);
     },
     restoreFromHistory: async (input: RestoreFromHistoryInput) => {
       const backupFilePath = requireBackupPathInsideBackupsDir(
         paths.backupsDir,
         input.filePath,
       );
-      return runDestructiveOperation(
-        {
-          closeDatabase: options.closeDatabase,
-          afterSuccess: options.afterRestore,
-        },
-        () => restoreBackup(paths, backupFilePath, getBackupOptions()),
-      );
+      return restorePreparedBackup(backupFilePath);
     },
     openDataDirectory: () => openPath(paths.appDataDir, options),
     openBackupsDirectory: () => openPath(paths.backupsDir, options),
   };
+
+  async function restorePreparedBackup(backupFilePath: string) {
+    const prepared = await prepareRestoreBackup(
+      paths,
+      backupFilePath,
+      getBackupOptions(),
+    );
+
+    try {
+      return await runDestructiveOperation(
+        {
+          closeDatabase: options.closeDatabase,
+          afterSuccess: options.afterRestore,
+        },
+        prepared.commit,
+      );
+    } finally {
+      prepared.dispose();
+    }
+  }
 }
 
 export function registerBackupIpc(db: DatabaseSync, paths: AppDataPaths) {

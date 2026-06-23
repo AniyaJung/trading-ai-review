@@ -1,4 +1,10 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -217,5 +223,47 @@ describe("createBackupIpcHandlers", () => {
     });
 
     await expect(handlers.chooseAndRestore()).resolves.toBeUndefined();
+  });
+
+  it("fully rejects an invalid selected archive before closing the database", async () => {
+    const paths = createPaths();
+    seedDatabase(paths);
+    const invalidBackupPath = path.join(paths.appDataDir, "invalid.zip");
+    writeFileSync(invalidBackupPath, "not a zip");
+    let closedDatabase = false;
+    const handlers = createBackupIpcHandlers(paths, {
+      chooseBackupFile: async () => invalidBackupPath,
+      closeDatabase: () => {
+        closedDatabase = true;
+      },
+    });
+
+    await expect(handlers.chooseAndRestore()).rejects.toThrow();
+
+    expect(closedDatabase).toBe(false);
+  });
+
+  it("runs the restore callback when commit fails after closing the database", async () => {
+    const paths = createPaths();
+    seedDatabase(paths);
+    const backup = await createBackup(paths, {
+      now: new Date("2026-06-11T10:00:00.000Z"),
+      appVersion: "0.0.0-test",
+    });
+    let afterRestoreCalled = false;
+    const handlers = createBackupIpcHandlers(paths, {
+      chooseBackupFile: async () => backup.filePath,
+      closeDatabase: () => {
+        rmSync(paths.databasePath);
+        mkdirSync(paths.databasePath);
+      },
+      afterRestore: () => {
+        afterRestoreCalled = true;
+      },
+    });
+
+    await expect(handlers.chooseAndRestore()).rejects.toThrow();
+
+    expect(afterRestoreCalled).toBe(true);
   });
 });
