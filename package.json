@@ -11,6 +11,7 @@
     "test": "vitest",
     "build": "tsc -b && vite build",
     "pack:dir": "npm run build && node scripts/package-dir.mjs",
+    "pack:win:x64": "npm run build && node scripts/package-win-x64.mjs",
     "smoke:packaged": "node scripts/smoke-packaged-app.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
