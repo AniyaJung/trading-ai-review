@@ -36,7 +36,8 @@ Current implemented scope:
 - AI review prompt/schema/client/response/error boundaries are split, with fixture coverage, retryable error classification, and usage metadata display.
 - Stats SQL helpers are split into focused filter and aggregate modules.
 - Backup/settings styles are split into `src/styles/backup-settings.css`.
-- Unsigned local macOS directory packaging and smoke verification are available through `npm run pack:dir` and `npm run smoke:packaged`.
+- Unsigned local macOS directory packaging and smoke verification are available through `npm run pack:mac:dir` / `npm run pack:dir` and `npm run smoke:packaged`.
+- Unsigned Windows x64 portable ZIP packaging is available through `npm run pack:win:x64` for manual Windows trial runs.
 - Initial instrument presets: ES, MES, NQ, MNQ.
 - Current handoff, architecture backlog, packaging notes, and design specs are stored under `docs/superpowers`.
 
@@ -45,7 +46,7 @@ MVP does not support open trades. A trade is one complete trading plan, not a si
 Not implemented yet:
 
 - Manual tag management UI and tag category editing are not implemented yet; AI tags currently normalize as `setup`.
-- Release packaging, signing/notarization, and distributable DMG/ZIP artifacts are not implemented yet.
+- Signed/notarized release packaging and installer artifacts are not implemented yet.
 - Packaged UI manual checks remain to be done for native file picker, attachment preview, backup restore, and AI key relaunch/decrypt.
 - Configurable AI pricing or billing import is not implemented yet; provider cost metadata is displayed only when available.
 - Instrument configuration management UI is not implemented yet; the first presets are still seeded locally.
@@ -82,14 +83,60 @@ Build renderer and Electron main/preload:
 npm run build
 ```
 
+Run the standard local verification suite:
+
+```bash
+npm run verify
+```
+
 Create and smoke-test an unsigned local macOS directory package:
 
 ```bash
+npm run pack:mac:dir
+# or the legacy alias:
 npm run pack:dir
 npm run smoke:packaged
 ```
 
-This packaging path is for local runtime verification, not release distribution.
+Create an unsigned Windows x64 portable ZIP:
+
+```bash
+npm run pack:win:x64
+```
+
+The Windows package is generated at:
+
+```text
+release/AI Trading Review-win32-x64-portable.zip
+```
+
+Both packaging paths are for local runtime verification and trial use, not release distribution. The Windows ZIP is not signed and may trigger SmartScreen on first launch.
+
+### Windows portable uninstall and update
+
+The Windows package is a portable ZIP, not an installer. It does not register an uninstall entry in Windows Settings.
+
+To uninstall only the app files:
+
+1. Close AI Trading Review.
+2. Delete the extracted `AI Trading Review-win32-x64-portable` folder.
+
+This does not delete your trading data. Electron stores app data under the Windows user profile, normally:
+
+```text
+%APPDATA%\AI Trading Review
+```
+
+That directory contains the SQLite database, attachments, backups, and local settings. To remove local trading data before uninstalling, use the app's Settings reset flow or delete that directory manually after exporting a backup.
+
+To update the portable app:
+
+1. Export a backup from the Backup page.
+2. Close AI Trading Review.
+3. Extract the new ZIP to a fresh folder, or replace the old extracted app folder.
+4. Launch `AI Trading Review.exe`.
+
+The app data directory is separate from the portable app folder, so normal updates keep existing trades, attachments, backups, and settings. Database migrations run at startup when a newer app version needs them.
 
 ## Toolchain Note
 

@@ -1,6 +1,6 @@
-# AI 交易复盘项目 - 新对话入口
+# AI 交易复盘项目 - 当前交接说明
 
-更新时间：2026-06-18
+更新时间：2026-07-01
 
 ## 0. 当前状态
 
@@ -29,7 +29,8 @@ codex/safe-attachment-preview
 ```bash
 git status --short --branch
 git log --oneline -12
-sed -n '1,260p' docs/superpowers/2026-06-12-architecture-optimization-backlog.md
+sed -n '1,260p' docs/superpowers/current-project-handoff.md
+sed -n '1,260p' docs/superpowers/architecture-optimization-backlog.md
 ```
 
 重要安全约束：
@@ -55,7 +56,8 @@ sed -n '1,260p' docs/superpowers/2026-06-12-architecture-optimization-backlog.md
 - 备份恢复和本地 reset 已共享 destructive operation lifecycle。
 - 备份历史、恢复资格、历史备份恢复、恢复失败指引和 restore button disabled reason 已接入。
 - 备份/设置样式已从 `src/App.css` 拆到 `src/styles/backup-settings.css`。
-- 本地 unsigned macOS directory package smoke path 已存在：`npm run pack:dir` 和 `npm run smoke:packaged`。
+- 本地 unsigned macOS directory package smoke path 已存在：`npm run pack:mac:dir` / `npm run pack:dir` 和 `npm run smoke:packaged`。
+- Windows x64 unsigned portable ZIP trial package path 已存在：`npm run pack:win:x64`，输出 `release/AI Trading Review-win32-x64-portable.zip`。
 
 最新验证基线：
 
@@ -67,15 +69,16 @@ npm run build
 
 最近一次完整验证结果：
 
-- Vitest：54 files / 209 tests passed。
+- Vitest：54 files / 224 tests passed。
 - Lint：passed。
 - Build：passed。
 
 最近一次 packaged smoke 结果：
 
-- `npm run pack:dir` / `npm run smoke:packaged` 已验证 unsigned local app startup、临时 `userData`、SQLite migration v3、backup zip creation 和 `safeStorage`。
+- `npm run pack:mac:dir` / `npm run pack:dir` / `npm run smoke:packaged` 已验证 unsigned local app startup、临时 `userData`、SQLite migration v3、backup zip creation 和 `safeStorage`。
+- `npm run pack:win:x64` 已在 macOS host 上生成 Windows x64 portable ZIP，并通过 zip 完整性和关键 payload 路径静态检查；Windows 进程启动和 UI 行为仍需在真实 Windows 环境手工验证。
 - 这个 smoke 不触碰真实 app data。
-- Release packaging、签名/公证、DMG/ZIP 分发仍未完成；这不是当前立即执行的下一条线。
+- 正式 release packaging、签名/公证、安装器/DMG/分发 ZIP 仍未完成；这不是当前立即执行的下一条线。
 
 ## 2. 当前技术栈
 
@@ -86,12 +89,12 @@ npm run build
 - 测试：Vitest。
 - Lint：ESLint。
 - AI：OpenAI Responses API，多模态结构化输出。
-- 打包 smoke：自定义 `scripts/package-dir.mjs` + `scripts/smoke-packaged-app.mjs`。
+- 打包 smoke / trial packaging：自定义 `scripts/package-dir.mjs`、`scripts/smoke-packaged-app.mjs`、`scripts/package-win-x64.mjs`。
 
 已知技术注意点：
 
 - `node:sqlite` 会在测试中输出 `ExperimentalWarning`，这是当前接受的已知现象。
-- 正式 release 前仍需决定是否保留 `node:sqlite`，以及选择 electron-builder / Forge / 其它签名公证流程。
+- 正式 release 前仍需决定是否保留 `node:sqlite`，以及选择 electron-builder / Forge / 其它签名公证/Windows 签名流程。
 - 不要重新引入 browser-preview Playwright/e2e，除非浏览器预览被明确升级为受支持产品面。
 
 ## 3. 当前代码结构要点
@@ -137,6 +140,7 @@ src/styles/backup-settings.css
 ```text
 scripts/package-dir.mjs
 scripts/smoke-packaged-app.mjs
+scripts/package-win-x64.mjs
 docs/superpowers/packaging-verification.md
 ```
 
@@ -145,7 +149,7 @@ docs/superpowers/packaging-verification.md
 除非用户明确恢复，不要把这些作为下一步：
 
 - Browser-preview Playwright/e2e coverage。
-- Release packaging、签名/公证、DMG/ZIP 分发。
+- Release packaging、签名/公证、安装器/DMG/分发 ZIP。
 - packaged UI 手工检查。
 - AI cost 估算的硬编码价格展示。
 
@@ -162,7 +166,8 @@ docs/superpowers/packaging-verification.md
 原因：
 
 - 所有当前 stateful view 已由 focused container 负责 workflow 映射。
-- `App.tsx` 已降至 377 行，剩余内容属于合理的 shell/bootstrap 和跨 workflow 协调。
+- `App.tsx` 已降至合理的 shell/bootstrap 和跨 workflow 协调边界。
+- 最新文件行数会随 import/format 略有变化；判断标准是职责边界，不是继续压缩行数。
 - 继续为减少行数而抽取协调代码会隐藏副作用，不再建议继续容器化。
 
 建议执行方式：
@@ -179,6 +184,7 @@ docs/superpowers/packaging-verification.md
 npm run test -- --run
 npm run lint
 npm run build
+npm run verify
 git diff --check
 ```
 
@@ -220,21 +226,35 @@ npm run lint
 npm run build
 ```
 
+标准验证：
+
+```bash
+npm run verify
+```
+
 本地 directory package smoke：
 
 ```bash
+npm run pack:mac:dir
+# 或兼容旧命令：
 npm run pack:dir
 npm run smoke:packaged
 ```
 
-注意：`pack:dir` / `smoke:packaged` 是本地验证路径，不是 release 分发流程。
+Windows x64 portable trial package：
+
+```bash
+npm run pack:win:x64
+```
+
+注意：`pack:mac:dir` / `pack:dir` / `smoke:packaged` / `pack:win:x64` 是本地验证或试用路径，不是 release 分发流程。
 
 ## 7. 范围外或后续事项
 
 - Manual tag management UI 和 tag category editing。
 - Instrument configuration management UI。
 - 统计图表和更多 chart datasets。
-- Release packaging / signing / notarization。
+- Release packaging / signing / notarization / Windows code signing。
 - CSV/券商导入。
 - 云同步、账号、多设备、移动端。
 - Open trade lifecycle 和回测。

@@ -1,6 +1,6 @@
 # Architecture Optimization Backlog
 
-Date: 2026-06-17
+Date: 2026-07-01
 Branch: `codex/safe-attachment-preview`
 
 ## Context
@@ -10,17 +10,18 @@ The project has completed the main local desktop, trade recording, rule, AI revi
 ## Current Handoff
 
 - Current branch: `codex/safe-attachment-preview`.
-- Latest commit before this documentation update: `be2cffd docs: clarify packaging priority wording`.
-- Worktree status before this documentation update: clean; branch is ahead of origin by 16 commits.
+- Latest commit before this documentation refresh: `989b6ca fix: harden restore and stale review state`.
+- Worktree status before this documentation refresh: dirty from documentation/config packaging updates.
 - Latest verified commands:
-  - `npm run test -- --run`: 49 test files and 202 tests passed.
+  - `npm run test -- --run`: 54 test files and 224 tests passed.
   - `npm run lint`: passed.
   - `npm run build`: passed.
-- Latest packaged smoke check: `npm run pack:dir` and `npm run smoke:packaged` verified unsigned local app startup, temp `userData`, SQLite migration v3, backup zip creation, and `safeStorage`.
+- Latest packaged smoke check: `npm run pack:mac:dir` / `npm run pack:dir` and `npm run smoke:packaged` verified unsigned macOS local app startup, temp `userData`, SQLite migration v3, backup zip creation, and `safeStorage`.
+- Latest Windows trial package check: `npm run pack:win:x64` generated `release/AI Trading Review-win32-x64-portable.zip`; `unzip -t` and key payload path checks passed on the macOS host. Actual Windows startup and UI runtime checks still require a Windows machine.
 - No local preview/dev server is expected to be running.
 - Browser-preview Playwright coverage was tried and then reverted because this project targets the desktop App, not the Vite browser preview as a product surface.
-- Release packaging, signing/notarization, and manual packaged UI checks are not the immediate next track; keep the existing local directory package and smoke scripts available for when packaging work resumes.
-- `docs/superpowers/2026-06-10-next-conversation-context.md` is the concise handoff entry for starting the next conversation.
+- Release packaging, signing/notarization, Windows code signing, and manual packaged UI checks are not the immediate next track; keep the existing local package and smoke scripts available for packaging/manual trial work.
+- `docs/superpowers/current-project-handoff.md` is the concise current-project handoff entry.
 - Important safety constraint: do not reset, delete, or clear real local SQLite or app data. Tests for reset, restore, migration, or destructive flows must use temporary directories.
 
 ## Next Conversation Bootstrap
@@ -30,25 +31,26 @@ Start the next development conversation with these commands:
 ```bash
 git status --short --branch
 git log --oneline -12
-sed -n '1,260p' docs/superpowers/2026-06-12-architecture-optimization-backlog.md
+sed -n '1,260p' docs/superpowers/architecture-optimization-backlog.md
+sed -n '1,260p' docs/superpowers/current-project-handoff.md
 ```
 
 Recommended next execution path:
 
-1. Continue desktop-app architecture work by extracting the next stateful feature container from `src/App.tsx`.
+1. Return to product work; manual tag maintenance UI and tag category editing are the strongest ready candidate because tag source ownership already exists.
 2. The desktop App container cleanup has reached its stopping point. Do not continue extracting shell coordination without a concrete ownership problem.
 3. Keep tests aligned with the desktop App scope:
    - prefer pure renderer state/workflow tests for state transitions;
    - prefer Electron/app-runtime checks only when testing preload, filesystem, SQLite, `safeStorage`, or packaged behavior;
    - do not reintroduce browser-preview Playwright coverage unless the browser preview becomes a supported product surface.
-4. Leave release packaging, signing/notarization, and manual packaged UI checks out of the immediate next slice; the existing package/smoke scripts remain available when packaging work resumes.
+4. Leave release packaging, signing/notarization, Windows code signing, and manual packaged UI checks out of the immediate next slice unless the user explicitly prioritizes packaging.
 5. Leave configurable AI pricing paused until a pricing-source policy is chosen.
 
 ## Current Progress Snapshot
 
 Recent completed work:
 
-- Packaging smoke path exists: `npm run pack:dir` and `npm run smoke:packaged` verify unsigned local startup and core runtime services. Release packaging/signing is not the immediate next track.
+- Packaging smoke path exists: `npm run pack:mac:dir` / `npm run pack:dir` and `npm run smoke:packaged` verify unsigned macOS local startup and core runtime services. Windows x64 portable trial packaging exists through `npm run pack:win:x64`. Release packaging/signing is not the immediate next track.
 - AI review adapter boundaries are split into prompt/schema/client/response/error modules, with fixture coverage, retryable error classification, raw usage preservation, and token/cost metadata display when provider data exists.
 - `src/App.tsx` has been reduced by workflow hooks plus focused containers for rules, backup/settings, statistics, trade list, trade form, and trade review. `AppWorkspaceView` handles routing and `TradeDeskView` retains layout composition.
 - Shared desktop contracts are split by domain while `shared/contracts/desktopApi.ts` remains the public aggregator.
@@ -67,21 +69,21 @@ Not active unless explicitly resumed:
 
 - Browser-preview Playwright/e2e coverage.
 - Packaging/manual packaged UI checks.
-- Signed/notarized distribution tooling.
+- Signed/notarized distribution tooling and Windows code signing.
 - Configurable AI pricing display.
 
 ## 2026-06-17 Architecture Re-Review
 
 Current judgment: the architecture is healthy enough to keep building. Electron main owns SQLite, files, backups, and local secrets; renderer logic stays behind preload APIs; shared contracts now prevent most cross-process drift. The next phase should avoid broad rewrites and instead tighten specific boundaries before adding larger features.
 
-Current priority override: packaging remains a release-readiness risk, but the immediate next track is desktop App architecture cleanup rather than release packaging/signing. Keep reducing `src/App.tsx` by extracting stateful feature containers, and return to packaged UI checks when release work becomes the active priority.
+Current priority override: packaging remains a release-readiness risk, but the immediate next track should be product work rather than more architecture cleanup or release packaging/signing. `src/App.tsx` has reached a reasonable shell/coordinator boundary; return to packaged UI checks when release work becomes the active priority.
 
 Recommended priority order:
 
 1. **Packaging and release path first.**
    - Risk: `node:sqlite` is an Electron/Node experimental API, and distribution packaging is still not a signed/notarized release path.
-   - Target: keep the local directory package smoke-verified, then complete manual packaged UI checks and choose a real release tool for signing/notarization.
-   - Reason: packaged startup, SQLite, app data, backup creation, and `safeStorage` are now automatically verified; file picker, restore UI, and distribution artifacts remain release-readiness risks.
+   - Target: keep the local package paths smoke/static-verified, then complete manual packaged UI checks and choose a real release tool for signing/notarization/Windows signing.
+   - Reason: macOS packaged startup, SQLite, app data, backup creation, and `safeStorage` are automatically verified; Windows portable packaging is statically verified on macOS. File picker, restore UI, Windows startup, and distribution artifacts remain release-readiness risks.
 
 2. **AI review hardening next.**
    - Risk: `electron/services/openAiReviewAdapter.ts` still combines model defaults, prompt construction, schema, fetch, parsing, normalization, and error handling.
@@ -137,6 +139,7 @@ Recommended priority order:
 - Done: decided tag ownership and persistence for the first useful slice: confirmed/corrected AI string tags remain in `ai_review.tags_json` and normalize into `tag` / `trade_tag_map` as `setup` tags for stats filtering and drilldown.
 - Done: completed an architecture re-review and recorded prioritized optimization targets.
 - Done: added a local macOS directory packaging path and packaged smoke verification for app startup, temp app data, SQLite migration, backup zip creation, and `safeStorage`.
+- Done: added a Windows x64 portable ZIP packaging path for manual trial runs, with host-side zip integrity and payload checks.
 - Done: completed the first AI review hardening slice by splitting OpenAI prompt/schema/client/response/error boundaries, adding retryable error classification, fixture evals, provider usage preservation, and review-panel usage/cost metadata display.
 - Done: completed the first `App.tsx` view-container split by extracting workspace routing and trade desk layout containers while keeping state ownership stable.
 - Done: split shared desktop contracts into domain files while preserving `shared/contracts/desktopApi` as the public API surface.
@@ -163,7 +166,7 @@ Recommended priority order:
    - Problem: `App.tsx` still owns trade, rule, review, attachment, backup, settings, and stats workflows.
    - Target: extract workflow hooks/controllers such as `useTradesWorkflow`, `useReviewWorkflow`, `useAttachmentWorkflow`, and `useBackupSettingsWorkflow`.
    - Benefit: makes feature changes easier to test without rendering the whole app shell.
-   - Progress: `useBackupSettingsWorkflow`, `useAttachmentWorkflow`, `useReviewWorkflow`, `useTradeWorkflow`, `useRuleWorkflow`, and `useStatsWorkflow` own their respective state/actions. Focused containers map every current stateful view; `TradeDeskView` owns layout composition. `App.tsx` is 377 lines and retains explicit shell and mutation coordination.
+   - Progress: `useBackupSettingsWorkflow`, `useAttachmentWorkflow`, `useReviewWorkflow`, `useTradeWorkflow`, `useRuleWorkflow`, and `useStatsWorkflow` own their respective state/actions. Focused containers map every current stateful view; `TradeDeskView` owns layout composition. `App.tsx` retains explicit shell and mutation coordination.
    - Next: stop container extraction unless a new concrete ownership problem is identified.
 
 3. Split large Electron services into repositories and mappers.
@@ -176,10 +179,10 @@ Recommended priority order:
 ## P1 Product Architecture
 
 4. Verify packaging and release runtime.
-   - Problem: the app has build output but no committed packaging path; packaged runtime behavior is still unverified.
-   - Target: choose and commit a packaging setup only after verifying macOS packaged startup, app data paths, `node:sqlite`, file pickers, backup/restore, and `safeStorage`.
+   - Problem: the app has local packaging paths, but no signed/notarized release pipeline; Windows runtime behavior is not yet verified on a Windows machine.
+   - Target: choose and commit a release packaging setup only after verifying macOS and Windows packaged startup, app data paths, `node:sqlite`, file pickers, backup/restore, and `safeStorage`.
    - Benefit: turns the project from a dev-only Electron app into a locally shippable desktop tool.
-   - Progress: `npm run pack:dir` and `npm run smoke:packaged` verify local unsigned packaged startup, temp `userData`, SQLite migration v3, backup zip creation, and `safeStorage`. Manual checks remain for file picker, attachment preview, restore UI, AI key relaunch/decrypt, and signed/notarized distribution.
+   - Progress: `npm run pack:mac:dir` / `npm run pack:dir` and `npm run smoke:packaged` verify local unsigned macOS packaged startup, temp `userData`, SQLite migration v3, backup zip creation, and `safeStorage`. `npm run pack:win:x64` creates a Windows x64 portable ZIP for trial use and host-side integrity checks. Manual checks remain for Windows startup, file picker, attachment preview, restore UI, AI key relaunch/decrypt, and signed/notarized distribution.
 
 5. Formalize statistics date semantics.
    - Problem: current stats filters use raw UTC `opened_at`.

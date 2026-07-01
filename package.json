@@ -2,6 +2,7 @@
   "name": "trading-ai-review",
   "private": true,
   "version": "0.0.0",
+  "productName": "AI Trading Review",
   "type": "module",
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -10,6 +11,8 @@
     "electron:dev": "tsc -p tsconfig.electron.json && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron dist-electron/electron/main.js",
     "test": "vitest",
     "build": "tsc -b && vite build",
+    "verify": "npm run lint && npm run test -- --run && npm run build",
+    "pack:mac:dir": "npm run build && node scripts/package-dir.mjs",
     "pack:dir": "npm run build && node scripts/package-dir.mjs",
     "pack:win:x64": "npm run build && node scripts/package-win-x64.mjs",
     "smoke:packaged": "node scripts/smoke-packaged-app.mjs",

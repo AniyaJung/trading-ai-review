@@ -1,6 +1,6 @@
 # AI 交易复盘桌面应用设计文档
 
-> 状态说明：本文是产品和技术设计目标，不是当前实现状态清单。当前已完成能力、剩余工作和下一步优先级见 `docs/superpowers/2026-06-10-next-conversation-context.md` 与 `docs/superpowers/2026-06-12-architecture-optimization-backlog.md`。
+> 状态说明：本文是产品和技术设计目标，不是当前实现状态清单。当前已完成能力、剩余工作和下一步优先级见 `docs/superpowers/current-project-handoff.md` 与 `docs/superpowers/architecture-optimization-backlog.md`。
 
 ## 1. 概述
 

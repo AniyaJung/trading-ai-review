@@ -94,12 +94,34 @@ function installProductionDependencies() {
   );
 }
 
-function zipPortableDirectory() {
+function addDirectoryToZip(zip, sourceDir, zipDir) {
+  const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const zipPath = `${zipDir}/${entry.name}`;
+
+    if (entry.isDirectory()) {
+      addDirectoryToZip(zip, sourcePath, zipPath);
+      continue;
+    }
+
+    if (entry.isFile()) {
+      zip.file(zipPath, fs.readFileSync(sourcePath));
+    }
+  }
+}
+
+async function zipPortableDirectory() {
   fs.rmSync(outputZipPath, { force: true });
-  execFileSync("zip", ["-qr", outputZipPath, path.basename(appOutDir)], {
-    cwd: releaseDir,
-    stdio: "inherit",
+  const zip = new JSZip();
+  addDirectoryToZip(zip, appOutDir, path.basename(appOutDir));
+  const content = await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
   });
+  fs.writeFileSync(outputZipPath, content);
 }
 
 downloadElectronZip();
@@ -129,7 +151,7 @@ if (fs.existsSync(executablePath)) {
 }
 
 installProductionDependencies();
-zipPortableDirectory();
+await zipPortableDirectory();
 
 console.log(`Packaged Windows portable directory: ${appOutDir}`);
 console.log(`Packaged Windows portable zip: ${outputZipPath}`);
