@@ -25,6 +25,7 @@ export type TradeDetailErrorState = {
 
 export type TradeWorkflowState = {
   trades: TradeSummary[];
+  isTradeFormOpen: boolean;
   tradeForm: TradeFormState;
   formMessage: string;
   formErrors: string[];
@@ -45,6 +46,7 @@ export function createTradeWorkflowInitialState(
 ): TradeWorkflowState {
   return {
     trades: getInitialTrades(runtime, sampleTrades),
+    isTradeFormOpen: false,
     tradeForm: createInitialTradeForm(),
     formMessage: defaultFormMessage,
     formErrors: [],
@@ -136,6 +138,9 @@ export function useTradeWorkflow(
     [runtime, sampleTrades],
   );
   const [trades, setTrades] = useState<TradeSummary[]>(initialState.trades);
+  const [isTradeFormOpen, setIsTradeFormOpen] = useState(
+    initialState.isTradeFormOpen,
+  );
   const [tradeForm, setTradeForm] = useState<TradeFormState>(
     initialState.tradeForm,
   );
@@ -252,6 +257,7 @@ export function useTradeWorkflow(
         }
 
         setEditingTradeId(null);
+        setIsTradeFormOpen(false);
         setTradeForm(createTradeFormAfterSave(tradeForm));
         setFormMessage("交易已更新，盈亏和成交明细已重新计算。");
       } catch (error) {
@@ -274,6 +280,7 @@ export function useTradeWorkflow(
       setTrades(await desktopApi.trades.list());
       await refreshStats();
       setSelectedTradeId(createdTrade.id);
+      setIsTradeFormOpen(false);
       setTradeForm(createTradeFormAfterSave(tradeForm));
       setFormMessage("交易已保存，已生成入场/出场成交明细。");
     } catch (error) {
@@ -312,6 +319,7 @@ export function useTradeWorkflow(
       );
       setTradeDetailErrorState(undefined);
       setEditingTradeId(null);
+      setIsTradeFormOpen(false);
       setFormMessage("交易已删除，相关明细已同步清理。");
       return true;
     } catch (error) {
@@ -328,6 +336,7 @@ export function useTradeWorkflow(
     }
 
     setEditingTradeId(selectedTradeDetail.id);
+    setIsTradeFormOpen(true);
     setTradeForm(createTradeFormFromDetail(selectedTradeDetail));
     setFormErrors([]);
     setFormMessage("正在编辑选中交易。保存后会更新原记录，也可以取消编辑。");
@@ -335,9 +344,18 @@ export function useTradeWorkflow(
 
   const handleCancelEdit = () => {
     setEditingTradeId(null);
+    setIsTradeFormOpen(false);
     setTradeForm(createInitialTradeForm());
     setFormErrors([]);
-    setFormMessage("已取消编辑，表单已恢复为新建交易。");
+    setFormMessage(defaultFormMessage);
+  };
+
+  const handleStartCreateTrade = () => {
+    setEditingTradeId(null);
+    setIsTradeFormOpen(true);
+    setTradeForm(createInitialTradeForm());
+    setFormErrors([]);
+    setFormMessage(defaultFormMessage);
   };
 
   const applyBootstrapTrades = useCallback((desktopTrades: TradeSummary[]) => {
@@ -353,6 +371,7 @@ export function useTradeWorkflow(
   return {
     state: {
       trades,
+      isTradeFormOpen,
       tradeForm,
       formPreview,
       formMessage,
@@ -381,6 +400,7 @@ export function useTradeWorkflow(
       handleDeleteSelectedTrade,
       handleEditSelectedTrade,
       handleCancelEdit,
+      handleStartCreateTrade,
       applyBootstrapTrades,
       setTradeLoadFailure,
     },

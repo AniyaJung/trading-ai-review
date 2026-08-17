@@ -1,10 +1,11 @@
-import { ipcMain } from "electron";
+import { ipcMain, session } from "electron";
 import type { DatabaseSync } from "node:sqlite";
 import {
   generateAIReviewDraft,
   type AIReviewAdapter,
 } from "../services/aiReviewService.js";
 import { createOpenAIReviewAdapter } from "../services/openAiReviewAdapter.js";
+import { createOpenAIProxyFetch } from "../services/openAiProxyFetch.js";
 import { createSafeStorageSecretCodec } from "../services/secretCodec.js";
 import { getOpenAIAdapterConfig } from "../services/settingsService.js";
 import {
@@ -38,13 +39,16 @@ export function createReviewIpcHandlers(
 }
 
 export function registerReviewIpc(db: DatabaseSync) {
+  const getConfig = () =>
+    getOpenAIAdapterConfig(db, {
+      secretCodec: createSafeStorageSecretCodec(),
+    });
+  const openAISession = session.fromPartition("openai-review");
   const handlers = createReviewIpcHandlers(
     db,
     createOpenAIReviewAdapter({
-      getConfig: () =>
-        getOpenAIAdapterConfig(db, {
-          secretCodec: createSafeStorageSecretCodec(),
-        }),
+      getConfig,
+      fetch: createOpenAIProxyFetch(openAISession, () => getConfig().proxyUrl),
     }),
   );
 

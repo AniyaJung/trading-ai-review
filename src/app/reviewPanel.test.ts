@@ -3,6 +3,7 @@ import {
   buildRuleCheckUpdateInput,
   canSaveRuleCheckEdit,
   createRuleCheckEditDraft,
+  getAIReviewScoreSummary,
   getAIReviewUsageSummary,
   getReviewActionState,
   getReviewPanelState,
@@ -42,6 +43,7 @@ describe("review panel state", () => {
         "AI 复盘会结合交易事实、截图和绑定规则生成草稿。",
         "只有确认或修正后的复盘会进入统计。",
       ],
+      manualReviewStatus: "未开始",
       canGenerate: false,
       canConfirm: false,
     });
@@ -54,6 +56,7 @@ describe("review panel state", () => {
       description: "ES 交易已保存，可以生成 AI 复盘草稿。",
       canGenerate: true,
       canConfirm: false,
+      manualReviewStatus: "未开始",
     });
   });
 
@@ -65,6 +68,7 @@ describe("review panel state", () => {
       status: "待确认",
       description: "AI 草稿已生成，请核对事实和规则判断后再确认。",
       canConfirm: true,
+      manualReviewStatus: "待确认",
     });
   });
 
@@ -76,6 +80,7 @@ describe("review panel state", () => {
       status: "已确认",
       description: "该复盘已确认，会纳入统计分析。",
       canConfirm: false,
+      manualReviewStatus: "已确认",
     });
 
     expect(
@@ -85,6 +90,14 @@ describe("review panel state", () => {
       status: "已修正",
       description: "该复盘已修正，会按修正结果进入统计。",
       canConfirm: false,
+      manualReviewStatus: "已修正",
+    });
+
+    expect(
+      getReviewPanelState({ ...baseTrade, aiReviewStatus: "invalid" }),
+    ).toMatchObject({
+      status: "已作废",
+      manualReviewStatus: "已作废",
     });
   });
 });
@@ -98,6 +111,8 @@ describe("review action state", () => {
     promptVersion: "single-trade-v1",
     ruleVersionSnapshot: null,
     scoreTotal: 82,
+    scoreBreakdown: null,
+    scoringVersion: null,
     summary: "Draft summary",
     facts: {},
     missingInfo: [],
@@ -252,6 +267,8 @@ describe("AI review usage summary", () => {
     promptVersion: "single-trade-v1",
     ruleVersionSnapshot: null,
     scoreTotal: 82,
+    scoreBreakdown: null,
+    scoringVersion: null,
     summary: "Draft summary",
     facts: {},
     missingInfo: [],
@@ -305,5 +322,62 @@ describe("AI review usage summary", () => {
 
   it("returns null when no usage or cost metadata exists", () => {
     expect(getAIReviewUsageSummary(review)).toBeNull();
+  });
+});
+
+describe("AI review score summary", () => {
+  const review: AIReview = {
+    id: 11,
+    tradeId: 1,
+    status: "needs_review",
+    model: "gpt-test",
+    promptVersion: "single-trade-ai-v2",
+    ruleVersionSnapshot: null,
+    scoreTotal: 80,
+    scoreBreakdown: {
+      ruleAdherence: 75,
+      evidenceQuality: 70,
+      executionQuality: 100,
+    },
+    scoringVersion: "three-dimension-v1",
+    summary: "Draft summary",
+    facts: {},
+    missingInfo: ["entry marker"],
+    imageObservations: [],
+    strengths: [],
+    weaknesses: [],
+    suggestions: [],
+    tags: [],
+    confidence: 0.7,
+    rawResult: {},
+    createdAt: "2026-06-08T16:00:00.000Z",
+    confirmedAt: null,
+  };
+
+  it("shows all three dimensions for current reviews", () => {
+    expect(getAIReviewScoreSummary(review)).toEqual({
+      totalLabel: "80",
+      totalCaption: "三维加权评分",
+      dimensions: [
+        { label: "规则遵守", value: "75" },
+        { label: "证据质量", value: "70" },
+        { label: "执行质量", value: "100" },
+      ],
+    });
+  });
+
+  it("does not present a legacy single score of 100 as a current perfect score", () => {
+    expect(
+      getAIReviewScoreSummary({
+        ...review,
+        scoreTotal: 100,
+        scoreBreakdown: null,
+        scoringVersion: null,
+      }),
+    ).toEqual({
+      totalLabel: "89",
+      totalCaption: "旧版评分上限（原始 100）",
+      dimensions: [],
+    });
   });
 });

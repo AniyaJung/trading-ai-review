@@ -144,6 +144,7 @@ describe("tradeWorkflow", () => {
     const state = createTradeWorkflowInitialState("electron", [trade]);
 
     expect(state.trades).toEqual([]);
+    expect(state.isTradeFormOpen).toBe(false);
     expect(state.formErrors).toEqual([]);
     expect(state.formMessage).toBe(
       "填写一笔已平仓交易，保存后会安全写入本机数据库。",

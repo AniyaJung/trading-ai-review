@@ -34,6 +34,7 @@ The macOS path copies the locally installed Electron runtime from:
 
 ```text
 node_modules/electron/dist/Electron.app
+node_modules/electron/dist
 ```
 
 Then it adds:
@@ -46,13 +47,7 @@ Contents/Resources/app/package-lock.json
 Contents/Resources/app/node_modules
 ```
 
-Production dependencies are installed inside the packaged app resource directory with:
-
-```text
-npm install --omit=dev --ignore-scripts --no-audit --no-fund
-```
-
-This avoids the first-run packaging blocker where third-party packagers stalled while downloading or unpacking the Electron runtime.
+Production dependencies and their transitive dependencies are copied from the installed dependency tree into the packaged app resource directory. Packaging therefore does not contact the package registry. This avoids the first-run packaging blocker where third-party packagers stalled while downloading or unpacking the Electron runtime.
 
 The Windows x64 path downloads and caches:
 
@@ -78,8 +73,8 @@ npm run pack:mac:dir && npm run smoke:packaged
 
 Verified:
 
-- Packaged app launches.
-- Renderer `dist/index.html` is loadable through the packaged main process.
+- Packaged app launches without displaying its main window during smoke verification.
+- Renderer `dist/index.html` is loadable through the packaged main process, and the React root contains rendered UI content.
 - Preload path resolves inside `dist-electron/electron/preload.js`.
 - Temporary `userData` override works through `AI_TRADING_REVIEW_USER_DATA_DIR`.
 - SQLite initializes through Electron `node:sqlite`.

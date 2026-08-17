@@ -1,145 +1,77 @@
 # AI Trading Review
 
-个人本地桌面 AI 交易复盘应用。第一版聚焦已平仓单笔交易：手动录入交易事实、上传截图和笔记、关联入场规则版本、生成结构化 AI 复盘、用户确认后进入统计。
+本地优先的桌面交易复盘应用。当前版本面向已平仓期货交易，把交易事实、入场规则、截图、标签、AI 草稿、人工确认和统计保存在同一套本地工作流中。
 
-## Current Scope
+## 项目定位
 
-Current implemented scope:
+- 一笔交易代表一个完整交易计划，不等同于单次成交回报。
+- AI 只生成待审核草稿；只有人工确认或修正后的复盘才进入统计。
+- SQLite、截图和备份默认保存在 Electron 的本机 `userData` 目录，不依赖云端数据库。
+- 当前内置 ES、MES、NQ、MNQ 四个期货品种。
 
-- Electron + React + TypeScript + Vite scaffold.
-- Desktop workbench shell with simple app-state navigation.
-- Futures PnL/R multiple calculation core with Vitest coverage.
-- Shared futures calculation module used by both renderer and Electron main process.
-- Local SQLite database initialization in the Electron main process.
-- Closed-trade entry form writes real trades to local SQLite through the preload API.
-- Closed-trade form has client-side Chinese validation and local datetime handling.
-- Trade list reads real SQLite data in Electron and avoids showing sample data before load.
-- Selected trade detail can be loaded from SQLite, including entry/exit executions.
-- Existing closed trades can be edited; updating recalculates PnL/R and rebuilds entry/exit executions.
-- Trades can be deleted through the Electron preload API with SQLite cascade cleanup and attachment file cleanup.
-- Trade screenshots can be selected through the Electron preload API, copied into the app attachments directory, listed, and deleted.
-- Trade screenshots can be previewed inline through a controlled Electron preload API that returns data URLs for stored attachment ids.
-- Entry rules can be created, versioned immutably, archived, listed, and bound to closed trades by rule version.
-- Trade detail shows the bound entry rule version, content, and checklist snapshot.
-- Main workbench UI is split into focused React components for sidebar, topbar, trade list, trade form, trade review/detail, attachments, rules, stats, backup, and settings.
-- AI review drafts, confirmation, correction, invalidation, and rule-check edits have local service and preload IPC plumbing that syncs `trade.ai_review_status`.
-- AI review generation is connected through the Electron main process using the OpenAI Responses API with structured output and optional screenshot inputs.
-- Confirmed/corrected AI review string tags are normalized into `tag` / `trade_tag_map` for statistics filtering and trade drilldown.
-- The settings page can save AI Key/model/prompt configuration; API keys are stored in the main process side and encrypted with Electron `safeStorage` when available.
-- Stats view supports overview metrics, time filters, instrument filters, entry-rule filters, tag filters, per-instrument aggregation, and drilldown back to the trade list.
-- Stats date filters support both user local day and market session day semantics.
-- Backup view can export `app.sqlite`, attachments, and a manifest into a zip; restore validates the backup and creates a safety backup before replacement.
-- Backup view lists backup history, exposes restore eligibility, and can restore directly from a known historical backup file.
-- Settings includes a local data reset workflow with an exact `DELETE` confirmation; reset creates a safety backup before rebuilding an empty database and attachments directory.
-- UI has been refreshed with a light blue desktop-workbench visual theme and friendlier Chinese user-facing copy.
-- Shared desktop API contracts live under `shared/contracts` and are reused across Electron, preload, and renderer boundaries.
-- AI review prompt/schema/client/response/error boundaries are split, with fixture coverage, retryable error classification, and usage metadata display.
-- Stats SQL helpers are split into focused filter and aggregate modules.
-- Backup/settings styles are split into `src/styles/backup-settings.css`.
-- Unsigned local macOS directory packaging and smoke verification are available through `npm run pack:mac:dir` / `npm run pack:dir` and `npm run smoke:packaged`.
-- Unsigned Windows x64 portable ZIP packaging is available through `npm run pack:win:x64` for manual Windows trial runs.
-- Initial instrument presets: ES, MES, NQ, MNQ.
-- Current handoff, architecture backlog, packaging notes, and design specs are stored under `docs/superpowers`.
+## 当前能力
 
-MVP does not support open trades. A trade is one complete trading plan, not a single execution fill.
+- 新建、查看、编辑和删除已平仓交易，自动计算净盈亏与 R 倍数。
+- 创建入场规则、追加不可变版本、归档规则，并把具体规则版本绑定到交易。
+- 为交易添加截图、备注和策略/错误/情绪/市场标签。
+- 通过兼容 OpenAI Responses API 的服务生成结构化 AI 复盘，支持自定义模型、Base URL 和网络代理。
+- 确认、修正或作废 AI 草稿，保留规则检查、评分、用量和原始结果以便追溯。
+- 按日期口径、品种、入场规则和标签筛选统计，并下钻回交易列表。
+- 导出和恢复包含 SQLite、截图及校验清单的本地 ZIP 备份。
+- 本地数据重置前自动创建安全备份。
 
-Not implemented yet:
+## 快速开始
 
-- Manual tag management UI and tag category editing are not implemented yet; AI tags currently normalize as `setup`.
-- Signed/notarized release packaging and installer artifacts are not implemented yet.
-- Packaged UI manual checks remain to be done for native file picker, attachment preview, backup restore, and AI key relaunch/decrypt.
-- Configurable AI pricing or billing import is not implemented yet; provider cost metadata is displayed only when available.
-- Instrument configuration management UI is not implemented yet; the first presets are still seeded locally.
+已有 Windows 打包目录时，直接运行目录中的 `AI Trading Review.exe`。整个目录是一个完整应用，不能只复制 exe 文件。
 
-## Development
+从源码启动需要 Node.js 和 pnpm：
 
-Install dependencies:
-
-```bash
-npm install --cache .npm-cache
+```powershell
+pnpm install
+pnpm dev
 ```
 
-Run Electron desktop app:
+常用检查：
 
-```bash
-npm run dev
+```powershell
+pnpm verify
 ```
 
-Run browser-only renderer preview:
+在当前平台生成未签名的本地目录包：
 
-```bash
-npm run web:dev
+```powershell
+pnpm pack:dir
 ```
 
-Run tests:
+生成 Windows x64 便携目录和 ZIP（包括在其他平台交叉打包）：
 
-```bash
-npm run test -- --run
+```powershell
+pnpm pack:win:x64
 ```
 
-Build renderer and Electron main/preload:
+ZIP 输出到 `release/AI Trading Review-win32-x64-portable.zip`。便携包未签名，首次启动可能触发 Windows SmartScreen。
 
-```bash
-npm run build
-```
+`pnpm web:dev` 只提供渲染层预览。本地数据库、文件选择、AI Key、备份和恢复等能力必须在 Electron 桌面应用中使用。
 
-Run the standard local verification suite:
+### Windows 便携包更新与卸载
 
-```bash
-npm run verify
-```
+更新前先导出备份并退出应用，再解压新 ZIP 或替换原应用目录。用户数据默认保存在 `%APPDATA%\AI Trading Review`，因此替换或删除便携应用目录不会删除交易、截图、备份和设置。
 
-Create and smoke-test an unsigned local macOS directory package:
+如需彻底删除本地数据，应先导出备份，再使用应用设置中的数据重置功能，或手动删除上述用户数据目录。
 
-```bash
-npm run pack:mac:dir
-# or the legacy alias:
-npm run pack:dir
-npm run smoke:packaged
-```
+## 当前限制
 
-Create an unsigned Windows x64 portable ZIP:
+- 不支持持仓中的交易、券商导入、云同步、多账户或移动端。
+- 品种配置仍为本地预置，没有管理界面。
+- 目录打包适合本机使用和验证，但还不是带安装器、代码签名或自动更新的正式发行版本。
+- 第三方中转服务必须兼容应用使用的 OpenAI Responses API 与结构化输出参数。
 
-```bash
-npm run pack:win:x64
-```
+## 文档
 
-The Windows package is generated at:
-
-```text
-release/AI Trading Review-win32-x64-portable.zip
-```
-
-Both packaging paths are for local runtime verification and trial use, not release distribution. The Windows ZIP is not signed and may trigger SmartScreen on first launch.
-
-### Windows portable uninstall and update
-
-The Windows package is a portable ZIP, not an installer. It does not register an uninstall entry in Windows Settings.
-
-To uninstall only the app files:
-
-1. Close AI Trading Review.
-2. Delete the extracted `AI Trading Review-win32-x64-portable` folder.
-
-This does not delete your trading data. Electron stores app data under the Windows user profile, normally:
-
-```text
-%APPDATA%\AI Trading Review
-```
-
-That directory contains the SQLite database, attachments, backups, and local settings. To remove local trading data before uninstalling, use the app's Settings reset flow or delete that directory manually after exporting a backup.
-
-To update the portable app:
-
-1. Export a backup from the Backup page.
-2. Close AI Trading Review.
-3. Extract the new ZIP to a fresh folder, or replace the old extracted app folder.
-4. Launch `AI Trading Review.exe`.
-
-The app data directory is separate from the portable app folder, so normal updates keep existing trades, attachments, backups, and settings. Database migrations run at startup when a newer app version needs them.
-
-## Toolchain Note
-
-This project now uses Electron, so the MVP desktop shell runs on the Node/npm toolchain. Rust/Cargo is not required.
-
-SQLite currently uses the Node/Electron built-in `node:sqlite` API. It avoids native module rebuild issues in Electron and keeps the first local data layer simple.
+- [文档索引](docs/README.md)
+- [使用指南](docs/user-guide.md)
+- [AI 与第三方接口配置](docs/ai-configuration.md)
+- [架构说明](docs/architecture.md)
+- [开发指南](docs/development.md)
+- [打包与部署](docs/packaging.md)
+- [历史方案与交接记录](docs/superpowers/README.md)

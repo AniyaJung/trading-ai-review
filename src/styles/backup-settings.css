@@ -1,21 +1,21 @@
 .backup-view {
   display: grid;
-  gap: 16px;
-  padding: 18px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .backup-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .backup-action-panel {
-  min-height: 230px;
+  min-height: 206px;
   display: grid;
   align-content: space-between;
   gap: 16px;
-  padding: 18px;
+  padding: 16px;
 }
 
 .backup-action-panel h3,
@@ -196,8 +196,8 @@
 
 .settings-view {
   display: grid;
-  gap: 16px;
-  padding: 18px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .settings-section {
@@ -225,7 +225,7 @@
 
 .settings-status-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }

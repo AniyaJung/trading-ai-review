@@ -12,6 +12,7 @@ import type {
 
 export type {
   AIReview,
+  AIReviewScoreBreakdown,
   CorrectReviewInput,
   CreateReviewDraftInput,
   JsonObject,
@@ -23,6 +24,7 @@ export type {
 
 type AIReviewRow = Omit<
   AIReview,
+  | "scoreBreakdown"
   | "facts"
   | "missingInfo"
   | "imageObservations"
@@ -32,6 +34,9 @@ type AIReviewRow = Omit<
   | "tags"
   | "rawResult"
 > & {
+  scoreRuleAdherence: number | null;
+  scoreEvidenceQuality: number | null;
+  scoreExecutionQuality: number | null;
   factsJson: string;
   missingInfoJson: string;
   imageObservationsJson: string;
@@ -59,6 +64,10 @@ export function createReviewDraft(
           prompt_version,
           rule_version_snapshot,
           score_total,
+          score_rule_adherence,
+          score_evidence_quality,
+          score_execution_quality,
+          scoring_version,
           summary,
           facts_json,
           missing_info_json,
@@ -69,7 +78,7 @@ export function createReviewDraft(
           tags_json,
           confidence,
           raw_result_json
-        ) values (?, 'needs_review', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) values (?, 'needs_review', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.tradeId,
@@ -77,6 +86,10 @@ export function createReviewDraft(
         input.promptVersion ?? null,
         input.ruleVersionSnapshot ?? null,
         input.scoreTotal ?? null,
+        input.scoreBreakdown?.ruleAdherence ?? null,
+        input.scoreBreakdown?.evidenceQuality ?? null,
+        input.scoreBreakdown?.executionQuality ?? null,
+        input.scoringVersion ?? null,
         input.summary ?? null,
         stringifyJson(input.facts ?? {}),
         stringifyJson(input.missingInfo ?? []),
@@ -113,6 +126,10 @@ export function getLatestReviewForTrade(
         prompt_version as promptVersion,
         rule_version_snapshot as ruleVersionSnapshot,
         score_total as scoreTotal,
+        score_rule_adherence as scoreRuleAdherence,
+        score_evidence_quality as scoreEvidenceQuality,
+        score_execution_quality as scoreExecutionQuality,
+        scoring_version as scoringVersion,
         summary,
         facts_json as factsJson,
         missing_info_json as missingInfoJson,
@@ -280,6 +297,10 @@ function getReviewById(db: DatabaseSync, id: number): AIReview {
         prompt_version as promptVersion,
         rule_version_snapshot as ruleVersionSnapshot,
         score_total as scoreTotal,
+        score_rule_adherence as scoreRuleAdherence,
+        score_evidence_quality as scoreEvidenceQuality,
+        score_execution_quality as scoreExecutionQuality,
+        scoring_version as scoringVersion,
         summary,
         facts_json as factsJson,
         missing_info_json as missingInfoJson,
@@ -446,16 +467,42 @@ function normalizeTagNames(rawTags: unknown[]) {
 }
 
 function mapReviewRow(row: AIReviewRow): AIReview {
+  const {
+    scoreRuleAdherence,
+    scoreEvidenceQuality,
+    scoreExecutionQuality,
+    factsJson,
+    missingInfoJson,
+    imageObservationsJson,
+    strengthsJson,
+    weaknessesJson,
+    suggestionsJson,
+    tagsJson,
+    rawResultJson,
+    ...review
+  } = row;
+  const scoreBreakdown =
+    scoreRuleAdherence == null ||
+    scoreEvidenceQuality == null ||
+    scoreExecutionQuality == null
+      ? null
+      : {
+          ruleAdherence: scoreRuleAdherence,
+          evidenceQuality: scoreEvidenceQuality,
+          executionQuality: scoreExecutionQuality,
+        };
+
   return {
-    ...row,
-    facts: parseJsonObject(row.factsJson),
-    missingInfo: parseJsonArray(row.missingInfoJson),
-    imageObservations: parseJsonArray(row.imageObservationsJson),
-    strengths: parseJsonArray(row.strengthsJson),
-    weaknesses: parseJsonArray(row.weaknessesJson),
-    suggestions: parseJsonArray(row.suggestionsJson),
-    tags: parseJsonArray(row.tagsJson),
-    rawResult: parseJsonObject(row.rawResultJson),
+    ...review,
+    scoreBreakdown,
+    facts: parseJsonObject(factsJson),
+    missingInfo: parseJsonArray(missingInfoJson),
+    imageObservations: parseJsonArray(imageObservationsJson),
+    strengths: parseJsonArray(strengthsJson),
+    weaknesses: parseJsonArray(weaknessesJson),
+    suggestions: parseJsonArray(suggestionsJson),
+    tags: parseJsonArray(tagsJson),
+    rawResult: parseJsonObject(rawResultJson),
   };
 }
 

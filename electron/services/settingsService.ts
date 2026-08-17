@@ -6,12 +6,15 @@ import type {
 } from "../../shared/contracts/desktopApi.js";
 
 const defaultOpenAIModel = "gpt-5.5";
-const defaultPromptVersion = "single-trade-ai-v1";
+const defaultOpenAIBaseUrl = "https://api.openai.com/v1";
+const defaultPromptVersion = "single-trade-ai-v2";
 
 const settingKeys = {
   openAIApiKey: "openai.api_key",
   openAIModel: "openai.model",
+  openAIBaseUrl: "openai.base_url",
   openAIPromptVersion: "openai.prompt_version",
+  openAIProxyUrl: "openai.proxy_url",
 } as const;
 
 export type SettingsServicePaths = AppDataPaths;
@@ -22,7 +25,7 @@ export type SecretCodec = {
 };
 
 export type SettingsServiceOptions = {
-  env?: Pick<NodeJS.ProcessEnv, "OPENAI_API_KEY" | "OPENAI_MODEL">;
+  env?: NodeJS.ProcessEnv;
   secretCodec?: SecretCodec;
 };
 
@@ -34,7 +37,9 @@ export type {
 export type OpenAIAdapterConfig = {
   apiKey: string;
   model: string;
+  baseUrl: string;
   promptVersion: string;
+  proxyUrl: string;
 };
 
 export function getSettingsSummary(
@@ -45,9 +50,13 @@ export function getSettingsSummary(
   const env = options.env ?? process.env;
   const localApiKey = getSetting(db, settingKeys.openAIApiKey);
   const localModel = getSetting(db, settingKeys.openAIModel);
+  const localBaseUrl = getSetting(db, settingKeys.openAIBaseUrl);
   const localPromptVersion = getSetting(db, settingKeys.openAIPromptVersion);
+  const localProxyUrl = getSetting(db, settingKeys.openAIProxyUrl);
   const envApiKey = env.OPENAI_API_KEY?.trim() ?? "";
   const envModel = env.OPENAI_MODEL?.trim() ?? "";
+  const envBaseUrl = env.OPENAI_BASE_URL?.trim() ?? "";
+  const envProxyUrl = getEnvironmentProxyUrl(env);
 
   return {
     openAi: {
@@ -55,8 +64,22 @@ export function getSettingsSummary(
       apiKeySource: localApiKey ? "local" : envApiKey ? "environment" : "missing",
       model: localModel ?? (envModel || defaultOpenAIModel),
       modelSource: localModel ? "local" : envModel ? "environment" : "default",
+      baseUrl: validateBaseUrl(
+        (localBaseUrl ?? envBaseUrl) || defaultOpenAIBaseUrl,
+      ),
+      baseUrlSource: localBaseUrl
+        ? "local"
+        : envBaseUrl
+          ? "environment"
+          : "default",
       promptVersion: localPromptVersion ?? defaultPromptVersion,
       promptVersionSource: localPromptVersion ? "local" : "default",
+      proxyUrl: validateProxyUrl(localProxyUrl ?? envProxyUrl),
+      proxySource: localProxyUrl
+        ? "local"
+        : envProxyUrl
+          ? "environment"
+          : "system",
     },
     paths,
   };
@@ -67,6 +90,11 @@ export function saveAISettings(
   input: AISettingsInput,
   options: SettingsServiceOptions = {},
 ) {
+  const baseUrl =
+    input.baseUrl === undefined ? undefined : validateBaseUrl(input.baseUrl);
+  const proxyUrl =
+    input.proxyUrl === undefined ? undefined : validateProxyUrl(input.proxyUrl);
+
   if (input.clearApiKey) {
     deleteSetting(db, settingKeys.openAIApiKey);
   } else if (input.apiKey != null) {
@@ -81,8 +109,16 @@ export function saveAISettings(
     setOrDeleteTrimmed(db, settingKeys.openAIModel, input.model);
   }
 
+  if (input.baseUrl !== undefined) {
+    setOrDeleteTrimmed(db, settingKeys.openAIBaseUrl, baseUrl ?? "");
+  }
+
   if (input.promptVersion !== undefined) {
     setOrDeleteTrimmed(db, settingKeys.openAIPromptVersion, input.promptVersion);
+  }
+
+  if (input.proxyUrl !== undefined) {
+    setOrDeleteTrimmed(db, settingKeys.openAIProxyUrl, proxyUrl ?? "");
   }
 }
 
@@ -93,15 +129,83 @@ export function getOpenAIAdapterConfig(
   const env = options.env ?? process.env;
   const encryptedApiKey = getSetting(db, settingKeys.openAIApiKey);
   const localModel = getSetting(db, settingKeys.openAIModel);
+  const localBaseUrl = getSetting(db, settingKeys.openAIBaseUrl);
   const localPromptVersion = getSetting(db, settingKeys.openAIPromptVersion);
+  const localProxyUrl = getSetting(db, settingKeys.openAIProxyUrl);
 
   return {
     apiKey: encryptedApiKey
       ? decryptSecret(encryptedApiKey, options)
       : env.OPENAI_API_KEY?.trim() ?? "",
     model: localModel ?? (env.OPENAI_MODEL?.trim() || defaultOpenAIModel),
+    baseUrl: validateBaseUrl(
+      (localBaseUrl ?? env.OPENAI_BASE_URL?.trim()) || defaultOpenAIBaseUrl,
+    ),
     promptVersion: localPromptVersion ?? defaultPromptVersion,
+    proxyUrl: validateProxyUrl(localProxyUrl ?? getEnvironmentProxyUrl(env)),
   };
+}
+
+export function validateBaseUrl(value: string | null | undefined) {
+  const baseUrl = value?.trim() ?? "";
+
+  if (!baseUrl) {
+    return "";
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    throw new Error("OpenAI API Base URL must be a valid URL.");
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error("OpenAI API Base URL must use http or https.");
+  }
+
+  if (!parsed.hostname) {
+    throw new Error("OpenAI API Base URL must include a host.");
+  }
+
+  return baseUrl.replace(/\/+$/, "");
+}
+
+export function validateProxyUrl(value: string | null | undefined) {
+  const proxyUrl = value?.trim() ?? "";
+
+  if (!proxyUrl) {
+    return "";
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(proxyUrl);
+  } catch {
+    throw new Error("OpenAI proxy must be a valid URL.");
+  }
+
+  if (!["http:", "https:", "socks4:", "socks5:"].includes(parsed.protocol)) {
+    throw new Error(
+      "OpenAI proxy must use http, https, socks4, or socks5.",
+    );
+  }
+
+  if (!parsed.hostname) {
+    throw new Error("OpenAI proxy must include a host.");
+  }
+
+  return proxyUrl;
+}
+
+function getEnvironmentProxyUrl(env: NodeJS.ProcessEnv) {
+  return (
+    env.HTTPS_PROXY?.trim() ||
+    env.https_proxy?.trim() ||
+    env.HTTP_PROXY?.trim() ||
+    env.http_proxy?.trim() ||
+    ""
+  );
 }
 
 function setOrDeleteTrimmed(

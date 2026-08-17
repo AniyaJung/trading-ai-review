@@ -19,7 +19,11 @@ describe("createOpenAIReviewAdapter", () => {
             id: "resp_123",
             output_text: JSON.stringify({
               summary: "AI summary",
-              scoreTotal: 84,
+              scoreBreakdown: {
+                ruleAdherence: 90,
+                evidenceQuality: 72,
+                executionQuality: 84,
+              },
               facts: { symbol: "ES" },
               missingInfo: [],
               imageObservations: ["Entry chart confirms the pullback."],
@@ -125,7 +129,7 @@ describe("createOpenAIReviewAdapter", () => {
     expect(result).toEqual(
       expect.objectContaining({
         model: "gpt-test",
-        promptVersion: "single-trade-ai-v1",
+        promptVersion: "single-trade-ai-v2",
         summary: "AI summary",
         rawResult: expect.objectContaining({
           provider: "openai",
@@ -213,6 +217,7 @@ describe("createOpenAIReviewAdapter", () => {
       getConfig: () => ({
         apiKey: "sk-configured",
         model: "gpt-configured",
+        baseUrl: "https://compatible.example/api",
         promptVersion: "configured-prompt-v2",
       }),
     });
@@ -255,6 +260,9 @@ describe("createOpenAIReviewAdapter", () => {
     });
 
     expect(requests[0].init.headers.Authorization).toBe("Bearer sk-configured");
+    expect(requests[0].url).toBe(
+      "https://compatible.example/api/responses",
+    );
     expect(JSON.parse(String(requests[0].init.body)).model).toBe(
       "gpt-configured",
     );

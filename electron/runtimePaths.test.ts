@@ -1,17 +1,21 @@
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveRuntimePaths } from "./runtimePaths";
 
 describe("resolveRuntimePaths", () => {
   it("maps the compiled Electron main module back to the renderer build", () => {
+    const testAppDir = path.resolve("test-app");
+    const electronDistDir = path.join(
+      testAppDir,
+      "dist-electron",
+      "electron",
+    );
     const paths = resolveRuntimePaths(
-      "file:///Users/juyu/IdeaProjects/trading-ai-review/dist-electron/electron/main.js",
+      pathToFileURL(path.join(electronDistDir, "main.js")).href,
     );
 
-    expect(paths.electronDistDir).toBe(
-      "/Users/juyu/IdeaProjects/trading-ai-review/dist-electron/electron",
-    );
-    expect(paths.rendererDistDir).toBe(
-      "/Users/juyu/IdeaProjects/trading-ai-review/dist",
-    );
+    expect(paths.electronDistDir).toBe(electronDistDir);
+    expect(paths.rendererDistDir).toBe(path.join(testAppDir, "dist"));
   });
 });

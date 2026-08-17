@@ -65,9 +65,14 @@ describe("generateAIReviewDraft", () => {
 
         return {
           model: "gpt-5.5",
-          promptVersion: "single-trade-ai-v1",
+          promptVersion: "single-trade-ai-v2",
           summary: "Strong rule-following trade with clean risk definition.",
           scoreTotal: 86,
+          scoreBreakdown: {
+            ruleAdherence: 90,
+            evidenceQuality: 80,
+            executionQuality: 90,
+          },
           facts: { symbol: "ES", direction: "long" },
           missingInfo: [],
           imageObservations: ["No screenshots were attached."],
@@ -104,9 +109,15 @@ describe("generateAIReviewDraft", () => {
         tradeId: trade.id,
         status: "needs_review",
         model: "gpt-5.5",
-        promptVersion: "single-trade-ai-v1",
+        promptVersion: "single-trade-ai-v2",
         summary: "Strong rule-following trade with clean risk definition.",
-        scoreTotal: 86,
+        scoreTotal: 60,
+        scoreBreakdown: {
+          ruleAdherence: 75,
+          evidenceQuality: 20,
+          executionQuality: 90,
+        },
+        scoringVersion: "three-dimension-v1",
       }),
     );
     expect(

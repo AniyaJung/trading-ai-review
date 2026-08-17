@@ -21,10 +21,12 @@ export type FetchLike = OpenAIReviewFetch;
 type OpenAIReviewAdapterOptions = {
   apiKey?: string;
   model?: string;
+  baseUrl?: string;
   promptVersion?: string;
   getConfig?: () => {
     apiKey?: string;
     model?: string;
+    baseUrl?: string;
     promptVersion?: string;
   };
   fetch?: FetchLike;
@@ -33,7 +35,7 @@ type OpenAIReviewAdapterOptions = {
 };
 
 const defaultModel = "gpt-5.5";
-const responsesUrl = "https://api.openai.com/v1/responses";
+const defaultBaseUrl = "https://api.openai.com/v1";
 
 export function createOpenAIReviewAdapter(
   options: OpenAIReviewAdapterOptions = {},
@@ -50,6 +52,11 @@ export function createOpenAIReviewAdapter(
 
       const model =
         config.model ?? options.model ?? process.env.OPENAI_MODEL ?? defaultModel;
+      const baseUrl =
+        config.baseUrl ??
+        options.baseUrl ??
+        process.env.OPENAI_BASE_URL ??
+        defaultBaseUrl;
       const activePromptVersion =
         config.promptVersion ??
         options.promptVersion ??
@@ -63,7 +70,7 @@ export function createOpenAIReviewAdapter(
 
       const responseText = await requestOpenAIReview({
         fetch: fetchImpl,
-        url: responsesUrl,
+        url: buildResponsesUrl(baseUrl),
         init: {
           method: "POST",
           headers: {
@@ -86,6 +93,19 @@ export function createOpenAIReviewAdapter(
       return generated;
     },
   };
+}
+
+export function buildResponsesUrl(baseUrl: string) {
+  const url = new URL(baseUrl.trim());
+  const pathname = url.pathname.replace(/\/+$/, "");
+
+  if (!pathname.endsWith("/responses")) {
+    url.pathname = `${pathname}/responses`;
+  }
+
+  url.search = "";
+  url.hash = "";
+  return url.toString();
 }
 
 function buildRequestBody(model: string, input: AIReviewAdapterInput) {

@@ -15,6 +15,7 @@ describe("backupSettingsWorkflow", () => {
     expect(state.lastBackup).toBeNull();
     expect(state.lastRestore).toBeNull();
     expect(state.settingsDraft.apiKey).toBe("");
+    expect(state.settingsDraft.proxyUrl).toBe("");
     expect(state.dataResetDraft.confirmationText).toBe("");
     expect(state.settingsMessage).toBe(
       "API Key 只保存在本机，不会在输入框中回显；留空保存会沿用当前 Key。",

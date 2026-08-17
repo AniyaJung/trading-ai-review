@@ -1,4 +1,4 @@
-import { Clock3 } from "lucide-react";
+import { FilePlus2, Pencil } from "lucide-react";
 import type { ClosedFuturesTradeCalculation } from "../../shared/trading/types";
 import { buildRuleVersionLabel } from "../app/rulePanel";
 import type { TradeFormState } from "../app/tradeForm";
@@ -24,14 +24,23 @@ export function TradeFormPanel({
   instruments,
   onChange,
 }: TradeFormPanelProps) {
+  const isEditing = editingTradeId != null;
+  const ModeIcon = isEditing ? Pencil : FilePlus2;
+
   return (
-    <section className="panel form-panel" aria-label="交易事实">
+    <section
+      className="panel form-panel"
+      aria-label={isEditing ? "编辑交易" : "新建交易"}
+    >
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">Closed trade facts</p>
-          <h3>{editingTradeId == null ? "单笔交易事实" : "编辑交易事实"}</h3>
+          <p className="eyebrow">{isEditing ? "Editing trade" : "Trade entry"}</p>
+          <h3>{isEditing ? `编辑交易 #${editingTradeId}` : "新建交易"}</h3>
         </div>
-        <Clock3 aria-hidden="true" size={18} />
+        <span className={`trade-form-mode ${isEditing ? "editing" : "new"}`}>
+          <ModeIcon aria-hidden="true" size={15} />
+          {isEditing ? "编辑中" : "新记录"}
+        </span>
       </div>
 
       <div className="form-grid trade-form-grid">

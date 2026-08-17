@@ -7,25 +7,35 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const productName = "AI Trading Review";
 const platformArch = `${process.platform}-${process.arch}`;
-const appBundleDir = path.join(
+const appOutDir = path.join(
   rootDir,
   "release",
   `${productName}-${platformArch}`,
-  `${productName}.app`,
 );
-const executablePath = path.join(
-  appBundleDir,
-  "Contents",
-  "MacOS",
-  "Electron",
-);
+const executablePath = resolveExecutablePath();
 const userDataDir = fs.mkdtempSync(
   path.join(os.tmpdir(), "trading-ai-review-packaged-smoke-"),
 );
 const smokePrefix = "AI_TRADING_REVIEW_SMOKE_RESULT ";
 
-if (process.platform !== "darwin") {
-  throw new Error("smoke:packaged currently supports macOS .app bundles only.");
+function resolveExecutablePath() {
+  if (process.platform === "darwin") {
+    return path.join(
+      appOutDir,
+      `${productName}.app`,
+      "Contents",
+      "MacOS",
+      "Electron",
+    );
+  }
+
+  if (process.platform === "win32") {
+    return path.join(appOutDir, `${productName}.exe`);
+  }
+
+  throw new Error(
+    `smoke:packaged does not support ${process.platform} packaged apps.`,
+  );
 }
 
 if (!fs.existsSync(executablePath)) {
@@ -40,6 +50,7 @@ const child = spawn(executablePath, [], {
     ELECTRON_ENABLE_LOGGING: "1",
   },
   stdio: ["ignore", "pipe", "pipe"],
+  windowsHide: true,
 });
 
 let stdout = "";
@@ -52,10 +63,11 @@ function cleanup() {
 }
 
 timeout = setTimeout(() => {
-  child.kill("SIGTERM");
+  child.kill();
   cleanup();
-  throw new Error("Packaged smoke test timed out.");
-}, 15000);
+  console.error("Packaged smoke test timed out.");
+  process.exitCode = 1;
+}, 30000);
 
 child.stdout.on("data", (chunk) => {
   stdout += chunk.toString();
@@ -63,6 +75,12 @@ child.stdout.on("data", (chunk) => {
 
 child.stderr.on("data", (chunk) => {
   stderr += chunk.toString();
+});
+
+child.on("error", (error) => {
+  cleanup();
+  console.error(`Could not launch packaged app: ${error.message}`);
+  process.exitCode = 1;
 });
 
 child.on("exit", (code) => {
@@ -103,19 +121,35 @@ child.on("exit", (code) => {
       }
     }
 
-    if (result.migrationVersion !== 3) {
+    if (result.migrationVersion !== 4) {
       throw new Error(
-        `Expected migration version 3, received ${result.migrationVersion}.`,
+        `Expected migration version 4, received ${result.migrationVersion}.`,
+      );
+    }
+
+    if (
+      result.rendererRootChildCount < 1 ||
+      !result.rendererBodyText?.trim()
+    ) {
+      throw new Error(
+        `Packaged renderer did not mount. Received ${JSON.stringify({
+          rendererRootChildCount: result.rendererRootChildCount,
+          rendererBodyText: result.rendererBodyText,
+          rendererTitle: result.rendererTitle,
+        })}`,
       );
     }
 
     console.log(
       JSON.stringify(
         {
-          packagedApp: appBundleDir,
+          packagedApp: appOutDir,
+          executablePath,
           appDataDir: result.appDataDir,
           migrationVersion: result.migrationVersion,
           safeStorageAvailable: result.safeStorageAvailable,
+          rendererReady: true,
+          rendererTitle: result.rendererTitle,
         },
         null,
         2,

@@ -14,6 +14,7 @@ import {
 } from "../app/tradeDetailSelection";
 import type { TradeWorkflow } from "../app/tradeWorkflow";
 import type { RendererRuntime } from "../app/tradeList";
+import type { TagWorkflow } from "../app/tagWorkflow";
 import { ImagePreviewOverlay } from "./ImagePreviewOverlay";
 import { TradeReviewPanel } from "./TradeReviewPanel";
 
@@ -55,12 +56,30 @@ type TradeReviewAttachmentWorkflow = {
   >;
 };
 
+type TradeReviewTagWorkflow = {
+  state: Pick<
+    TagWorkflow["state"],
+    | "assignments"
+    | "availableTags"
+    | "selectedTagId"
+    | "isLoadingAssignments"
+    | "isMutating"
+    | "message"
+    | "error"
+  >;
+  actions: Pick<
+    TagWorkflow["actions"],
+    "setSelectedTagId" | "handleAssignTag" | "handleRemoveTag"
+  >;
+};
+
 type TradeReviewContainerProps = {
   runtime: RendererRuntime;
   trades: TradeSummary[];
   tradeWorkflow: TradeReviewTradeWorkflow;
   reviewWorkflow: TradeReviewReviewWorkflow;
   attachmentWorkflow: TradeReviewAttachmentWorkflow;
+  tagWorkflow: TradeReviewTagWorkflow;
   onDeleteSelectedTrade: (trade: TradeSummary) => void;
   onCreateReviewDraft: (trade: TradeSummary) => void;
   onConfirmReview: (trade: TradeSummary, review: AIReview | undefined) => void;
@@ -75,6 +94,7 @@ export function TradeReviewContainer({
   tradeWorkflow,
   reviewWorkflow,
   attachmentWorkflow,
+  tagWorkflow,
   onDeleteSelectedTrade,
   onCreateReviewDraft,
   onConfirmReview,
@@ -206,6 +226,14 @@ export function TradeReviewContainer({
         attachmentImageDataUrls={
           attachmentWorkflow.state.attachmentImageDataUrls
         }
+        tagAssignments={tagWorkflow.state.assignments}
+        availableTags={tagWorkflow.state.availableTags}
+        selectedTagId={tagWorkflow.state.selectedTagId}
+        isLoadingTags={tagWorkflow.state.isLoadingAssignments}
+        isMutatingTags={tagWorkflow.state.isMutating}
+        tagMessage={tagWorkflow.state.message}
+        tagError={tagWorkflow.state.error}
+        canManageTags={runtime === "electron" && Boolean(selectedTrade)}
         onEditSelectedTrade={() =>
           tradeWorkflow.actions.handleEditSelectedTrade(selectedTradeDetail)
         }
@@ -246,6 +274,11 @@ export function TradeReviewContainer({
         }
         onPreviewAttachment={
           attachmentWorkflow.actions.setActiveAttachmentPreviewId
+        }
+        onSelectedTagChange={tagWorkflow.actions.setSelectedTagId}
+        onAssignTag={() => void tagWorkflow.actions.handleAssignTag()}
+        onRemoveTag={(assignment) =>
+          void tagWorkflow.actions.handleRemoveTag(assignment)
         }
       />
 

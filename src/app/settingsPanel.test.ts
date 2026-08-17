@@ -13,8 +13,12 @@ const summary: SettingsSummary = {
     apiKeySource: "local",
     model: "gpt-local",
     modelSource: "local",
+    baseUrl: "https://compatible.example/v1",
+    baseUrlSource: "local",
     promptVersion: "single-trade-local-v2",
     promptVersionSource: "local",
+    proxyUrl: "http://127.0.0.1:7890",
+    proxySource: "local",
   },
   paths: {
     appDataDir: "/Users/demo/App",
@@ -30,7 +34,9 @@ describe("settingsPanel", () => {
       apiKey: "",
       clearApiKey: false,
       model: "gpt-local",
+      baseUrl: "https://compatible.example/v1",
       promptVersion: "single-trade-local-v2",
+      proxyUrl: "http://127.0.0.1:7890",
     });
   });
 
@@ -51,13 +57,17 @@ describe("settingsPanel", () => {
         apiKey: "  sk-new  ",
         clearApiKey: false,
         model: " gpt-new ",
+        baseUrl: " https://compatible.example/api ",
         promptVersion: " prompt-v2 ",
+        proxyUrl: " http://127.0.0.1:7890 ",
       }),
     ).toEqual({
       apiKey: "sk-new",
       clearApiKey: false,
       model: "gpt-new",
+      baseUrl: "https://compatible.example/api",
       promptVersion: "prompt-v2",
+      proxyUrl: "http://127.0.0.1:7890",
     });
 
     expect(
@@ -65,12 +75,16 @@ describe("settingsPanel", () => {
         apiKey: "sk-ignored",
         clearApiKey: true,
         model: "gpt-new",
+        baseUrl: "https://compatible.example/api",
         promptVersion: "prompt-v2",
+        proxyUrl: "",
       }),
     ).toEqual({
       clearApiKey: true,
       model: "gpt-new",
+      baseUrl: "https://compatible.example/api",
       promptVersion: "prompt-v2",
+      proxyUrl: "",
     });
   });
 

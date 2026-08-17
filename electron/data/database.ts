@@ -4,7 +4,7 @@ import path from "node:path";
 import type { InstrumentConfig } from "../../shared/contracts/desktopApi.js";
 import { deriveTradeDateSemantics } from "../../shared/trading/tradeDates.js";
 
-const supportedDatabaseVersion = 3;
+const supportedDatabaseVersion = 4;
 
 export type InstrumentPreset = InstrumentConfig;
 
@@ -88,6 +88,10 @@ export function runMigrations(db: DatabaseSync) {
 
   if (currentVersion < 3) {
     migrateToVersionThree(db);
+  }
+
+  if (currentVersion < 4) {
+    migrateToVersionFour(db);
   }
 }
 
@@ -216,6 +220,10 @@ function createVersionOneSchema(db: DatabaseSync) {
       prompt_version text,
       rule_version_snapshot text,
       score_total real,
+      score_rule_adherence real,
+      score_evidence_quality real,
+      score_execution_quality real,
+      scoring_version text,
       summary text,
       facts_json text not null default '{}',
       missing_info_json text not null default '[]',
@@ -333,6 +341,42 @@ function migrateToVersionThree(db: DatabaseSync) {
     }
 
     db.exec("pragma user_version = 3");
+    db.exec("commit");
+  } catch (error) {
+    db.exec("rollback");
+    throw error;
+  }
+}
+
+function migrateToVersionFour(db: DatabaseSync) {
+  db.exec("begin immediate");
+  try {
+    const columns = getTableColumns(db, "ai_review");
+
+    if (columns.size > 0 && !columns.has("score_rule_adherence")) {
+      db.exec("alter table ai_review add column score_rule_adherence real");
+    }
+    if (columns.size > 0 && !columns.has("score_evidence_quality")) {
+      db.exec("alter table ai_review add column score_evidence_quality real");
+    }
+    if (columns.size > 0 && !columns.has("score_execution_quality")) {
+      db.exec("alter table ai_review add column score_execution_quality real");
+    }
+    if (columns.size > 0 && !columns.has("scoring_version")) {
+      db.exec("alter table ai_review add column scoring_version text");
+    }
+
+    if (getTableColumns(db, "app_setting").size > 0) {
+      db.prepare(
+        `update app_setting
+         set value = 'single-trade-ai-v2',
+             updated_at = datetime('now')
+         where key = 'openai.prompt_version'
+           and value = 'single-trade-ai-v1'`,
+      ).run();
+    }
+
+    db.exec("pragma user_version = 4");
     db.exec("commit");
   } catch (error) {
     db.exec("rollback");

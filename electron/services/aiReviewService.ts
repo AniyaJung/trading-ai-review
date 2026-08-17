@@ -7,9 +7,11 @@ import {
 import {
   createReviewDraft,
   type AIReview,
+  type AIReviewScoreBreakdown,
   type JsonObject,
   type RuleCheckResult,
 } from "./reviewService.js";
+import { scoreGeneratedAIReview } from "./aiReviewScoring.js";
 import { getTradeDetail, type TradeDetail } from "./tradeService.js";
 
 export type AIReviewAttachmentInput = {
@@ -37,6 +39,7 @@ export type GeneratedAIReviewDraft = {
   promptVersion: string;
   ruleVersionSnapshot?: string | null;
   scoreTotal: number | null;
+  scoreBreakdown?: AIReviewScoreBreakdown | null;
   summary: string | null;
   facts: JsonObject;
   missingInfo: unknown[];
@@ -72,13 +75,33 @@ export async function generateAIReviewDraft(
     dataUrl: readAttachmentImageDataUrl(db, attachment.id),
   }));
   const generated = await adapter.generate({ trade, attachments });
+  const attachmentTypes = new Set(
+    attachments.map((attachment) => attachment.imageType),
+  );
+  const hasCompleteEvidenceCoverage =
+    attachmentTypes.has("review_marked") ||
+    ((attachmentTypes.has("before_entry") || attachmentTypes.has("entry")) &&
+      attachmentTypes.has("exit"));
+  const scoring = scoreGeneratedAIReview({
+    reportedScoreTotal: generated.scoreTotal,
+    scoreBreakdown: generated.scoreBreakdown ?? null,
+    attachmentCount: attachments.length,
+    hasCompleteEvidenceCoverage,
+    missingInfoCount: generated.missingInfo.length,
+    imageObservationCount: generated.imageObservations.length,
+    ruleChecks: generated.ruleChecks,
+    hasBoundRule: trade.entryRuleVersionId != null,
+    hasDefinedRisk: trade.stopLossPrice != null && trade.riskAmount != null,
+  });
   const review = createReviewDraft(db, {
     tradeId,
     model: generated.model,
     promptVersion: generated.promptVersion,
     ruleVersionSnapshot:
       generated.ruleVersionSnapshot ?? trade.entryRuleContent ?? null,
-    scoreTotal: generated.scoreTotal,
+    scoreTotal: scoring.scoreTotal,
+    scoreBreakdown: scoring.scoreBreakdown,
+    scoringVersion: scoring.scoringVersion,
     summary: generated.summary,
     facts: generated.facts,
     missingInfo: generated.missingInfo,

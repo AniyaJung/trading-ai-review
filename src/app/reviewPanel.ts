@@ -3,6 +3,7 @@ export type ReviewPanelState = {
   status: string;
   description: string;
   bullets: string[];
+  manualReviewStatus: string;
   canGenerate: boolean;
   canConfirm: boolean;
 };
@@ -26,6 +27,12 @@ export type AIReviewUsageSummary = {
   costLabel: string;
 };
 
+export type AIReviewScoreSummary = {
+  totalLabel: string;
+  totalCaption: string;
+  dimensions: Array<{ label: string; value: string }>;
+};
+
 export function getReviewPanelState(
   trade: TradeSummary | undefined,
 ): ReviewPanelState {
@@ -39,6 +46,7 @@ export function getReviewPanelState(
         "AI 复盘会结合交易事实、截图和绑定规则生成草稿。",
         "只有确认或修正后的复盘会进入统计。",
       ],
+      manualReviewStatus: "未开始",
       canGenerate: false,
       canConfirm: false,
     };
@@ -55,6 +63,7 @@ export function getReviewPanelState(
           "生成草稿后，会同步检查绑定规则和截图证据。",
           "确认前，这笔复盘不会进入统计。",
         ],
+        manualReviewStatus: "未开始",
         canGenerate: true,
         canConfirm: false,
       };
@@ -69,6 +78,7 @@ export function getReviewPanelState(
           "确认或修正后，这笔交易才会进入统计。",
           "如果草稿不可用，可以标记为无效后重新生成。",
         ],
+        manualReviewStatus: "待确认",
         canGenerate: false,
         canConfirm: true,
       };
@@ -82,6 +92,7 @@ export function getReviewPanelState(
           "统计面板会使用这笔确认后的复盘。",
           "原始 AI 输出和确认时间会保留，便于追溯。",
         ],
+        manualReviewStatus: "已确认",
         canGenerate: false,
         canConfirm: false,
       };
@@ -95,6 +106,7 @@ export function getReviewPanelState(
           "统计面板会使用修正后的结构化结果。",
           "原始输出仍会保留，便于之后回看。",
         ],
+        manualReviewStatus: "已修正",
         canGenerate: false,
         canConfirm: false,
       };
@@ -108,6 +120,7 @@ export function getReviewPanelState(
           "作废复盘不会影响统计结果。",
           "后续可以重新生成草稿，再重新确认。",
         ],
+        manualReviewStatus: "已作废",
         canGenerate: false,
         canConfirm: false,
       };
@@ -233,6 +246,47 @@ export function getAIReviewUsageSummary(
   };
 }
 
+export function getAIReviewScoreSummary(
+  review: AIReview | undefined,
+): AIReviewScoreSummary | null {
+  if (!review) {
+    return null;
+  }
+
+  if (review.scoreBreakdown) {
+    return {
+      totalLabel: formatScore(review.scoreTotal),
+      totalCaption: "三维加权评分",
+      dimensions: [
+        {
+          label: "规则遵守",
+          value: formatScore(review.scoreBreakdown.ruleAdherence),
+        },
+        {
+          label: "证据质量",
+          value: formatScore(review.scoreBreakdown.evidenceQuality),
+        },
+        {
+          label: "执行质量",
+          value: formatScore(review.scoreBreakdown.executionQuality),
+        },
+      ],
+    };
+  }
+
+  const legacyScore = normalizeScore(review.scoreTotal);
+  const displayedScore = legacyScore == null ? null : Math.min(legacyScore, 89);
+
+  return {
+    totalLabel: formatScore(displayedScore),
+    totalCaption:
+      legacyScore != null && legacyScore > 89
+        ? `旧版评分上限（原始 ${legacyScore}）`
+        : "旧版评分（未拆分）",
+    dimensions: [],
+  };
+}
+
 function normalizeOptionalText(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -244,4 +298,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizeScore(value: number | null) {
+  return value == null || !Number.isFinite(value)
+    ? null
+    : Math.round(Math.min(100, Math.max(0, value)));
+}
+
+function formatScore(value: number | null) {
+  return value == null ? "-" : String(value);
 }

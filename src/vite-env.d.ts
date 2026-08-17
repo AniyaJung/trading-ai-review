@@ -28,6 +28,9 @@ import type {
   SettingsSummary as SharedSettingsSummary,
   StatsOverview as SharedStatsOverview,
   StatsOverviewFilters as SharedStatsOverviewFilters,
+  TagDefinition as SharedTagDefinition,
+  TagSource as SharedTagSource,
+  TradeTagAssignment as SharedTradeTagAssignment,
   TradeAttachment as SharedTradeAttachment,
   TradeDetail as SharedTradeDetail,
   TradeDirection as SharedTradeDirection,
@@ -59,6 +62,9 @@ declare global {
   type InstrumentStats = SharedInstrumentStats;
   type StatsOverview = SharedStatsOverview;
   type StatsOverviewFilters = SharedStatsOverviewFilters;
+  type TagDefinition = SharedTagDefinition;
+  type TagSource = SharedTagSource;
+  type TradeTagAssignment = SharedTradeTagAssignment;
   type BackupManifestFile = SharedBackupManifestFile;
   type BackupManifest = SharedBackupManifest;
   type BackupResult = SharedBackupResult;

@@ -1,8 +1,7 @@
 import { useCallback, useState } from "react";
 import { parseChecklistText } from "./rulePanel";
 
-const defaultRuleMessage =
-  "先把常用入场规则写成版本，录入交易时就能绑定当时执行的规则。";
+const defaultRuleMessage = "";
 
 export type RuleDraft = {
   name: string;
@@ -18,8 +17,12 @@ export type RuleVersionDraft = {
   checklistText: string;
 };
 
+export type RuleWorkspaceMode = "browse" | "create" | "version";
+
 export type RuleWorkflowState = {
   entryRules: EntryRuleWithLatestVersion[];
+  workspaceMode: RuleWorkspaceMode;
+  selectedRuleId: number | null;
   isLoadingRules: boolean;
   ruleMessage: string;
   ruleErrors: string[];
@@ -46,9 +49,21 @@ export function createRuleVersionDraft(): RuleVersionDraft {
   };
 }
 
+export function createRuleVersionDraftFromRule(
+  rule: EntryRuleWithLatestVersion,
+): RuleVersionDraft {
+  return {
+    entryRuleId: String(rule.id),
+    content: rule.latestVersion.content,
+    checklistText: rule.latestVersion.checklist.join("\n"),
+  };
+}
+
 export function createRuleWorkflowInitialState(): RuleWorkflowState {
   return {
     entryRules: [],
+    workspaceMode: "browse",
+    selectedRuleId: null,
     isLoadingRules: false,
     ruleMessage: defaultRuleMessage,
     ruleErrors: [],
@@ -72,7 +87,7 @@ export function getRuleVersionValidationErrors(draft: RuleVersionDraft) {
   const entryRuleId = Number(draft.entryRuleId);
 
   if (!Number.isInteger(entryRuleId) || entryRuleId <= 0) {
-    return ["请先选择要追加新版本的规则。"];
+    return ["目标规则不可用，请返回规则库后重新选择。"];
   }
 
   if (!draft.content.trim()) {
@@ -88,6 +103,9 @@ export function useRuleWorkflow(
   confirmAction: (message: string) => boolean = window.confirm,
 ) {
   const [entryRules, setEntryRules] = useState<EntryRuleWithLatestVersion[]>([]);
+  const [workspaceMode, setWorkspaceMode] =
+    useState<RuleWorkspaceMode>("browse");
+  const [selectedRuleId, setSelectedRuleId] = useState<number | null>(null);
   const [isLoadingRules, setIsLoadingRules] = useState(false);
   const [ruleMessage, setRuleMessage] = useState(defaultRuleMessage);
   const [ruleErrors, setRuleErrors] = useState<string[]>([]);
@@ -106,6 +124,11 @@ export function useRuleWorkflow(
     try {
       const activeRules = await desktopApi.rules.listActive();
       setEntryRules(activeRules);
+      setSelectedRuleId((current) =>
+        activeRules.some((rule) => rule.id === current)
+          ? current
+          : (activeRules[0]?.id ?? null),
+      );
       setRuleErrors([]);
     } catch (error) {
       setRuleErrors([error instanceof Error ? error.message : String(error)]);
@@ -138,10 +161,9 @@ export function useRuleWorkflow(
         checklist: parseChecklistText(ruleDraft.checklistText),
       });
       setRuleDraft(createRuleDraft());
-      setVersionDraft((current) => ({
-        ...current,
-        entryRuleId: String(created.id),
-      }));
+      setVersionDraft(createRuleVersionDraft());
+      setSelectedRuleId(created.id);
+      setWorkspaceMode("browse");
       selectTradeRuleVersion(created.latestVersion.id);
       await refreshRules();
       setRuleMessage("规则已创建，并已自动绑定到交易表单。");
@@ -173,11 +195,10 @@ export function useRuleWorkflow(
         content: versionDraft.content,
         checklist: parseChecklistText(versionDraft.checklistText),
       });
-      setVersionDraft((current) => ({
-        ...current,
-        content: "",
-        checklistText: "",
-      }));
+      const updatedRuleId = Number(versionDraft.entryRuleId);
+      setVersionDraft(createRuleVersionDraft());
+      setSelectedRuleId(updatedRuleId);
+      setWorkspaceMode("browse");
       selectTradeRuleVersion(version.id);
       await refreshRules();
       setRuleMessage("规则新版本已创建，并已自动绑定到交易表单。");
@@ -206,6 +227,7 @@ export function useRuleWorkflow(
     try {
       await desktopApi.rules.archive(rule.id);
       await refreshRules();
+      setWorkspaceMode("browse");
       selectTradeRuleVersion(null);
       setRuleMessage("规则已归档，历史交易仍会保留原版本绑定。");
     } catch (error) {
@@ -218,6 +240,11 @@ export function useRuleWorkflow(
   const applyBootstrapRules = useCallback(
     (activeRules: EntryRuleWithLatestVersion[]) => {
       setEntryRules(activeRules);
+      setSelectedRuleId((current) =>
+        activeRules.some((rule) => rule.id === current)
+          ? current
+          : (activeRules[0]?.id ?? null),
+      );
       setRuleErrors([]);
     },
     [],
@@ -227,9 +254,43 @@ export function useRuleWorkflow(
     setRuleErrors([message]);
   }, []);
 
+  const handleSelectRule = (ruleId: number) => {
+    if (!entryRules.some((rule) => rule.id === ruleId)) {
+      return;
+    }
+
+    setSelectedRuleId(ruleId);
+    setRuleErrors([]);
+  };
+
+  const handleStartCreateRule = () => {
+    setWorkspaceMode("create");
+    setRuleDraft(createRuleDraft());
+    setRuleErrors([]);
+    setRuleMessage("");
+  };
+
+  const handleStartRuleVersion = (rule: EntryRuleWithLatestVersion) => {
+    setSelectedRuleId(rule.id);
+    setWorkspaceMode("version");
+    setVersionDraft(createRuleVersionDraftFromRule(rule));
+    setRuleErrors([]);
+    setRuleMessage("");
+  };
+
+  const handleCancelRuleEdit = () => {
+    setWorkspaceMode("browse");
+    setRuleDraft(createRuleDraft());
+    setVersionDraft(createRuleVersionDraft());
+    setRuleErrors([]);
+    setRuleMessage(defaultRuleMessage);
+  };
+
   return {
     state: {
       entryRules,
+      workspaceMode,
+      selectedRuleId,
       isLoadingRules,
       ruleMessage,
       ruleErrors,
@@ -241,6 +302,10 @@ export function useRuleWorkflow(
       setIsLoadingRules,
       setRuleDraft,
       setVersionDraft,
+      handleSelectRule,
+      handleStartCreateRule,
+      handleStartRuleVersion,
+      handleCancelRuleEdit,
       refreshRules,
       handleCreateRule,
       handleCreateRuleVersion,

@@ -59,6 +59,32 @@ describe("trade form helpers", () => {
     });
   });
 
+  it("does not calculate a preview while required numeric fields are blank", () => {
+    expect(
+      calculateTradeFormPreview(
+        {
+          ...completeTradeForm,
+          entryPrice: "",
+          exitPrice: "",
+          stopLossPrice: "",
+          feesTotal: "3.6",
+        },
+        [
+          {
+            symbol: "ES",
+            name: "E-mini S&P 500",
+            assetClass: "futures",
+            exchange: "CME",
+            currency: "USD",
+            tickSize: 0.25,
+            tickValue: 12.5,
+            pointValue: 50,
+          },
+        ],
+      ),
+    ).toBeNull();
+  });
+
   it("treats datetime-local values as the user's local time before storing ISO", () => {
     const localValue = "2026-06-08T14:41";
 

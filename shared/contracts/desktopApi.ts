@@ -37,6 +37,13 @@ import type {
   StatsOverviewFilters,
 } from "./statsContracts.js";
 import type {
+  AssignTradeTagInput,
+  CreateTagInput,
+  DeleteTagResult,
+  TagDefinition,
+  TradeTagAssignment,
+} from "./tagContracts.js";
+import type {
   CreateClosedTradeInput,
   TradeDetail,
   TradeSummary,
@@ -63,6 +70,7 @@ export type {
 } from "./ruleContracts.js";
 export type {
   AIReview,
+  AIReviewScoreBreakdown,
   CorrectReviewInput,
   CreateReviewDraftInput,
   ReviewStatus,
@@ -102,6 +110,14 @@ export type {
   DataResetResult,
   SettingsSummary,
 } from "./settingsContracts.js";
+export type {
+  AssignTradeTagInput,
+  CreateTagInput,
+  DeleteTagResult,
+  TagDefinition,
+  TagSource,
+  TradeTagAssignment,
+} from "./tagContracts.js";
 
 export type DesktopApi = {
   runtime: "electron";
@@ -144,6 +160,14 @@ export type DesktopApi = {
   };
   stats: {
     getOverview: (filters?: StatsOverviewFilters) => Promise<StatsOverview>;
+  };
+  tags: {
+    list: () => Promise<TagDefinition[]>;
+    create: (input: CreateTagInput) => Promise<TagDefinition>;
+    delete: (tagId: number) => Promise<DeleteTagResult>;
+    listForTrade: (tradeId: number) => Promise<TradeTagAssignment[]>;
+    assignManual: (input: AssignTradeTagInput) => Promise<TradeTagAssignment>;
+    removeFromTrade: (input: AssignTradeTagInput) => Promise<boolean>;
   };
   backup: {
     create: () => Promise<BackupResult>;

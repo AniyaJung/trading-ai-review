@@ -189,6 +189,16 @@ describe("listBackupHistory", () => {
       now: new Date("2026-06-11T10:30:00.000Z"),
       appVersion: "0.0.1-test",
     });
+    utimesSync(
+      older.filePath,
+      new Date("2026-06-11T09:30:00.000Z"),
+      new Date("2026-06-11T09:30:00.000Z"),
+    );
+    utimesSync(
+      newer.filePath,
+      new Date("2026-06-11T10:30:00.000Z"),
+      new Date("2026-06-11T10:30:00.000Z"),
+    );
 
     const history = await listBackupHistory(paths);
 

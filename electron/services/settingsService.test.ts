@@ -55,7 +55,9 @@ describe("settingsService", () => {
       {
         apiKey: "sk-local-secret",
         model: "gpt-local",
+        baseUrl: "https://compatible.example/v1/",
         promptVersion: "single-trade-local-v2",
+        proxyUrl: "http://127.0.0.1:7890",
       },
       { secretCodec },
     );
@@ -67,8 +69,12 @@ describe("settingsService", () => {
       apiKeySource: "local",
       model: "gpt-local",
       modelSource: "local",
+      baseUrl: "https://compatible.example/v1",
+      baseUrlSource: "local",
       promptVersion: "single-trade-local-v2",
       promptVersionSource: "local",
+      proxyUrl: "http://127.0.0.1:7890",
+      proxySource: "local",
     });
     expect(JSON.stringify(summary)).not.toContain("sk-local-secret");
 
@@ -83,6 +89,8 @@ describe("settingsService", () => {
       env: {
         OPENAI_API_KEY: "sk-env-secret",
         OPENAI_MODEL: "gpt-env",
+        OPENAI_BASE_URL: "https://environment.example/api",
+        HTTPS_PROXY: "http://127.0.0.1:7891",
       },
       secretCodec,
     });
@@ -92,8 +100,12 @@ describe("settingsService", () => {
       apiKeySource: "environment",
       model: "gpt-env",
       modelSource: "environment",
-      promptVersion: "single-trade-ai-v1",
+      baseUrl: "https://environment.example/api",
+      baseUrlSource: "environment",
+      promptVersion: "single-trade-ai-v2",
       promptVersionSource: "default",
+      proxyUrl: "http://127.0.0.1:7891",
+      proxySource: "environment",
     });
     expect(summary.paths).toEqual(paths);
 
@@ -109,7 +121,9 @@ describe("settingsService", () => {
       {
         apiKey: "sk-local-secret",
         model: "gpt-local",
+        baseUrl: "https://compatible.example",
         promptVersion: "single-trade-local-v2",
+        proxyUrl: "socks5://127.0.0.1:7890",
       },
       { secretCodec },
     );
@@ -117,7 +131,9 @@ describe("settingsService", () => {
     expect(getOpenAIAdapterConfig(db, { env: {}, secretCodec })).toEqual({
       apiKey: "sk-local-secret",
       model: "gpt-local",
+      baseUrl: "https://compatible.example",
       promptVersion: "single-trade-local-v2",
+      proxyUrl: "socks5://127.0.0.1:7890",
     });
 
     saveAISettings(db, { clearApiKey: true }, { secretCodec });
@@ -126,6 +142,46 @@ describe("settingsService", () => {
     expect(
       getSettingsSummary(db, paths, { env: {}, secretCodec }).openAi.apiKeySource,
     ).toBe("missing");
+
+    db.close();
+  });
+
+  it("rejects invalid API Base URLs before changing other settings", () => {
+    const paths = createPaths();
+    const db = initializeAppDatabase(paths.databasePath);
+
+    expect(() =>
+      saveAISettings(db, {
+        model: "must-not-be-saved",
+        baseUrl: "file:///tmp/openai",
+      }),
+    ).toThrow("must use http or https");
+    expect(getOpenAIAdapterConfig(db, { env: {} })).toEqual(
+      expect.objectContaining({
+        model: "gpt-5.5",
+        baseUrl: "https://api.openai.com/v1",
+      }),
+    );
+
+    db.close();
+  });
+
+  it("rejects invalid proxy URLs without changing the saved proxy", () => {
+    const paths = createPaths();
+    const db = initializeAppDatabase(paths.databasePath);
+
+    saveAISettings(db, { proxyUrl: "http://127.0.0.1:7890" });
+
+    expect(() =>
+      saveAISettings(db, {
+        model: "must-not-be-saved",
+        proxyUrl: "file:///tmp/proxy",
+      }),
+    ).toThrow("must use http, https, socks4, or socks5");
+    expect(getOpenAIAdapterConfig(db, { env: {} }).proxyUrl).toBe(
+      "http://127.0.0.1:7890",
+    );
+    expect(getOpenAIAdapterConfig(db, { env: {} }).model).toBe("gpt-5.5");
 
     db.close();
   });

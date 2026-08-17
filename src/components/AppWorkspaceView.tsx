@@ -3,12 +3,14 @@ import type { AppView } from "../app/views";
 import { BackupSettingsContainer } from "./BackupSettingsContainer";
 import { RulesViewContainer } from "./RulesViewContainer";
 import { StatsViewContainer } from "./StatsViewContainer";
+import { TagManagerContainer } from "./TagManagerContainer";
 import { TradeDeskView } from "./TradeDeskView";
 
 type AppWorkspaceViewProps = {
   currentView: AppView;
   rules: ComponentProps<typeof RulesViewContainer>;
   stats: ComponentProps<typeof StatsViewContainer>;
+  tags: ComponentProps<typeof TagManagerContainer>;
   backupSettings: Omit<
     ComponentProps<typeof BackupSettingsContainer>,
     "view"
@@ -20,6 +22,7 @@ export function AppWorkspaceView({
   currentView,
   rules,
   stats,
+  tags,
   backupSettings,
   tradeDesk,
 }: AppWorkspaceViewProps) {
@@ -29,6 +32,10 @@ export function AppWorkspaceView({
 
   if (currentView === "stats") {
     return <StatsViewContainer {...stats} />;
+  }
+
+  if (currentView === "tags") {
+    return <TagManagerContainer {...tags} />;
   }
 
   if (currentView === "backup" || currentView === "settings") {

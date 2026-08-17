@@ -3,6 +3,7 @@ import {
   createRuleWorkflowInitialState,
   createRuleDraft,
   createRuleVersionDraft,
+  createRuleVersionDraftFromRule,
   getRuleRuntimeUnavailableError,
   getRuleValidationErrors,
   getRuleVersionValidationErrors,
@@ -13,11 +14,11 @@ describe("ruleWorkflow", () => {
     const state = createRuleWorkflowInitialState();
 
     expect(state.entryRules).toEqual([]);
+    expect(state.workspaceMode).toBe("browse");
+    expect(state.selectedRuleId).toBeNull();
     expect(state.isLoadingRules).toBe(false);
     expect(state.isSavingRule).toBe(false);
-    expect(state.ruleMessage).toBe(
-      "先把常用入场规则写成版本，录入交易时就能绑定当时执行的规则。",
-    );
+    expect(state.ruleMessage).toBe("");
     expect(state.ruleDraft).toEqual(createRuleDraft());
     expect(state.versionDraft).toEqual(createRuleVersionDraft());
   });
@@ -35,7 +36,7 @@ describe("ruleWorkflow", () => {
         entryRuleId: "",
         content: "new version",
       }),
-    ).toEqual(["请先选择要追加新版本的规则。"]);
+    ).toEqual(["目标规则不可用，请返回规则库后重新选择。"]);
     expect(
       getRuleVersionValidationErrors({
         ...createRuleVersionDraft(),
@@ -43,5 +44,31 @@ describe("ruleWorkflow", () => {
         content: "",
       }),
     ).toEqual(["请填写新版本的规则内容。"]);
+  });
+
+  it("prepares a new version from the latest immutable version", () => {
+    expect(
+      createRuleVersionDraftFromRule({
+        id: 7,
+        name: "MES breakout",
+        description: null,
+        marketType: "index_futures",
+        status: "active",
+        createdAt: "2026-08-04T00:00:00.000Z",
+        updatedAt: "2026-08-04T00:00:00.000Z",
+        latestVersion: {
+          id: 11,
+          entryRuleId: 7,
+          versionNo: 3,
+          content: "Trade above EMA20.",
+          checklist: ["Above EMA20", "Breakout confirmed"],
+          createdAt: "2026-08-04T00:00:00.000Z",
+        },
+      }),
+    ).toEqual({
+      entryRuleId: "7",
+      content: "Trade above EMA20.",
+      checklistText: "Above EMA20\nBreakout confirmed",
+    });
   });
 });

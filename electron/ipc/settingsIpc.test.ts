@@ -55,12 +55,16 @@ describe("createSettingsIpcHandlers", () => {
     const summary = handlers.saveAI({
       apiKey: "sk-local-secret",
       model: "gpt-local",
+      baseUrl: "https://compatible.example/api",
       promptVersion: "single-trade-local-v2",
+      proxyUrl: "http://127.0.0.1:7890",
     });
 
     expect(summary.openAi.apiKeySource).toBe("local");
     expect(summary.openAi.model).toBe("gpt-local");
+    expect(summary.openAi.baseUrl).toBe("https://compatible.example/api");
     expect(summary.openAi.promptVersion).toBe("single-trade-local-v2");
+    expect(summary.openAi.proxyUrl).toBe("http://127.0.0.1:7890");
     expect(JSON.stringify(summary)).not.toContain("sk-local-secret");
 
     db.close();

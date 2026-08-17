@@ -76,8 +76,12 @@ describe("loadDesktopBootstrapState", () => {
             apiKeySource: "missing",
             model: "gpt-4.1-mini",
             modelSource: "default",
+            baseUrl: "https://api.openai.com/v1",
+            baseUrlSource: "default",
             promptVersion: "default",
             promptVersionSource: "default",
+            proxyUrl: "",
+            proxySource: "system",
           },
           paths: {
             appDataDir: "/tmp",

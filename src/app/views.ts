@@ -5,9 +5,16 @@ import {
   ListChecks,
   Settings,
   SquarePen,
+  Tags,
 } from "lucide-react";
 
-export type AppView = "trades" | "rules" | "stats" | "backup" | "settings";
+export type AppView =
+  | "trades"
+  | "rules"
+  | "tags"
+  | "stats"
+  | "backup"
+  | "settings";
 
 export type NavigationItem = {
   id: AppView;
@@ -28,6 +35,12 @@ export const navigationItems: NavigationItem[] = [
     label: "规则",
     description: "管理入场规则版本",
     icon: ListChecks,
+  },
+  {
+    id: "tags",
+    label: "标签",
+    description: "管理标签并关联交易",
+    icon: Tags,
   },
   {
     id: "stats",

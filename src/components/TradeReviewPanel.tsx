@@ -10,9 +10,11 @@ import {
   X,
 } from "lucide-react";
 import { AttachmentSection } from "./AttachmentSection";
+import { TradeTagSection } from "./TradeTagSection";
 import type { AttachmentImageType, AttachmentPanelItem } from "../app/attachmentPanel";
 import {
   getAIReviewUsageSummary,
+  getAIReviewScoreSummary,
   type ReviewActionState,
   type RuleCheckEditDraft,
 } from "../app/reviewPanel";
@@ -22,6 +24,7 @@ type ReviewPanelState = {
   status: string;
   description: string;
   bullets: string[];
+  manualReviewStatus: string;
   canGenerate: boolean;
   canConfirm: boolean;
 };
@@ -58,6 +61,14 @@ type TradeReviewPanelProps = {
   isSavingAttachment: boolean;
   deletingAttachmentId: number | null;
   attachmentImageDataUrls: Record<number, string>;
+  tagAssignments: TradeTagAssignment[];
+  availableTags: TagDefinition[];
+  selectedTagId: string;
+  isLoadingTags: boolean;
+  isMutatingTags: boolean;
+  tagMessage: string;
+  tagError: string | null;
+  canManageTags: boolean;
   onEditSelectedTrade: () => void;
   onDeleteSelectedTrade: () => void;
   onCreateReviewDraft: () => void;
@@ -72,6 +83,9 @@ type TradeReviewPanelProps = {
   onChooseAndAttach: () => void;
   onDeleteAttachment: (attachmentId: number) => void;
   onPreviewAttachment: (attachmentId: number) => void;
+  onSelectedTagChange: (tagId: string) => void;
+  onAssignTag: () => void;
+  onRemoveTag: (assignment: TradeTagAssignment) => void;
 };
 
 export function TradeReviewPanel({
@@ -97,6 +111,14 @@ export function TradeReviewPanel({
   isSavingAttachment,
   deletingAttachmentId,
   attachmentImageDataUrls,
+  tagAssignments,
+  availableTags,
+  selectedTagId,
+  isLoadingTags,
+  isMutatingTags,
+  tagMessage,
+  tagError,
+  canManageTags,
   onEditSelectedTrade,
   onDeleteSelectedTrade,
   onCreateReviewDraft,
@@ -111,12 +133,16 @@ export function TradeReviewPanel({
   onChooseAndAttach,
   onDeleteAttachment,
   onPreviewAttachment,
+  onSelectedTagChange,
+  onAssignTag,
+  onRemoveTag,
 }: TradeReviewPanelProps) {
   const hasRuleBinding = Boolean(selectedTradeDetail?.entryRuleVersionId);
   const checklistCount = selectedTradeDetail?.entryRuleChecklist.length ?? 0;
   const ruleChecks = selectedTradeDetail?.ruleChecks ?? [];
   const evidenceCount = attachmentPanel.items.length;
   const usageSummary = getAIReviewUsageSummary(latestReview);
+  const scoreSummary = getAIReviewScoreSummary(latestReview);
 
   return (
     <section className="panel review-panel" aria-label="AI 复盘">
@@ -164,10 +190,19 @@ export function TradeReviewPanel({
           <span>规则版本</span>
           <strong>{hasRuleBinding ? "已绑定" : "未绑定"}</strong>
         </div>
-        <div className={reviewPanel.canConfirm ? "workflow-step attention" : "workflow-step"}>
+        <div
+          className={
+            selectedTrade?.aiReviewStatus === "confirmed" ||
+            selectedTrade?.aiReviewStatus === "corrected"
+              ? "workflow-step ready"
+              : reviewPanel.canConfirm
+                ? "workflow-step attention"
+                : "workflow-step"
+          }
+        >
           <RotateCcw aria-hidden="true" size={15} />
           <span>人工确认</span>
-          <strong>{reviewPanel.canConfirm ? "待确认" : "未开始"}</strong>
+          <strong>{reviewPanel.manualReviewStatus}</strong>
         </div>
       </div>
 
@@ -194,6 +229,20 @@ export function TradeReviewPanel({
               <span>R 倍数</span>
               <strong>{formatOptionalR(selectedTradeDetail.rMultiple)}</strong>
             </div>
+
+            <TradeTagSection
+              assignments={tagAssignments}
+              availableTags={availableTags}
+              selectedTagId={selectedTagId}
+              isLoading={isLoadingTags}
+              isMutating={isMutatingTags}
+              canManage={canManageTags}
+              message={tagMessage}
+              error={tagError}
+              onSelectedTagChange={onSelectedTagChange}
+              onAssignTag={onAssignTag}
+              onRemoveTag={onRemoveTag}
+            />
 
             <div className="rule-check-card">
               <div className="detail-heading">
@@ -373,8 +422,8 @@ export function TradeReviewPanel({
                       <strong>{latestReview.model ?? "未记录模型"}</strong>
                     </div>
                     <div>
-                      <span>分数</span>
-                      <strong>{latestReview.scoreTotal ?? "-"}</strong>
+                      <span>综合分</span>
+                      <strong>{scoreSummary?.totalLabel ?? "-"}</strong>
                     </div>
                     <div>
                       <span>置信度</span>
@@ -392,7 +441,18 @@ export function TradeReviewPanel({
                         </div>
                       </>
                     ) : null}
+                    {scoreSummary?.dimensions.map((dimension) => (
+                      <div key={dimension.label}>
+                        <span>{dimension.label}</span>
+                        <strong>{dimension.value}</strong>
+                      </div>
+                    ))}
                   </div>
+                  {scoreSummary ? (
+                    <p className="review-scoring-note">
+                      {scoreSummary.totalCaption}
+                    </p>
+                  ) : null}
                   <ReviewChipList title="优势" items={latestReview.strengths} />
                   <ReviewChipList title="建议" items={latestReview.suggestions} />
                 </>

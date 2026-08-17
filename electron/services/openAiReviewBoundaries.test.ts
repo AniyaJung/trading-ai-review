@@ -67,7 +67,7 @@ describe("OpenAI review adapter boundaries", () => {
   it("keeps the structured output schema fields required", () => {
     expect(reviewJsonSchema.required).toEqual([
       "summary",
-      "scoreTotal",
+      "scoreBreakdown",
       "facts",
       "missingInfo",
       "imageObservations",
@@ -86,7 +86,11 @@ describe("OpenAI review adapter boundaries", () => {
         id: "resp_123",
         output_text: JSON.stringify({
           summary: "AI summary",
-          scoreTotal: 84,
+          scoreBreakdown: {
+            ruleAdherence: 90,
+            evidenceQuality: 72,
+            executionQuality: 84,
+          },
           facts: { symbol: "ES" },
           missingInfo: [],
           imageObservations: [],
@@ -116,6 +120,11 @@ describe("OpenAI review adapter boundaries", () => {
     );
 
     expect(result.ruleChecks[0].result).toBe("unknown");
+    expect(result.scoreBreakdown).toEqual({
+      ruleAdherence: 90,
+      evidenceQuality: 72,
+      executionQuality: 84,
+    });
     expect(result.rawResult).toEqual(
       expect.objectContaining({
         provider: "openai",

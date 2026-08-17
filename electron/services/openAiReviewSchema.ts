@@ -3,7 +3,7 @@ export const reviewJsonSchema = {
   additionalProperties: false,
   required: [
     "summary",
-    "scoreTotal",
+    "scoreBreakdown",
     "facts",
     "missingInfo",
     "imageObservations",
@@ -16,7 +16,16 @@ export const reviewJsonSchema = {
   ],
   properties: {
     summary: { type: ["string", "null"] },
-    scoreTotal: { type: ["number", "null"] },
+    scoreBreakdown: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ruleAdherence", "evidenceQuality", "executionQuality"],
+      properties: {
+        ruleAdherence: { type: "number", minimum: 0, maximum: 100 },
+        evidenceQuality: { type: "number", minimum: 0, maximum: 100 },
+        executionQuality: { type: "number", minimum: 0, maximum: 100 },
+      },
+    },
     facts: {
       type: "object",
       additionalProperties: false,

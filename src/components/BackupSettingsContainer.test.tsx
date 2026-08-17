@@ -57,5 +57,6 @@ describe("BackupSettingsContainer", () => {
 
     expect(html).toContain("设置");
     expect(html).toContain("AI Key 与模型");
+    expect(html).toContain("OpenAI 代理");
   });
 });

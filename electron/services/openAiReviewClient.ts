@@ -45,7 +45,7 @@ export async function requestOpenAIReview({
       }
 
       throw new OpenAIReviewError(
-        `OpenAI review request failed (${response.status}): ${responseText}`,
+        buildResponseErrorMessage(response.status),
         classifyOpenAIReviewError(response.status, responseText),
       );
     } catch (error) {
@@ -53,7 +53,7 @@ export async function requestOpenAIReview({
         error instanceof OpenAIReviewError
           ? error
           : new OpenAIReviewError(
-              "OpenAI review request failed before a response was received.",
+              buildNetworkErrorMessage(error),
               classifyNetworkOpenAIReviewError(error),
             );
 
@@ -68,6 +68,67 @@ export async function requestOpenAIReview({
   }
 
   throw lastError;
+}
+
+function buildResponseErrorMessage(status: number) {
+  if (status === 401 || status === 403) {
+    return `OpenAI review request failed (${status}): authentication was rejected. Check the saved API key.`;
+  }
+
+  if (status === 400 || status === 422) {
+    return `OpenAI review request failed (${status}): the model or request configuration was rejected.`;
+  }
+
+  if (status === 408) {
+    return `OpenAI review request failed (${status}): the request timed out.`;
+  }
+
+  if (status === 429) {
+    return `OpenAI review request failed (${status}): the API rate limit was reached.`;
+  }
+
+  if (status >= 500) {
+    return `OpenAI review request failed (${status}): the OpenAI service returned an error.`;
+  }
+
+  return `OpenAI review request failed (${status}).`;
+}
+
+function buildNetworkErrorMessage(error: unknown) {
+  const detail = describeNetworkError(error);
+  return `OpenAI review request failed before a response was received${
+    detail ? `: ${detail}` : ""
+  }.`;
+}
+
+function describeNetworkError(error: unknown) {
+  let current: unknown = error;
+
+  for (let depth = 0; depth < 4 && current; depth += 1) {
+    const record =
+      typeof current === "object" ? (current as Record<string, unknown>) : null;
+    const code = typeof record?.code === "string" ? record.code : "";
+    const message =
+      typeof record?.message === "string" ? record.message : String(current);
+    const signature = `${code} ${message}`;
+
+    if (/UND_ERR_CONNECT_TIMEOUT|ERR_CONNECTION_TIMED_OUT|timed?\s*out/i.test(signature)) {
+      return code ? `connection timed out (${code})` : "connection timed out";
+    }
+    if (/ERR_PROXY_CONNECTION_FAILED|ERR_TUNNEL_CONNECTION_FAILED/i.test(signature)) {
+      return "proxy connection failed";
+    }
+    if (/ECONNREFUSED|ERR_CONNECTION_REFUSED/i.test(signature)) {
+      return "connection was refused";
+    }
+    if (/ENOTFOUND|ERR_NAME_NOT_RESOLVED/i.test(signature)) {
+      return "host name could not be resolved";
+    }
+
+    current = record?.cause;
+  }
+
+  return "network connection failed";
 }
 
 function delay(ms: number) {

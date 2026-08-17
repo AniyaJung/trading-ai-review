@@ -1,4 +1,5 @@
 import type { GeneratedAIReviewDraft, GeneratedRuleCheck } from "./aiReviewService.js";
+import type { AIReviewScoreBreakdown } from "../../shared/contracts/desktopApi.js";
 import type { JsonObject, RuleCheckResult } from "./reviewService.js";
 
 export function normalizeOpenAIReviewResponse(
@@ -13,6 +14,7 @@ export function normalizeOpenAIReviewResponse(
     model,
     promptVersion: activePromptVersion,
     scoreTotal: nullableNumber(value.scoreTotal),
+    scoreBreakdown: normalizeScoreBreakdown(value.scoreBreakdown),
     summary: nullableString(value.summary),
     facts: isJsonObject(value.facts) ? value.facts : {},
     missingInfo: arrayValue(value.missingInfo),
@@ -35,6 +37,24 @@ export function normalizeOpenAIReviewResponse(
     },
     ruleChecks: normalizeRuleChecks(value.ruleChecks),
   };
+}
+
+function normalizeScoreBreakdown(
+  value: unknown,
+): AIReviewScoreBreakdown | null {
+  if (!isJsonObject(value)) {
+    return null;
+  }
+
+  const ruleAdherence = nullableNumber(value.ruleAdherence);
+  const evidenceQuality = nullableNumber(value.evidenceQuality);
+  const executionQuality = nullableNumber(value.executionQuality);
+
+  return ruleAdherence == null ||
+    evidenceQuality == null ||
+    executionQuality == null
+    ? null
+    : { ruleAdherence, evidenceQuality, executionQuality };
 }
 
 export function extractOutputText(payload: JsonObject) {

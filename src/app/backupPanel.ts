@@ -18,6 +18,7 @@ export type BackupPanelInput = {
   lastRestore: RestoreBackupResult | null;
   backupHistory?: BackupHistoryItem[];
   error?: string | null;
+  timeZone?: string;
 };
 
 export function getBackupPanelState({
@@ -27,6 +28,7 @@ export function getBackupPanelState({
   lastRestore,
   backupHistory = [],
   error = null,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
 }: BackupPanelInput) {
   const isPreview = runtime !== "electron";
 
@@ -40,6 +42,7 @@ export function getBackupPanelState({
     lastBackupLabel: lastBackup
       ? `${getFileName(lastBackup.filePath)} / ${formatBackupDate(
           lastBackup.manifest.exportedAt,
+          timeZone,
         )}`
       : null,
     lastRestoreLabel: lastRestore
@@ -53,6 +56,7 @@ export function getBackupPanelState({
       formatHistoryItem(item, {
         isPreview,
         isBusy,
+        timeZone,
       }),
     ),
   };
@@ -62,19 +66,36 @@ function getFileName(filePath: string) {
   return filePath.split(/[\\/]/).at(-1) ?? filePath;
 }
 
-function formatBackupDate(value: string) {
+function formatBackupDate(value: string, timeZone: string) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
     return value;
   }
 
-  return date.toISOString().slice(0, 16).replace("T", " ");
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const datePart = (["year", "month", "day"] as const)
+    .map((type) => readDatePart(parts, type))
+    .join("-");
+  const timePart = (["hour", "minute"] as const)
+    .map((type) => readDatePart(parts, type))
+    .join(":");
+
+  return `${datePart} ${timePart}`;
 }
 
 function formatHistoryItem(
   item: BackupHistoryItem,
-  options: { isPreview: boolean; isBusy: boolean },
+  options: { isPreview: boolean; isBusy: boolean; timeZone: string },
 ) {
   const canRestore = !options.isPreview && !options.isBusy && item.status === "restorable";
 
@@ -85,13 +106,28 @@ function formatHistoryItem(
       ? null
       : getRestoreDisabledReason(item, options),
     metadataLabel: [
-      item.exportedAt ? formatBackupDate(item.exportedAt) : "未知导出时间",
+      item.exportedAt
+        ? formatBackupDate(item.exportedAt, options.timeZone)
+        : "未知导出时间",
       item.backupSchemaVersion === null ? "未知版本" : `v${item.backupSchemaVersion}`,
       formatBytes(item.sizeBytes),
     ].join(" / "),
     statusLabel: getHistoryStatusLabel(item.status),
     statusTone: getHistoryStatusTone(item.status),
   };
+}
+
+function readDatePart(
+  parts: Intl.DateTimeFormatPart[],
+  type: "year" | "month" | "day" | "hour" | "minute",
+) {
+  const value = parts.find((part) => part.type === type)?.value;
+
+  if (!value) {
+    throw new Error(`Could not format backup date part ${type}.`);
+  }
+
+  return value;
 }
 
 function getRestoreDisabledReason(

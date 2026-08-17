@@ -9,6 +9,12 @@ export type ReviewStatus =
 
 export type RuleCheckResult = "pass" | "fail" | "unknown";
 
+export type AIReviewScoreBreakdown = {
+  ruleAdherence: number;
+  evidenceQuality: number;
+  executionQuality: number;
+};
+
 export type TradeRuleCheckDetail = {
   id: number;
   entryRuleVersionId: number;
@@ -28,6 +34,8 @@ export type AIReview = {
   promptVersion: string | null;
   ruleVersionSnapshot: string | null;
   scoreTotal: number | null;
+  scoreBreakdown: AIReviewScoreBreakdown | null;
+  scoringVersion: string | null;
   summary: string | null;
   facts: JsonObject;
   missingInfo: unknown[];
@@ -48,6 +56,8 @@ export type CreateReviewDraftInput = {
   promptVersion?: string | null;
   ruleVersionSnapshot?: string | null;
   scoreTotal?: number | null;
+  scoreBreakdown?: AIReviewScoreBreakdown | null;
+  scoringVersion?: string | null;
   summary?: string | null;
   facts?: JsonObject;
   missingInfo?: unknown[];

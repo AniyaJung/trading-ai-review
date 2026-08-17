@@ -50,7 +50,36 @@ describe("trade desk containers", () => {
       />,
     );
 
-    expect(html).toContain("单笔交易事实");
+    expect(html).toContain("新建交易");
+    expect(html).not.toContain("新建 ES 交易");
+    expect(html).toContain("新记录");
     expect(html).toContain(`value="${initialState.tradeForm.symbol}"`);
+  });
+
+  it("labels editing as a separate mode with the edited trade identity", () => {
+    const initialState = createTradeWorkflowInitialState(
+      "browser-preview",
+      sampleTrades,
+    );
+    const html = renderToStaticMarkup(
+      <TradeFormContainer
+        workflow={{
+          state: {
+            tradeForm: { ...initialState.tradeForm, symbol: "MES" },
+            formPreview: null,
+            formErrors: [],
+            formMessage: "正在编辑",
+            editingTradeId: 42,
+          },
+          actions: { updateTradeForm: vi.fn() },
+        }}
+        entryRules={[]}
+        instruments={[]}
+      />,
+    );
+
+    expect(html).toContain("编辑交易 #42");
+    expect(html).not.toContain("编辑 MES 交易 #42");
+    expect(html).toContain("编辑中");
   });
 });

@@ -33,12 +33,13 @@ describe("getBackupPanelState", () => {
         },
       },
       lastRestore: null,
+      timeZone: "Asia/Shanghai",
     });
 
     expect(state.canCreateBackup).toBe(true);
     expect(state.canRestoreBackup).toBe(true);
     expect(state.lastBackupLabel).toBe(
-      "ai-trading-review-backup-2026.zip / 2026-06-11 10:00",
+      "ai-trading-review-backup-2026.zip / 2026-06-11 18:00",
     );
   });
 
@@ -72,6 +73,7 @@ describe("getBackupPanelState", () => {
           problem: "Backup schema version 999 is not supported.",
         },
       ],
+      timeZone: "Asia/Shanghai",
     });
 
     expect(state.versionPolicyLabel).toBe("当前可恢复 v1 备份；更高版本请先升级应用。");
@@ -79,14 +81,14 @@ describe("getBackupPanelState", () => {
       expect.objectContaining({
         canRestore: true,
         fileName: "current.zip",
-        metadataLabel: "2026-06-11 10:30 / v1 / 2.0 KB",
+        metadataLabel: "2026-06-11 18:30 / v1 / 2.0 KB",
         statusLabel: "可以恢复",
         statusTone: "ok",
       }),
       expect.objectContaining({
         canRestore: false,
         fileName: "future.zip",
-        metadataLabel: "2026-06-11 09:30 / v999 / 1000 B",
+        metadataLabel: "2026-06-11 17:30 / v999 / 1000 B",
         statusLabel: "需要升级",
         statusTone: "warning",
       }),

@@ -105,11 +105,34 @@ export function SettingsView({
           </label>
 
           <label>
+            API Base URL
+            <input
+              inputMode="url"
+              value={draft.baseUrl}
+              onChange={(event) =>
+                onDraftChange({ ...draft, baseUrl: event.target.value })
+              }
+            />
+          </label>
+
+          <label>
             Prompt 版本
             <input
               value={draft.promptVersion}
               onChange={(event) =>
                 onDraftChange({ ...draft, promptVersion: event.target.value })
+              }
+            />
+          </label>
+
+          <label className="wide-field">
+            OpenAI 代理（可选）
+            <input
+              inputMode="url"
+              value={draft.proxyUrl}
+              placeholder="http://127.0.0.1:7890"
+              onChange={(event) =>
+                onDraftChange({ ...draft, proxyUrl: event.target.value })
               }
             />
           </label>
@@ -140,8 +163,16 @@ export function SettingsView({
             <strong>{panel.modelSourceLabel}</strong>
           </div>
           <div>
+            <span>接口来源</span>
+            <strong>{panel.baseUrlSourceLabel}</strong>
+          </div>
+          <div>
             <span>Prompt 来源</span>
             <strong>{panel.promptVersionSourceLabel}</strong>
+          </div>
+          <div>
+            <span>代理来源</span>
+            <strong>{panel.proxySourceLabel}</strong>
           </div>
         </div>
 

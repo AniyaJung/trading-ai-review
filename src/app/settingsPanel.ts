@@ -2,7 +2,9 @@ export type SettingsDraft = {
   apiKey: string;
   clearApiKey: boolean;
   model: string;
+  baseUrl: string;
   promptVersion: string;
+  proxyUrl: string;
 };
 
 export type DataResetDraft = {
@@ -22,7 +24,9 @@ export function createSettingsDraft(summary: SettingsSummary | null): SettingsDr
     apiKey: "",
     clearApiKey: false,
     model: summary?.openAi.model ?? "gpt-5.5",
-    promptVersion: summary?.openAi.promptVersion ?? "single-trade-ai-v1",
+    baseUrl: summary?.openAi.baseUrl ?? "https://api.openai.com/v1",
+    promptVersion: summary?.openAi.promptVersion ?? "single-trade-ai-v2",
+    proxyUrl: summary?.openAi.proxyUrl ?? "",
   };
 }
 
@@ -42,7 +46,9 @@ export function getSettingsPanelState({
       !isPreview && !isResetting && resetConfirmationText === "DELETE",
     apiKeyStatusLabel: formatApiKeyStatus(summary?.openAi.apiKeySource),
     modelSourceLabel: formatSource(summary?.openAi.modelSource),
+    baseUrlSourceLabel: formatSource(summary?.openAi.baseUrlSource),
     promptVersionSourceLabel: formatSource(summary?.openAi.promptVersionSource),
+    proxySourceLabel: formatProxySource(summary?.openAi.proxySource),
   };
 }
 
@@ -56,7 +62,9 @@ export function buildAISettingsInput(draft: SettingsDraft): AISettingsInput {
   const input: AISettingsInput = {
     clearApiKey: draft.clearApiKey,
     model: draft.model.trim(),
+    baseUrl: draft.baseUrl.trim(),
     promptVersion: draft.promptVersion.trim(),
+    proxyUrl: draft.proxyUrl.trim(),
   };
 
   if (!draft.clearApiKey && draft.apiKey.trim()) {
@@ -64,6 +72,16 @@ export function buildAISettingsInput(draft: SettingsDraft): AISettingsInput {
   }
 
   return input;
+}
+
+function formatProxySource(
+  source: SettingsSummary["openAi"]["proxySource"] | undefined,
+) {
+  return source === "local"
+    ? "本机设置"
+    : source === "environment"
+      ? "环境变量"
+      : "系统代理";
 }
 
 export function buildDataResetInput(draft: DataResetDraft): DataResetInput {

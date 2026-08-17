@@ -19,7 +19,11 @@ describe("OpenAI review fixture eval", () => {
                     type: "output_text",
                     text: JSON.stringify({
                       summary: "Nested response summary",
-                      scoreTotal: 77,
+                      scoreBreakdown: {
+                        ruleAdherence: 78,
+                        evidenceQuality: 58,
+                        executionQuality: 82,
+                      },
                       facts: { symbol: "ES" },
                       missingInfo: ["exit screenshot"],
                       imageObservations: ["Entry image was attached."],

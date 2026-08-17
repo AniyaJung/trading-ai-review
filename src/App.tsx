@@ -10,6 +10,7 @@ import {
 import { sampleTrades } from "./app/previewData";
 import { useReviewWorkflow } from "./app/reviewWorkflow";
 import { useRuleWorkflow } from "./app/ruleWorkflow";
+import { useTagWorkflow } from "./app/tagWorkflow";
 import {
   createStatsEntryRuleOptions,
   filterTradesForStatsDrilldown,
@@ -36,9 +37,6 @@ function App() {
   const attachmentWorkflow = useAttachmentWorkflow(desktopApi);
   const reviewWorkflow = useReviewWorkflow(desktopApi);
   const [instruments, setInstruments] = useState<InstrumentConfig[]>([]);
-  const [databaseStatus, setDatabaseStatus] = useState<string>(
-    "等待桌面数据服务",
-  );
   const statsWorkflow = useStatsWorkflow(desktopApi);
   const tradeWorkflow = useTradeWorkflow(
     desktopApi,
@@ -72,8 +70,10 @@ function App() {
   } = reviewWorkflow.actions;
   const {
     trades,
+    isTradeFormOpen,
     isSavingTrade,
     editingTradeId,
+    selectedTradeId,
   } = tradeWorkflow.state;
   const {
     setTrades,
@@ -83,6 +83,7 @@ function App() {
     setSelectedTradeDetailState,
     setFormMessage,
     handleCreateClosedTrade,
+    handleStartCreateTrade,
     handleDeleteSelectedTrade: deleteSelectedTrade,
     handleCancelEdit,
     applyBootstrapTrades,
@@ -111,13 +112,25 @@ function App() {
   const {
     entryRules,
     isLoadingRules,
+    isSavingRule,
+    workspaceMode: ruleWorkspaceMode,
   } = ruleWorkflow.state;
   const {
     setIsLoadingRules,
+    handleCreateRule,
+    handleCreateRuleVersion,
+    handleStartCreateRule,
+    handleCancelRuleEdit,
     refreshRules,
     applyBootstrapRules,
     setRuleLoadFailure,
   } = ruleWorkflow.actions;
+  const tagWorkflow = useTagWorkflow(
+    desktopApi,
+    trades,
+    selectedTradeId,
+    syncAfterTagMutation,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -151,7 +164,6 @@ function App() {
         const desktopState = await loadDesktopBootstrapState(desktopApi);
 
         if (!cancelled) {
-          setDatabaseStatus(desktopState.databaseStatus);
           setInstruments(desktopState.instruments);
           applyBootstrapTrades(desktopState.trades);
           applyBootstrapRules(desktopState.activeRules);
@@ -208,6 +220,7 @@ function App() {
     const nextTrades = filterTradesForStatsDrilldown(trades, filters);
     setSelectedTradeId(nextTrades[0]?.id ?? null);
     setActiveAttachmentPreviewId(null);
+    handleCancelEdit();
     handleCancelRuleCheckEdit();
   };
 
@@ -285,6 +298,14 @@ function App() {
     setSelectedTradeDetailState({ tradeId, detail });
   };
 
+  async function syncAfterTagMutation() {
+    const desktopTrades = await desktopApi?.trades.list();
+    if (desktopTrades) {
+      setTrades(desktopTrades);
+    }
+    await refreshStats();
+  }
+
   const activeView = useMemo(
     () => navigationItems.find((item) => item.id === currentView),
     [currentView],
@@ -318,7 +339,6 @@ function App() {
       <AppSidebar
         currentView={currentView}
         desktopRuntime={desktopRuntime}
-        databaseStatus={databaseStatus}
         onViewChange={setCurrentView}
       />
 
@@ -326,11 +346,22 @@ function App() {
         <AppTopbar
           activeView={activeView}
           currentView={currentView}
+          isTradeFormOpen={isTradeFormOpen}
           editingTradeId={editingTradeId}
           isSavingTrade={isSavingTrade}
           isLoadingRules={isLoadingRules}
+          isSavingRule={isSavingRule}
+          ruleWorkspaceMode={ruleWorkspaceMode}
           onSaveTrade={handleCreateClosedTrade}
+          onStartCreateTrade={handleStartCreateTrade}
           onCancelEdit={handleCancelEdit}
+          onSaveRule={() =>
+            void (ruleWorkspaceMode === "create"
+              ? handleCreateRule()
+              : handleCreateRuleVersion())
+          }
+          onStartCreateRule={handleStartCreateRule}
+          onCancelRuleEdit={handleCancelRuleEdit}
           onRefreshRules={() => void refreshRules()}
         />
 
@@ -347,11 +378,16 @@ function App() {
             entryRules,
             onDrillDown: handleStatsDrillDown,
           }}
+          tags={{
+            runtime: desktopRuntime,
+            workflow: tagWorkflow,
+          }}
           backupSettings={{
             runtime: desktopRuntime,
             workflow: backupSettingsWorkflow,
           }}
           tradeDesk={{
+            isTradeFormOpen,
             tradeList: {
               workflow: tradeWorkflow,
               trades: visibleTrades,
@@ -374,6 +410,7 @@ function App() {
               tradeWorkflow,
               reviewWorkflow,
               attachmentWorkflow,
+              tagWorkflow,
               onDeleteSelectedTrade: (trade) =>
                 void handleDeleteSelectedTrade(trade),
               onCreateReviewDraft: (trade) =>

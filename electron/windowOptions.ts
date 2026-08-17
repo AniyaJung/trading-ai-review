@@ -10,7 +10,8 @@ export function buildMainWindowOptions(
     minWidth: 1100,
     minHeight: 720,
     show: false,
-    backgroundColor: "#ece7dc",
+    autoHideMenuBar: true,
+    backgroundColor: "#f3f5f7",
     title: "AI 交易复盘",
     webPreferences: {
       preload: path.join(electronDistDir, "preload.js"),

@@ -77,6 +77,18 @@ export function calculateTradeFormPreview(
   form: TradeFormState,
   instruments: InstrumentConfig[],
 ): ClosedFuturesTradeCalculation | null {
+  if (
+    [
+      form.entryPrice,
+      form.exitPrice,
+      form.stopLossPrice,
+      form.quantity,
+      form.feesTotal,
+    ].some((value) => value.trim() === "")
+  ) {
+    return null;
+  }
+
   const entryPrice = Number(form.entryPrice);
   const exitPrice = Number(form.exitPrice);
   const stopLossPrice = Number(form.stopLossPrice);

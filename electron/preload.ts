@@ -4,6 +4,7 @@ import type {
   AttachExistingFileInput,
   ChooseAndAttachInput,
   CorrectReviewInput,
+  CreateTagInput,
   CreateClosedTradeInput,
   CreateEntryRuleInput,
   CreateEntryRuleVersionInput,
@@ -12,6 +13,7 @@ import type {
   DesktopApi,
   RestoreFromHistoryInput,
   StatsOverviewFilters,
+  AssignTradeTagInput,
   UpdateRuleCheckInput,
 } from "../shared/contracts/desktopApi.js";
 
@@ -60,6 +62,17 @@ const desktopApi = {
   stats: {
     getOverview: (filters?: StatsOverviewFilters) =>
       ipcRenderer.invoke("stats:getOverview", filters),
+  },
+  tags: {
+    list: () => ipcRenderer.invoke("tags:list"),
+    create: (input: CreateTagInput) => ipcRenderer.invoke("tags:create", input),
+    delete: (tagId: number) => ipcRenderer.invoke("tags:delete", tagId),
+    listForTrade: (tradeId: number) =>
+      ipcRenderer.invoke("tags:listForTrade", tradeId),
+    assignManual: (input: AssignTradeTagInput) =>
+      ipcRenderer.invoke("tags:assignManual", input),
+    removeFromTrade: (input: AssignTradeTagInput) =>
+      ipcRenderer.invoke("tags:removeFromTrade", input),
   },
   backup: {
     create: () => ipcRenderer.invoke("backup:create"),

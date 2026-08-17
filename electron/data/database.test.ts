@@ -53,7 +53,7 @@ describe("initializeAppDatabase", () => {
       "trade_rule_check",
       "trade_tag_map",
     ]);
-    expect(userVersion).toBe(3);
+    expect(userVersion).toBe(4);
 
     const tradeColumns = db
       .prepare("pragma table_info(trade)")
@@ -79,6 +79,19 @@ describe("initializeAppDatabase", () => {
       .all()
       .map((row) => (row as { name: string }).name);
     expect(tradeTagMapColumns).toEqual(expect.arrayContaining(["source"]));
+
+    const reviewColumns = db
+      .prepare("pragma table_info(ai_review)")
+      .all()
+      .map((row) => (row as { name: string }).name);
+    expect(reviewColumns).toEqual(
+      expect.arrayContaining([
+        "score_rule_adherence",
+        "score_evidence_quality",
+        "score_execution_quality",
+        "scoring_version",
+      ]),
+    );
 
     db.close();
   });
@@ -230,7 +243,7 @@ describe("runMigrations", () => {
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(3);
+    ).toBe(4);
 
     db.close();
   });
@@ -265,7 +278,55 @@ describe("runMigrations", () => {
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(3);
+    ).toBe(4);
+
+    db.close();
+  });
+
+  it("adds three-dimensional review scores without rewriting legacy scores", () => {
+    const db = new DatabaseSync(createTempDbPath());
+    db.exec(`
+      create table ai_review (
+        id integer primary key autoincrement,
+        score_total real
+      );
+      create table app_setting (
+        key text primary key,
+        value text not null,
+        updated_at text not null default (datetime('now'))
+      );
+      insert into ai_review (score_total) values (100);
+      insert into app_setting (key, value)
+      values ('openai.prompt_version', 'single-trade-ai-v1');
+      pragma user_version = 3;
+    `);
+
+    runMigrations(db);
+
+    const columns = db
+      .prepare("pragma table_info(ai_review)")
+      .all()
+      .map((row) => (row as { name: string }).name);
+    expect(columns).toEqual(
+      expect.arrayContaining([
+        "score_rule_adherence",
+        "score_evidence_quality",
+        "score_execution_quality",
+        "scoring_version",
+      ]),
+    );
+    expect(db.prepare("select score_total from ai_review").get()).toEqual({
+      score_total: 100,
+    });
+    expect(
+      db
+        .prepare("select value from app_setting where key = 'openai.prompt_version'")
+        .get(),
+    ).toEqual({ value: "single-trade-ai-v2" });
+    expect(
+      (db.prepare("pragma user_version").get() as { user_version: number })
+        .user_version,
+    ).toBe(4);
 
     db.close();
   });
@@ -275,7 +336,7 @@ describe("runMigrations", () => {
     db.exec("pragma user_version = 99");
 
     expect(() => runMigrations(db)).toThrow(
-      "Database version 99 is newer than supported version 3.",
+      "Database version 99 is newer than supported version 4.",
     );
 
     db.close();
