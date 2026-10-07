@@ -9,6 +9,7 @@ import type {
   CreateEntryRuleInput,
   CreateEntryRuleVersionInput,
   CreateReviewDraftInput,
+  SaveTradeJournalInput,
   DataResetInput,
   DesktopApi,
   RestoreFromHistoryInput,
@@ -58,6 +59,10 @@ const desktopApi = {
     invalidate: (id: number) => ipcRenderer.invoke("reviews:invalidate", id),
     updateRuleCheck: (id: number, input: UpdateRuleCheckInput) =>
       ipcRenderer.invoke("reviews:updateRuleCheck", id, input),
+    getJournal: (tradeId: number) =>
+      ipcRenderer.invoke("reviews:getJournal", tradeId),
+    saveJournal: (input: SaveTradeJournalInput) =>
+      ipcRenderer.invoke("reviews:saveJournal", input),
   },
   stats: {
     getOverview: (filters?: StatsOverviewFilters) =>

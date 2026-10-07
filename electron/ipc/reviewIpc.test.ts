@@ -48,6 +48,20 @@ describe("createReviewIpcHandlers", () => {
     });
 
     expect(handlers.getLatestForTrade(trade.id)).toBeUndefined();
+    expect(handlers.getJournal(trade.id)).toBeUndefined();
+    expect(
+      handlers.saveJournal({
+        tradeId: trade.id,
+        title: "交易复盘",
+        content: "记录计划与执行。",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        tradeId: trade.id,
+        title: "交易复盘",
+        content: "记录计划与执行。",
+      }),
+    );
 
     const draft = handlers.createDraft({
       tradeId: trade.id,

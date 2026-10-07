@@ -23,6 +23,8 @@ import type {
   AIReview,
   CorrectReviewInput,
   CreateReviewDraftInput,
+  SaveTradeJournalInput,
+  TradeJournal,
   UpdateRuleCheckInput,
   UpdatedRuleCheck,
 } from "./reviewContracts.js";
@@ -75,6 +77,8 @@ export type {
   CreateReviewDraftInput,
   ReviewStatus,
   RuleCheckResult,
+  SaveTradeJournalInput,
+  TradeJournal,
   TradeRuleCheckDetail,
   UpdatedRuleCheck,
   UpdateRuleCheckInput,
@@ -157,6 +161,8 @@ export type DesktopApi = {
       id: number,
       input: UpdateRuleCheckInput,
     ) => Promise<UpdatedRuleCheck>;
+    getJournal: (tradeId: number) => Promise<TradeJournal | undefined>;
+    saveJournal: (input: SaveTradeJournalInput) => Promise<TradeJournal>;
   };
   stats: {
     getOverview: (filters?: StatsOverviewFilters) => Promise<StatsOverview>;

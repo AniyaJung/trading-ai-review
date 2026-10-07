@@ -49,7 +49,7 @@ pnpm smoke:packaged
 
 - 打包程序能够启动并退出。
 - Renderer 已挂载并包含可见文本。
-- SQLite 能初始化到数据库版本 4。
+- SQLite 能初始化到数据库版本 5。
 - 数据库、附件和备份目录路径正确。
 - 能创建备份 ZIP。
 - 能报告 `safeStorage` 可用性。

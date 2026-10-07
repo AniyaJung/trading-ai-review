@@ -29,7 +29,6 @@ afterEach(() => {
     }
   }
 });
-
 describe("createDatabaseIpcHandlers", () => {
   it("exposes database status and seeded instrument configuration", () => {
     const { db, paths } = createTestDb();
@@ -39,7 +38,7 @@ describe("createDatabaseIpcHandlers", () => {
       databasePath: paths.databasePath,
       appDataDir: paths.appDataDir,
       instrumentCount: 4,
-      migrationVersion: 4,
+      migrationVersion: 5,
     });
     expect(handlers.listInstruments()).toEqual([
       expect.objectContaining({

@@ -120,7 +120,7 @@ function buildRequestBody(model: string, input: AIReviewAdapterInput) {
     content.push({
       type: "input_image",
       image_url: attachment.dataUrl,
-      detail: "low",
+      detail: "high",
     });
   }
 

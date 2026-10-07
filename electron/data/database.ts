@@ -4,7 +4,7 @@ import path from "node:path";
 import type { InstrumentConfig } from "../../shared/contracts/desktopApi.js";
 import { deriveTradeDateSemantics } from "../../shared/trading/tradeDates.js";
 
-const supportedDatabaseVersion = 4;
+const supportedDatabaseVersion = 5;
 
 export type InstrumentPreset = InstrumentConfig;
 
@@ -92,6 +92,10 @@ export function runMigrations(db: DatabaseSync) {
 
   if (currentVersion < 4) {
     migrateToVersionFour(db);
+  }
+
+  if (currentVersion < 5) {
+    migrateToVersionFive(db);
   }
 }
 
@@ -200,6 +204,14 @@ function createVersionOneSchema(db: DatabaseSync) {
       fee_currency text,
       execution_type text not null check (execution_type in ('entry', 'exit', 'add', 'reduce')),
       created_at text not null default (datetime('now'))
+    );
+
+    create table trade_journal (
+      trade_id integer primary key references trade(id) on delete cascade,
+      title text not null default '',
+      content text not null default '',
+      created_at text not null default (datetime('now')),
+      updated_at text not null default (datetime('now'))
     );
 
     create table trade_attachment (
@@ -377,6 +389,26 @@ function migrateToVersionFour(db: DatabaseSync) {
     }
 
     db.exec("pragma user_version = 4");
+    db.exec("commit");
+  } catch (error) {
+    db.exec("rollback");
+    throw error;
+  }
+}
+
+function migrateToVersionFive(db: DatabaseSync) {
+  db.exec("begin immediate");
+  try {
+    db.exec(`
+      create table if not exists trade_journal (
+        trade_id integer primary key references trade(id) on delete cascade,
+        title text not null default '',
+        content text not null default '',
+        created_at text not null default (datetime('now')),
+        updated_at text not null default (datetime('now'))
+      );
+      pragma user_version = 5;
+    `);
     db.exec("commit");
   } catch (error) {
     db.exec("rollback");

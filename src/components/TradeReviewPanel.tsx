@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import { AttachmentSection } from "./AttachmentSection";
 import { TradeTagSection } from "./TradeTagSection";
+import { TradeJournalSection } from "./TradeJournalSection";
 import type { AttachmentImageType, AttachmentPanelItem } from "../app/attachmentPanel";
+import type { TradeJournalDraft } from "../app/tradeJournalWorkflow";
 import {
   getAIReviewUsageSummary,
   getAIReviewScoreSummary,
@@ -69,6 +71,12 @@ type TradeReviewPanelProps = {
   tagMessage: string;
   tagError: string | null;
   canManageTags: boolean;
+  tradeJournal: TradeJournal | undefined;
+  tradeJournalDraft: TradeJournalDraft;
+  isLoadingTradeJournal: boolean;
+  isSavingTradeJournal: boolean;
+  tradeJournalError: string | null;
+  tradeJournalMessage: string;
   onEditSelectedTrade: () => void;
   onDeleteSelectedTrade: () => void;
   onCreateReviewDraft: () => void;
@@ -86,6 +94,8 @@ type TradeReviewPanelProps = {
   onSelectedTagChange: (tagId: string) => void;
   onAssignTag: () => void;
   onRemoveTag: (assignment: TradeTagAssignment) => void;
+  onTradeJournalDraftChange: (draft: TradeJournalDraft) => void;
+  onSaveTradeJournal: () => void;
 };
 
 export function TradeReviewPanel({
@@ -119,6 +129,12 @@ export function TradeReviewPanel({
   tagMessage,
   tagError,
   canManageTags,
+  tradeJournal,
+  tradeJournalDraft,
+  isLoadingTradeJournal,
+  isSavingTradeJournal,
+  tradeJournalError,
+  tradeJournalMessage,
   onEditSelectedTrade,
   onDeleteSelectedTrade,
   onCreateReviewDraft,
@@ -136,6 +152,8 @@ export function TradeReviewPanel({
   onSelectedTagChange,
   onAssignTag,
   onRemoveTag,
+  onTradeJournalDraftChange,
+  onSaveTradeJournal,
 }: TradeReviewPanelProps) {
   const hasRuleBinding = Boolean(selectedTradeDetail?.entryRuleVersionId);
   const checklistCount = selectedTradeDetail?.entryRuleChecklist.length ?? 0;
@@ -145,7 +163,7 @@ export function TradeReviewPanel({
   const scoreSummary = getAIReviewScoreSummary(latestReview);
 
   return (
-    <section className="panel review-panel" aria-label="AI 复盘">
+    <section className="panel review-panel" aria-label="交易复盘">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">AI review draft</p>
@@ -389,6 +407,17 @@ export function TradeReviewPanel({
                 {selectedTradeDetail.exitReason || "未填写出场理由"}
               </p>
             </div>
+
+            <TradeJournalSection
+              draft={tradeJournalDraft}
+              journal={tradeJournal}
+              isLoading={isLoadingTradeJournal}
+              isSaving={isSavingTradeJournal}
+              error={tradeJournalError}
+              message={tradeJournalMessage}
+              onDraftChange={onTradeJournalDraftChange}
+              onSave={onSaveTradeJournal}
+            />
 
             <div className="execution-list">
               {selectedTradeDetail.executions.map((execution) => (

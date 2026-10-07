@@ -1,4 +1,6 @@
-import { ArrowDownRight, ArrowUpRight, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowDownRight, ArrowUpRight, Search, X } from "lucide-react";
+import { filterTradesByQuery } from "../app/tradeList";
 
 type TradeListPanelProps = {
   trades: TradeSummary[];
@@ -19,6 +21,17 @@ export function TradeListPanel({
   onClearFilter,
   onSelectTrade,
 }: TradeListPanelProps) {
+  const [query, setQuery] = useState("");
+  const filteredTrades = useMemo(
+    () => filterTradesByQuery(trades, query),
+    [trades, query],
+  );
+  const effectiveSelectedTradeId = filteredTrades.some(
+    (trade) => trade.id === selectedTradeId,
+  )
+    ? selectedTradeId
+    : filteredTrades[0]?.id;
+
   return (
     <section className="panel trade-list-panel" aria-label="交易列表">
       <div className="panel-heading">
@@ -26,7 +39,34 @@ export function TradeListPanel({
           <p className="eyebrow">Recent closed trades</p>
           <h3>交易列表</h3>
         </div>
-        <span className="count-pill">{trades.length}</span>
+        <span className="count-pill">
+          {query.trim() ? `${filteredTrades.length}/${trades.length}` : trades.length}
+        </span>
+      </div>
+
+      <div className="trade-search-field">
+        <Search aria-hidden="true" size={16} />
+        <label className="sr-only" htmlFor="trade-list-search">
+          搜索交易
+        </label>
+        <input
+          id="trade-list-search"
+          type="search"
+          value={query}
+          placeholder="搜索品种、方向、状态或日期"
+          onChange={(event) => setQuery(event.currentTarget.value)}
+        />
+        {query ? (
+          <button
+            type="button"
+            className="icon-button"
+            title="清除搜索"
+            aria-label="清除搜索"
+            onClick={() => setQuery("")}
+          >
+            <X aria-hidden="true" size={15} />
+          </button>
+        ) : null}
       </div>
 
       {activeFilterLabel ? (
@@ -54,12 +94,20 @@ export function TradeListPanel({
           <div className="table-state">
             还没有交易记录。填写交易事实并保存后，这里会显示你的复盘列表。
           </div>
+        ) : filteredTrades.length === 0 ? (
+          <div className="table-state">
+            没有找到匹配的交易。可以尝试输入品种、做多/做空或复盘状态。
+          </div>
         ) : (
-          trades.map((trade) => (
+          filteredTrades.map((trade) => (
             <button
               key={trade.id}
               type="button"
-              className={trade.id === selectedTradeId ? "trade-row selected" : "trade-row"}
+              className={
+                trade.id === effectiveSelectedTradeId
+                  ? "trade-row selected"
+                  : "trade-row"
+              }
               onClick={() => onSelectTrade(trade.id)}
             >
               <span className="trade-main">

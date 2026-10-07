@@ -14,6 +14,10 @@ import {
 } from "../app/tradeDetailSelection";
 import type { TradeWorkflow } from "../app/tradeWorkflow";
 import type { RendererRuntime } from "../app/tradeList";
+import {
+  createTradeJournalWorkflowInitialState,
+  type TradeJournalWorkflow,
+} from "../app/tradeJournalWorkflow";
 import type { TagWorkflow } from "../app/tagWorkflow";
 import { ImagePreviewOverlay } from "./ImagePreviewOverlay";
 import { TradeReviewPanel } from "./TradeReviewPanel";
@@ -80,6 +84,7 @@ type TradeReviewContainerProps = {
   reviewWorkflow: TradeReviewReviewWorkflow;
   attachmentWorkflow: TradeReviewAttachmentWorkflow;
   tagWorkflow: TradeReviewTagWorkflow;
+  tradeJournalWorkflow?: TradeJournalWorkflow;
   onDeleteSelectedTrade: (trade: TradeSummary) => void;
   onCreateReviewDraft: (trade: TradeSummary) => void;
   onConfirmReview: (trade: TradeSummary, review: AIReview | undefined) => void;
@@ -95,6 +100,7 @@ export function TradeReviewContainer({
   reviewWorkflow,
   attachmentWorkflow,
   tagWorkflow,
+  tradeJournalWorkflow,
   onDeleteSelectedTrade,
   onCreateReviewDraft,
   onConfirmReview,
@@ -102,6 +108,9 @@ export function TradeReviewContainer({
   onInvalidateReview,
   onSaveRuleCheck,
 }: TradeReviewContainerProps) {
+  const journalWorkflow =
+    tradeJournalWorkflow ?? createStaticTradeJournalWorkflow();
+  const loadTradeJournalForTrade = journalWorkflow.actions.loadForTrade;
   const { loadTradeDetail } = tradeWorkflow.actions;
   const { loadLatestReviewForTrade } = reviewWorkflow.actions;
   const { refreshAttachmentsForTrade } = attachmentWorkflow.actions;
@@ -199,6 +208,14 @@ export function TradeReviewContainer({
     selectedTradeId,
   ]);
 
+  useEffect(() => {
+    if (selectedTradeId == null) {
+      return;
+    }
+
+    void loadTradeJournalForTrade(selectedTradeId);
+  }, [loadTradeJournalForTrade, selectedTradeId]);
+
   return (
     <>
       <TradeReviewPanel
@@ -234,6 +251,18 @@ export function TradeReviewContainer({
         tagMessage={tagWorkflow.state.message}
         tagError={tagWorkflow.state.error}
         canManageTags={runtime === "electron" && Boolean(selectedTrade)}
+        tradeJournal={
+          selectedTrade
+            ? journalWorkflow.state.journalByTradeId[selectedTrade.id]
+            : undefined
+        }
+        tradeJournalDraft={journalWorkflow.state.draft}
+        isLoadingTradeJournal={
+          journalWorkflow.state.loadingTradeId === selectedTrade?.id
+        }
+        isSavingTradeJournal={journalWorkflow.state.isSaving}
+        tradeJournalError={journalWorkflow.state.error}
+        tradeJournalMessage={journalWorkflow.state.message}
         onEditSelectedTrade={() =>
           tradeWorkflow.actions.handleEditSelectedTrade(selectedTradeDetail)
         }
@@ -280,6 +309,12 @@ export function TradeReviewContainer({
         onRemoveTag={(assignment) =>
           void tagWorkflow.actions.handleRemoveTag(assignment)
         }
+        onTradeJournalDraftChange={journalWorkflow.actions.setDraft}
+        onSaveTradeJournal={() => {
+          if (selectedTrade) {
+            void journalWorkflow.actions.saveForTrade(selectedTrade.id);
+          }
+        }}
       />
 
       {activeAttachmentPreview && activeAttachmentPreviewDataUrl ? (
@@ -293,4 +328,16 @@ export function TradeReviewContainer({
       ) : null}
     </>
   );
+}
+
+function createStaticTradeJournalWorkflow(): TradeJournalWorkflow {
+  return {
+    state: createTradeJournalWorkflowInitialState(),
+    actions: {
+      setDraft: () => undefined,
+      loadForTrade: async () => undefined,
+      saveForTrade: async () => undefined,
+      removeForTrade: () => undefined,
+    },
+  } as TradeJournalWorkflow;
 }

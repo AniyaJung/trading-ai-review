@@ -25,7 +25,6 @@ afterEach(() => {
     }
   }
 });
-
 describe("initializeAppDatabase", () => {
   it("creates the core schema and records the migration version", () => {
     const db = initializeAppDatabase(createTempDbPath());
@@ -50,10 +49,11 @@ describe("initializeAppDatabase", () => {
       "trade",
       "trade_attachment",
       "trade_execution",
+      "trade_journal",
       "trade_rule_check",
       "trade_tag_map",
     ]);
-    expect(userVersion).toBe(4);
+    expect(userVersion).toBe(5);
 
     const tradeColumns = db
       .prepare("pragma table_info(trade)")
@@ -243,7 +243,7 @@ describe("runMigrations", () => {
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(4);
+    ).toBe(5);
 
     db.close();
   });
@@ -278,7 +278,7 @@ describe("runMigrations", () => {
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(4);
+    ).toBe(5);
 
     db.close();
   });
@@ -326,7 +326,7 @@ describe("runMigrations", () => {
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(4);
+    ).toBe(5);
 
     db.close();
   });
@@ -336,7 +336,7 @@ describe("runMigrations", () => {
     db.exec("pragma user_version = 99");
 
     expect(() => runMigrations(db)).toThrow(
-      "Database version 99 is newer than supported version 4.",
+      "Database version 99 is newer than supported version 5.",
     );
 
     db.close();

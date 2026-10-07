@@ -11,6 +11,7 @@ import { sampleTrades } from "./app/previewData";
 import { useReviewWorkflow } from "./app/reviewWorkflow";
 import { useRuleWorkflow } from "./app/ruleWorkflow";
 import { useTagWorkflow } from "./app/tagWorkflow";
+import { useTradeJournalWorkflow } from "./app/tradeJournalWorkflow";
 import {
   createStatsEntryRuleOptions,
   filterTradesForStatsDrilldown,
@@ -36,6 +37,7 @@ function App() {
   const backupSettingsWorkflow = useBackupSettingsWorkflow(desktopApi);
   const attachmentWorkflow = useAttachmentWorkflow(desktopApi);
   const reviewWorkflow = useReviewWorkflow(desktopApi);
+  const tradeJournalWorkflow = useTradeJournalWorkflow(desktopApi);
   const [instruments, setInstruments] = useState<InstrumentConfig[]>([]);
   const statsWorkflow = useStatsWorkflow(desktopApi);
   const tradeWorkflow = useTradeWorkflow(
@@ -229,6 +231,7 @@ function App() {
     if (deleted) {
       removeTradeAttachments(selectedTrade.id);
       removeReviewForTrade(selectedTrade.id);
+      tradeJournalWorkflow.actions.removeForTrade(selectedTrade.id);
     }
   };
 
@@ -409,6 +412,7 @@ function App() {
               trades: visibleTrades,
               tradeWorkflow,
               reviewWorkflow,
+              tradeJournalWorkflow,
               attachmentWorkflow,
               tagWorkflow,
               onDeleteSelectedTrade: (trade) =>

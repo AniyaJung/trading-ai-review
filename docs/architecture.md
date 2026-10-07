@@ -54,9 +54,10 @@ preload 使用 `contextBridge` 暴露按领域分组的 `DesktopApi`，把渲染
 
 1. 主进程读取交易详情、绑定的规则版本和截图。
 2. Prompt builder 和 JSON Schema 组成 Responses API 请求。
-3. 图片作为 data URL 以低细节模式加入请求。
+3. 图片作为 data URL 以高细节模式加入请求。
 4. 响应经过解析、结构归一化和评分处理后保存为草稿。
-5. 人工确认或修正时，同步 AI 来源标签并更新交易复盘状态。
+5. 人工复盘文章通过独立的 `trade_journal` 一对一记录保存，不改变 AI 草稿状态。
+6. 人工确认或修正时，同步 AI 来源标签并更新交易复盘状态。
 
 ### 标签
 

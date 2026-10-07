@@ -92,3 +92,17 @@ export type UpdateRuleCheckInput = {
 export type UpdatedRuleCheck = TradeRuleCheckDetail & {
   tradeId: number;
 };
+
+export type TradeJournal = {
+  tradeId: number;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SaveTradeJournalInput = {
+  tradeId: number;
+  title: string;
+  content: string;
+};

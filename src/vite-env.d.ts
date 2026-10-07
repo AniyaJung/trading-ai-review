@@ -25,6 +25,7 @@ import type {
   RestoreBackupResult as SharedRestoreBackupResult,
   RestoreFromHistoryInput as SharedRestoreFromHistoryInput,
   ReviewStatus as SharedReviewStatus,
+  SaveTradeJournalInput as SharedSaveTradeJournalInput,
   SettingsSummary as SharedSettingsSummary,
   StatsOverview as SharedStatsOverview,
   StatsOverviewFilters as SharedStatsOverviewFilters,
@@ -35,6 +36,7 @@ import type {
   TradeDetail as SharedTradeDetail,
   TradeDirection as SharedTradeDirection,
   TradeExecutionDetail as SharedTradeExecutionDetail,
+  TradeJournal as SharedTradeJournal,
   TradeRuleCheckDetail as SharedTradeRuleCheckDetail,
   TradeSummary as SharedTradeSummary,
   UpdateRuleCheckInput as SharedUpdateRuleCheckInput,
@@ -57,6 +59,8 @@ declare global {
   type CreateReviewDraftInput = SharedCreateReviewDraftInput;
   type CorrectReviewInput = SharedCorrectReviewInput;
   type UpdateRuleCheckInput = SharedUpdateRuleCheckInput;
+  type SaveTradeJournalInput = SharedSaveTradeJournalInput;
+  type TradeJournal = SharedTradeJournal;
   type AttachmentImageType = SharedAttachmentImageType;
   type TradeAttachment = SharedTradeAttachment;
   type InstrumentStats = SharedInstrumentStats;

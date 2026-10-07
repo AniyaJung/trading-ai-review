@@ -19,6 +19,11 @@ import {
   type CreateReviewDraftInput,
   type UpdateRuleCheckInput,
 } from "../services/reviewService.js";
+import {
+  getTradeJournal,
+  saveTradeJournal,
+} from "../services/tradeJournalService.js";
+import type { SaveTradeJournalInput } from "../../shared/contracts/desktopApi.js";
 
 export function createReviewIpcHandlers(
   db: DatabaseSync,
@@ -35,6 +40,8 @@ export function createReviewIpcHandlers(
     invalidate: (id: number) => invalidateReview(db, id),
     updateRuleCheck: (id: number, input: UpdateRuleCheckInput) =>
       updateRuleCheck(db, id, input),
+    getJournal: (tradeId: number) => getTradeJournal(db, tradeId),
+    saveJournal: (input: SaveTradeJournalInput) => saveTradeJournal(db, input),
   };
 }
 
@@ -74,5 +81,11 @@ export function registerReviewIpc(db: DatabaseSync) {
     "reviews:updateRuleCheck",
     (_event, id: number, input: UpdateRuleCheckInput) =>
       handlers.updateRuleCheck(id, input),
+  );
+  ipcMain.handle("reviews:getJournal", (_event, tradeId: number) =>
+    handlers.getJournal(tradeId),
+  );
+  ipcMain.handle("reviews:saveJournal", (_event, input: SaveTradeJournalInput) =>
+    handlers.saveJournal(input),
   );
 }

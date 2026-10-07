@@ -103,7 +103,7 @@ describe("OpenAI review fixture eval", () => {
         {
           type: "input_image",
           image_url: "data:image/png;base64,abcd",
-          detail: "low",
+          detail: "high",
         },
       ]),
     );
