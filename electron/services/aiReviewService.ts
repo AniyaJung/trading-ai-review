@@ -13,6 +13,8 @@ import {
 } from "./reviewService.js";
 import { scoreGeneratedAIReview } from "./aiReviewScoring.js";
 import { getTradeDetail, type TradeDetail } from "./tradeService.js";
+import { getTradeResearch } from "./researchService.js";
+import type { TradeResearchRecord } from "../../shared/contracts/researchContracts.js";
 
 export type AIReviewAttachmentInput = {
   id: number;
@@ -24,6 +26,7 @@ export type AIReviewAttachmentInput = {
 export type AIReviewAdapterInput = {
   trade: TradeDetail;
   attachments: AIReviewAttachmentInput[];
+  researchRecord?: TradeResearchRecord;
 };
 
 export type GeneratedRuleCheck = {
@@ -74,7 +77,7 @@ export async function generateAIReviewDraft(
     caption: attachment.caption,
     dataUrl: readAttachmentImageDataUrl(db, attachment.id),
   }));
-  const generated = await adapter.generate({ trade, attachments });
+  const generated = await adapter.generate({ trade, attachments, researchRecord: getTradeResearch(db, tradeId) });
   const attachmentTypes = new Set(
     attachments.map((attachment) => attachment.imageType),
   );

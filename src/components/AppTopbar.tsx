@@ -40,8 +40,8 @@ export function AppTopbar({
   return (
     <header className="topbar">
       <div>
-        <p className="eyebrow">{activeView?.description}</p>
         <h2>{activeView?.label}</h2>
+        <p className="topbar-description">{activeView?.description}</p>
       </div>
       <div className="toolbar">
         {currentView === "trades" && !isTradeFormOpen ? (

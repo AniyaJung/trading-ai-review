@@ -102,7 +102,7 @@ describe("settingsService", () => {
       modelSource: "environment",
       baseUrl: "https://environment.example/api",
       baseUrlSource: "environment",
-      promptVersion: "single-trade-ai-v2",
+      promptVersion: "single-trade-ai-v3",
       promptVersionSource: "default",
       proxyUrl: "http://127.0.0.1:7891",
       proxySource: "environment",

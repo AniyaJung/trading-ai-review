@@ -6,6 +6,7 @@ import {
   Settings,
   SquarePen,
   Tags,
+  FlaskConical,
 } from "lucide-react";
 
 export type AppView =
@@ -13,6 +14,7 @@ export type AppView =
   | "rules"
   | "tags"
   | "stats"
+  | "research"
   | "backup"
   | "settings";
 
@@ -47,6 +49,12 @@ export const navigationItems: NavigationItem[] = [
     label: "统计",
     description: "查看已确认复盘统计",
     icon: BarChart3,
+  },
+  {
+    id: "research",
+    label: "研究",
+    description: "验证主观判断与市场条件的关系",
+    icon: FlaskConical,
   },
   {
     id: "backup",

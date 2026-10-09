@@ -10,6 +10,7 @@ import { registerAttachmentIpc } from "./ipc/attachmentIpc.js";
 import { registerBackupIpc } from "./ipc/backupIpc.js";
 import { registerDatabaseIpc } from "./ipc/databaseIpc.js";
 import { registerReviewIpc } from "./ipc/reviewIpc.js";
+import { registerResearchIpc } from "./ipc/researchIpc.js";
 import { registerRuleIpc } from "./ipc/ruleIpc.js";
 import { registerSettingsIpc } from "./ipc/settingsIpc.js";
 import { registerStatsIpc } from "./ipc/statsIpc.js";
@@ -91,6 +92,7 @@ app.whenReady().then(async () => {
   registerRuleIpc(db);
   registerTradeIpc(db);
   registerReviewIpc(db);
+  registerResearchIpc(db);
   registerStatsIpc(db);
   registerTagIpc(db);
   registerAttachmentIpc(db, appDataPaths.attachmentsDir);

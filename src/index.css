@@ -1,21 +1,21 @@
 :root {
-  --surface: #f3f5f7;
-  --surface-raised: #f8fafb;
+  --surface: #f5f7fa;
+  --surface-raised: #f9fafc;
   --panel: #ffffff;
-  --panel-subtle: #f5f7f8;
-  --panel-wash: #fafbfc;
-  --line: #dfe3e6;
-  --line-strong: #b9c3ca;
-  --ink: #1d252b;
-  --ink-soft: #42515a;
+  --panel-subtle: #f7f9fb;
+  --panel-wash: #ffffff;
+  --line: #e7ebf0;
+  --line-strong: #c7d2dd;
+  --ink: #182b3d;
+  --ink-soft: #4d6072;
   --ink-invert: #f5f8fa;
-  --muted: #6c7981;
-  --accent: #157a76;
-  --accent-strong: #0f5f5c;
+  --muted: #64748b;
+  --accent: #087f76;
+  --accent-strong: #08665f;
   --accent-cool: #38a89f;
-  --accent-soft: #e7f4f2;
-  --accent-softer: #f1f8f7;
-  --accent-line: #b9ded9;
+  --accent-soft: #e7f5f1;
+  --accent-softer: #f3faf8;
+  --accent-line: #c6e6de;
   --positive: #147a50;
   --warning: #95640b;
   --danger: #b43d38;
@@ -27,7 +27,7 @@
   color: var(--ink);
   background: var(--surface);
   font-family:
-    "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI",
     sans-serif;
   font-size: 14px;
   line-height: 1.45;

@@ -129,7 +129,7 @@ describe("createOpenAIReviewAdapter", () => {
     expect(result).toEqual(
       expect.objectContaining({
         model: "gpt-test",
-        promptVersion: "single-trade-ai-v2",
+        promptVersion: "single-trade-ai-v3",
         summary: "AI summary",
         rawResult: expect.objectContaining({
           provider: "openai",

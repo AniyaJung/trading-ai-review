@@ -50,6 +50,11 @@ import type {
   TradeDetail,
   TradeSummary,
 } from "./tradeContracts.js";
+import type {
+  SaveTradeResearchInput,
+  TradeResearchRecord,
+  TradeResearchSample,
+} from "./researchContracts.js";
 
 export type { TradeDirection } from "../trading/types.js";
 export type { JsonObject } from "./commonContracts.js";
@@ -166,6 +171,11 @@ export type DesktopApi = {
   };
   stats: {
     getOverview: (filters?: StatsOverviewFilters) => Promise<StatsOverview>;
+  };
+  research: {
+    getForTrade: (tradeId: number) => Promise<TradeResearchRecord | undefined>;
+    saveForTrade: (input: SaveTradeResearchInput) => Promise<TradeResearchRecord>;
+    listSamples: () => Promise<TradeResearchSample[]>;
   };
   tags: {
     list: () => Promise<TagDefinition[]>;

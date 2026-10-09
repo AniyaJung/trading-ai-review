@@ -7,7 +7,7 @@ import type {
 
 const defaultOpenAIModel = "gpt-5.5";
 const defaultOpenAIBaseUrl = "https://api.openai.com/v1";
-const defaultPromptVersion = "single-trade-ai-v2";
+const defaultPromptVersion = "single-trade-ai-v3";
 
 const settingKeys = {
   openAIApiKey: "openai.api_key",

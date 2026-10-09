@@ -25,7 +25,7 @@ export function createSettingsDraft(summary: SettingsSummary | null): SettingsDr
     clearApiKey: false,
     model: summary?.openAi.model ?? "gpt-5.5",
     baseUrl: summary?.openAi.baseUrl ?? "https://api.openai.com/v1",
-    promptVersion: summary?.openAi.promptVersion ?? "single-trade-ai-v2",
+    promptVersion: summary?.openAi.promptVersion ?? "single-trade-ai-v3",
     proxyUrl: summary?.openAi.proxyUrl ?? "",
   };
 }

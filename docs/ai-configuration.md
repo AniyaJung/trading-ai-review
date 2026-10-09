@@ -10,7 +10,7 @@ AI Trading Review 从 Electron 主进程发起请求，使用 OpenAI Responses A
 | --- | --- |
 | 模型 | `gpt-5.5` |
 | Base URL | `https://api.openai.com/v1` |
-| Prompt 版本 | `single-trade-ai-v2` |
+| Prompt 版本 | `single-trade-ai-v3` |
 | 请求重试 | 最多 2 次；仅对超时、限流、服务端和部分网络错误重试 |
 
 默认模型只是应用预设。实际可用模型取决于所连接的官方或第三方服务。

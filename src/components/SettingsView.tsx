@@ -58,8 +58,7 @@ export function SettingsView({
     <section className="settings-view">
       <div className="stats-heading">
         <div>
-          <p className="eyebrow">Local preferences</p>
-          <h3>设置</h3>
+          <p className="page-context">配置复盘接口与本地数据</p>
         </div>
         {panel.isPreview ? <span className="stats-badge">预览模式</span> : null}
       </div>

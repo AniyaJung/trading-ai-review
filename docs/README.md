@@ -7,7 +7,8 @@
 | 文档 | 面向对象 | 内容 |
 | --- | --- | --- |
 | [项目 README](../README.md) | 所有人 | 项目定位、能力、快速开始和限制 |
-| [使用指南](user-guide.md) | 使用者 | 交易、规则、标签、复盘、统计、备份与设置 |
+| [使用指南](user-guide.md) | 使用者 | 交易、规则、标签、复盘、统计、研究、备份与设置 |
+| [交易研究](trade-research.md) | 使用者/维护者 | 主观交易研究字段、样本口径、筛选和统计限制 |
 | [AI 配置](ai-configuration.md) | 使用者/维护者 | API Key、模型、Base URL、代理和第三方接口兼容性 |
 | [架构说明](architecture.md) | 开发者 | Electron 边界、模块职责、数据流和 SQLite |
 | [开发指南](development.md) | 开发者 | 环境、命令、目录结构、测试和变更约束 |

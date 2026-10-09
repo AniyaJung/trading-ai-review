@@ -12,11 +12,13 @@
 ## 当前能力
 
 - 新建、查看、编辑和删除已平仓交易，自动计算净盈亏与 R 倍数。
+- 交易列表与详情独立滚动，概览、人工复盘、研究记录和 AI 复盘按页签组织；研究页区分常用与高级筛选。
 - 创建入场规则、追加不可变版本、归档规则，并把具体规则版本绑定到交易。
 - 为交易添加截图、备注和策略/错误/情绪/市场标签。
 - 通过兼容 OpenAI Responses API 的服务生成结构化 AI 复盘，支持自定义模型、Base URL 和网络代理。
 - 确认、修正或作废 AI 草稿，保留规则检查、评分、用量和原始结果以便追溯。
 - 按日期口径、品种、入场规则和标签筛选统计，并下钻回交易列表。
+- 记录市场环境、订单流、DOM 事件、信心和 MAE/MFE，按条件研究主观判断，逐笔回看并导出 CSV。
 - 导出和恢复包含 SQLite、截图及校验清单的本地 ZIP 备份。
 - 本地数据重置前自动创建安全备份。
 
@@ -72,6 +74,7 @@ ZIP 输出到 `release/AI Trading Review-win32-x64-portable.zip`。便携包未�
 - [使用指南](docs/user-guide.md)
 - [AI 与第三方接口配置](docs/ai-configuration.md)
 - [架构说明](docs/architecture.md)
+- [交易研究](docs/trade-research.md)
 - [开发指南](docs/development.md)
 - [打包与部署](docs/packaging.md)
 - [历史方案与交接记录](docs/superpowers/README.md)

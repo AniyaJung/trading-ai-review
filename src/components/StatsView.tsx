@@ -114,6 +114,16 @@ export function StatsView({
         </div>
       ) : null}
 
+      <div className="stats-metric-grid">
+        {metrics.map(({ label, value, Icon, tone }) => (
+          <div key={label} className={`stats-metric ${tone ?? ""}`}>
+            <Icon aria-hidden="true" size={18} />
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+
       <div className="panel stats-filter-bar" aria-label="统计筛选">
         <label>
           日期口径
@@ -219,16 +229,6 @@ export function StatsView({
           <ListFilter aria-hidden="true" size={16} />
           查看对应交易
         </button>
-      </div>
-
-      <div className="stats-metric-grid">
-        {metrics.map(({ label, value, Icon, tone }) => (
-          <div key={label} className={`stats-metric ${tone ?? ""}`}>
-            <Icon aria-hidden="true" size={18} />
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
-        ))}
       </div>
 
       <section className="panel stats-breakdown" aria-label="按品种聚合">

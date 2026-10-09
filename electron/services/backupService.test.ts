@@ -24,6 +24,7 @@ import {
   type BackupServicePaths,
 } from "./backupService";
 import { createClosedTrade } from "./tradeService";
+import { getTradeResearch, saveTradeResearch } from "./researchService";
 
 const tempDirs: string[] = [];
 
@@ -131,6 +132,22 @@ afterEach(() => {
 });
 
 describe("createBackup", () => {
+  it("preserves research records through backup and restoration", async () => {
+    const paths = createPaths();
+    const { trade } = createSeededDatabase(paths);
+    const db = initializeAppDatabase(paths.databasePath);
+    saveTradeResearch(db, { tradeId: trade.id, fields: { setup: "Absorption", maePoints: 1.25, delta: 0 } });
+    db.close();
+    const backup = await createBackup(paths);
+    const changed = initializeAppDatabase(paths.databasePath);
+    saveTradeResearch(changed, { tradeId: trade.id, fields: { setup: "Changed" } });
+    changed.close();
+    await restoreBackup(paths, backup.filePath);
+    const restored = initializeAppDatabase(paths.databasePath);
+    try {
+      expect(getTradeResearch(restored, trade.id)?.fields).toEqual({ setup: "Absorption", maePoints: 1.25, delta: 0 });
+    } finally { restored.close(); }
+  });
   it("exports SQLite, attachments, and a checksum manifest into a zip", async () => {
     const paths = createPaths();
     const { attachment } = createSeededDatabase(paths);

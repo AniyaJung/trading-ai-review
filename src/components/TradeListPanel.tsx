@@ -26,18 +26,13 @@ export function TradeListPanel({
     () => filterTradesByQuery(trades, query),
     [trades, query],
   );
-  const effectiveSelectedTradeId = filteredTrades.some(
-    (trade) => trade.id === selectedTradeId,
-  )
-    ? selectedTradeId
-    : filteredTrades[0]?.id;
 
   return (
     <section className="panel trade-list-panel" aria-label="交易列表">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">Recent closed trades</p>
           <h3>交易列表</h3>
+          <p className="panel-caption">选择一笔交易开始复盘</p>
         </div>
         <span className="count-pill">
           {query.trim() ? `${filteredTrades.length}/${trades.length}` : trades.length}
@@ -83,6 +78,10 @@ export function TradeListPanel({
         </div>
       ) : null}
 
+      {query.trim() && selectedTradeId != null && !filteredTrades.some((trade) => trade.id === selectedTradeId) ? (
+        <div className="trade-list-filter-banner">当前详情不在搜索结果中，点击结果行切换交易。</div>
+      ) : null}
+
       <div className="trade-table">
         {isLoadingTrades ? (
           <div className="table-state">正在读取本机交易记录...</div>
@@ -104,11 +103,12 @@ export function TradeListPanel({
               key={trade.id}
               type="button"
               className={
-                trade.id === effectiveSelectedTradeId
+                trade.id === selectedTradeId
                   ? "trade-row selected"
                   : "trade-row"
               }
               onClick={() => onSelectTrade(trade.id)}
+              aria-pressed={trade.id === selectedTradeId}
             >
               <span className="trade-main">
                 <strong>{trade.symbol}</strong>

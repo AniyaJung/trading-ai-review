@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { SaveTradeResearchInput } from "../shared/contracts/researchContracts.js";
 import type {
   AISettingsInput,
   AttachExistingFileInput,
@@ -67,6 +68,11 @@ const desktopApi = {
   stats: {
     getOverview: (filters?: StatsOverviewFilters) =>
       ipcRenderer.invoke("stats:getOverview", filters),
+  },
+  research: {
+    getForTrade: (tradeId: number) => ipcRenderer.invoke("research:getForTrade", tradeId),
+    saveForTrade: (input: SaveTradeResearchInput) => ipcRenderer.invoke("research:saveForTrade", input),
+    listSamples: () => ipcRenderer.invoke("research:listSamples"),
   },
   tags: {
     list: () => ipcRenderer.invoke("tags:list"),

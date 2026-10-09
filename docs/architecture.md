@@ -20,8 +20,9 @@ React renderer
 ### Renderer: `src/`
 
 - `src/App.tsx`：应用启动后的工作流装配、导航输入和跨工作流刷新协调。
-- `src/components/`：交易、规则、标签、统计、备份和设置界面。
+- `src/components/`：交易、规则、标签、统计、研究、备份和设置界面。`WorkspaceTabs` 处理交易详情页签与键盘导航；页签内容保持挂载，保留当前编辑。
 - `src/app/`：可测试的状态、格式化、筛选和 React 工作流 hooks。
+- `src/styles/workspace.css`：内容区滚动边界、交易详情分区与跨工作区布局；主题颜色和字体在 `src/index.css` 定义。
 - 渲染进程不直接访问 Node.js、SQLite、文件路径或 API Key。
 
 浏览器预览没有 `window.desktopApi`，只用于查看渲染层和预览数据，不是完整产品运行时。
@@ -74,7 +75,7 @@ AI 同步只重写 AI 来源关联，不会批量删除手动来源标签。当�
 
 ## SQLite
 
-当前数据库版本为 `4`，由 `pragma user_version` 管理。新数据库直接创建当前 schema；旧数据库按顺序迁移。
+当前数据库版本为 `6`，由 `pragma user_version` 管理。新数据库直接创建当前 schema；旧数据库按顺序迁移。v5 增加人工文章，v6 增加结构化交易研究记录；升级保留旧交易与文章。
 
 核心数据包括：
 
@@ -84,6 +85,11 @@ AI 同步只重写 AI 来源关联，不会批量删除手动来源标签。当�
 - AI 复盘、规则检查、确认状态和评分。
 - 标签定义与带来源的交易标签映射。
 - 应用设置。
+- 独立的一对一 `trade_journal` 人工文章与 `trade_research` 结构化研究记录，随交易删除级联清理。
+
+`shared/trading/researchFields.ts` 集中定义研究字段的选项、单位和边界校验。主进程通过 `research:*` IPC 读取、保存和列出研究样本；研究视图使用实际交易事实，不依赖 AI 确认状态。渲染层按交易保存独立草稿、加载错误和保存状态，异步结果不会覆盖其他交易或保存期间的新编辑。
+
+研究字段保存在 SQLite 的 `fields_json` 中，数值缺失与 0 分开表示。现有完整数据库备份自动包含研究记录。单笔 AI 输入包含已保存的研究记录；默认 Prompt v3 明确区分观察、假设、自报记录来源与事后结果，不推断单笔交易的统计优势。
 
 当前预置品种为 ES、MES、NQ、MNQ。SQLite 使用 Electron/Node 内置的 `node:sqlite`，不依赖原生第三方 SQLite 模块。
 

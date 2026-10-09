@@ -121,9 +121,9 @@ child.on("exit", (code) => {
       }
     }
 
-    if (result.migrationVersion !== 4) {
+    if (result.migrationVersion !== 6) {
       throw new Error(
-        `Expected migration version 4, received ${result.migrationVersion}.`,
+        `Expected migration version 6, received ${result.migrationVersion}.`,
       );
     }
 

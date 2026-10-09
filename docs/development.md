@@ -47,7 +47,7 @@ electron/
   services/      主进程领域服务
 shared/
   contracts/     跨进程 DTO 与 DesktopApi
-  trading/       共享交易计算
+  trading/       共享交易计算、研究字段口径与校验
 src/
   app/           Renderer 工作流、状态和纯逻辑
   components/    React 功能界面

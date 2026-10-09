@@ -21,6 +21,8 @@ import {
 import type { TagWorkflow } from "../app/tagWorkflow";
 import { ImagePreviewOverlay } from "./ImagePreviewOverlay";
 import { TradeReviewPanel } from "./TradeReviewPanel";
+import { TradeResearchSection } from "./TradeResearchSection";
+import type { TradeResearchWorkflow } from "../app/tradeResearchWorkflow";
 
 type TradeReviewTradeWorkflow = {
   state: Pick<
@@ -85,6 +87,7 @@ type TradeReviewContainerProps = {
   attachmentWorkflow: TradeReviewAttachmentWorkflow;
   tagWorkflow: TradeReviewTagWorkflow;
   tradeJournalWorkflow?: TradeJournalWorkflow;
+  tradeResearchWorkflow?: TradeResearchWorkflow;
   onDeleteSelectedTrade: (trade: TradeSummary) => void;
   onCreateReviewDraft: (trade: TradeSummary) => void;
   onConfirmReview: (trade: TradeSummary, review: AIReview | undefined) => void;
@@ -101,6 +104,7 @@ export function TradeReviewContainer({
   attachmentWorkflow,
   tagWorkflow,
   tradeJournalWorkflow,
+  tradeResearchWorkflow,
   onDeleteSelectedTrade,
   onCreateReviewDraft,
   onConfirmReview,
@@ -219,6 +223,7 @@ export function TradeReviewContainer({
   return (
     <>
       <TradeReviewPanel
+        researchSection={selectedTrade && tradeResearchWorkflow ? <TradeResearchSection key={selectedTrade.id} tradeId={selectedTrade.id} workflow={tradeResearchWorkflow} /> : undefined}
         reviewPanel={reviewPanel}
         reviewAction={reviewAction}
         latestReview={latestReview}
@@ -246,7 +251,7 @@ export function TradeReviewContainer({
         tagAssignments={tagWorkflow.state.assignments}
         availableTags={tagWorkflow.state.availableTags}
         selectedTagId={tagWorkflow.state.selectedTagId}
-        isLoadingTags={tagWorkflow.state.isLoadingAssignments}
+        isLoadingTags={runtime === "electron" && tagWorkflow.state.isLoadingAssignments}
         isMutatingTags={tagWorkflow.state.isMutating}
         tagMessage={tagWorkflow.state.message}
         tagError={tagWorkflow.state.error}

@@ -27,21 +27,24 @@ export function AppSidebar({
       </div>
 
       <nav className="nav-list">
-        {navigationItems.map((item) => {
+        {navigationItems.map((item, index) => {
           const Icon = item.icon;
           return (
-            <button
-              key={item.id}
-              type="button"
-              className={item.id === currentView ? "nav-item active" : "nav-item"}
-              aria-current={item.id === currentView ? "page" : undefined}
-              aria-label={item.label}
-              title={item.description}
-              onClick={() => onViewChange(item.id)}
-            >
-              <Icon aria-hidden="true" size={18} />
-              <span>{item.label}</span>
-            </button>
+            <div key={item.id} className="nav-entry">
+              {index === 0 ? <p className="nav-group-label">交易工作台</p> : index === 5 ? <p className="nav-group-label nav-group-secondary">应用管理</p> : null}
+              <button
+                key={item.id}
+                type="button"
+                className={item.id === currentView ? "nav-item active" : "nav-item"}
+                aria-current={item.id === currentView ? "page" : undefined}
+                aria-label={item.label}
+                title={item.description}
+                onClick={() => onViewChange(item.id)}
+              >
+                <Icon aria-hidden="true" size={18} />
+                <span>{item.label}</span>
+              </button>
+            </div>
           );
         })}
       </nav>

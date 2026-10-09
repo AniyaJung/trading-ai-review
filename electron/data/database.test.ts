@@ -50,10 +50,11 @@ describe("initializeAppDatabase", () => {
       "trade_attachment",
       "trade_execution",
       "trade_journal",
+      "trade_research",
       "trade_rule_check",
       "trade_tag_map",
     ]);
-    expect(userVersion).toBe(5);
+    expect(userVersion).toBe(6);
 
     const tradeColumns = db
       .prepare("pragma table_info(trade)")
@@ -243,7 +244,7 @@ describe("runMigrations", () => {
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
 
     db.close();
   });
@@ -278,7 +279,7 @@ describe("runMigrations", () => {
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
 
     db.close();
   });
@@ -322,11 +323,11 @@ describe("runMigrations", () => {
       db
         .prepare("select value from app_setting where key = 'openai.prompt_version'")
         .get(),
-    ).toEqual({ value: "single-trade-ai-v2" });
+    ).toEqual({ value: "single-trade-ai-v3" });
     expect(
       (db.prepare("pragma user_version").get() as { user_version: number })
         .user_version,
-    ).toBe(5);
+    ).toBe(6);
 
     db.close();
   });
@@ -336,7 +337,7 @@ describe("runMigrations", () => {
     db.exec("pragma user_version = 99");
 
     expect(() => runMigrations(db)).toThrow(
-      "Database version 99 is newer than supported version 5.",
+      "Database version 99 is newer than supported version 6.",
     );
 
     db.close();

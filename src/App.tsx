@@ -12,6 +12,8 @@ import { useReviewWorkflow } from "./app/reviewWorkflow";
 import { useRuleWorkflow } from "./app/ruleWorkflow";
 import { useTagWorkflow } from "./app/tagWorkflow";
 import { useTradeJournalWorkflow } from "./app/tradeJournalWorkflow";
+import { useTradeResearchWorkflow } from "./app/tradeResearchWorkflow";
+import { createResearchFilters, type ResearchGroupBy } from "./app/researchPanel";
 import {
   createStatsEntryRuleOptions,
   filterTradesForStatsDrilldown,
@@ -38,6 +40,9 @@ function App() {
   const attachmentWorkflow = useAttachmentWorkflow(desktopApi);
   const reviewWorkflow = useReviewWorkflow(desktopApi);
   const tradeJournalWorkflow = useTradeJournalWorkflow(desktopApi);
+  const tradeResearchWorkflow = useTradeResearchWorkflow(desktopApi);
+  const [researchFilters, setResearchFilters] = useState(createResearchFilters);
+  const [researchGroupBy, setResearchGroupBy] = useState<ResearchGroupBy>("marketRegime");
   const [instruments, setInstruments] = useState<InstrumentConfig[]>([]);
   const statsWorkflow = useStatsWorkflow(desktopApi);
   const tradeWorkflow = useTradeWorkflow(
@@ -232,6 +237,7 @@ function App() {
       removeTradeAttachments(selectedTrade.id);
       removeReviewForTrade(selectedTrade.id);
       tradeJournalWorkflow.actions.removeForTrade(selectedTrade.id);
+      tradeResearchWorkflow.actions.removeForTrade(selectedTrade.id);
     }
   };
 
@@ -338,7 +344,7 @@ function App() {
       )
     : null;
   return (
-    <main className="app-shell">
+    <main className={`app-shell view-${currentView}`}>
       <AppSidebar
         currentView={currentView}
         desktopRuntime={desktopRuntime}
@@ -370,6 +376,23 @@ function App() {
 
         <AppWorkspaceView
           currentView={currentView}
+          research={{
+            desktopApi,
+            trades,
+            workflow: tradeResearchWorkflow,
+            filters: researchFilters,
+            groupBy: researchGroupBy,
+            onFiltersChange: setResearchFilters,
+            onGroupByChange: setResearchGroupBy,
+            onOpenTrade: (tradeId) => {
+              setTradeDrilldownFilters(null);
+              setSelectedTradeId(tradeId);
+              setActiveAttachmentPreviewId(null);
+              handleCancelEdit();
+              handleCancelRuleCheckEdit();
+              setCurrentView("trades");
+            },
+          }}
           rules={{
             workflow: ruleWorkflow,
           }}
@@ -413,6 +436,7 @@ function App() {
               tradeWorkflow,
               reviewWorkflow,
               tradeJournalWorkflow,
+              tradeResearchWorkflow,
               attachmentWorkflow,
               tagWorkflow,
               onDeleteSelectedTrade: (trade) =>

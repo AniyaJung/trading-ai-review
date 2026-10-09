@@ -49,7 +49,7 @@ pnpm smoke:packaged
 
 - 打包程序能够启动并退出。
 - Renderer 已挂载并包含可见文本。
-- SQLite 能初始化到数据库版本 5。
+- SQLite 能初始化到数据库版本 6。
 - 数据库、附件和备份目录路径正确。
 - 能创建备份 ZIP。
 - 能报告 `safeStorage` 可用性。
@@ -58,9 +58,11 @@ pnpm smoke:packaged
 
 ## 当前验证记录
 
-截至 2026-08-08，最近一次源码级验证记录为：63 个测试文件、256 个测试通过，TypeScript、ESLint 和生产构建通过。交互式打包程序可以启动。
+2026-10-08：70 个测试文件、291 个测试通过，TypeScript、ESLint 和生产构建通过。重新生成了 Windows x64 本地目录包，自动 packaged smoke 通过：Renderer 成功挂载、数据库版本为 6、备份 ZIP 创建成功、`safeStorage` 可用。
 
-当前机器上，隐藏窗口且禁用 GPU 的自动 packaged smoke 曾因 Electron GPU 子进程错误失败，因此不能把自动 smoke 标记为已通过。重新得到成功输出前，应把它视为待验证项。历史过程见 [旧打包验证记录](superpowers/packaging-verification.md)。
+2026-10-08：完成工作台界面整理并重新生成 Windows x64 目录包。浏览器预览覆盖交易、研究、统计、设置、标签、规则和备份七个页面；桌面最小窗口下无横向溢出，交易详情页签、键盘切换、研究记录保存和草稿保留均通过手工检查。新版目录包的 packaged smoke 通过，Renderer 成功挂载，标题为“AI 交易复盘”。
+
+本次浏览器预览验证了研究记录保存、跨交易草稿保留、零值筛选、逐笔回看与筛选保留。CSV 内容和转义有单元测试覆盖；内置预览浏览器未返回下载事件，未完成桌面文件下载的交互验证。上述结果不代替真实数据环境中的第三方 AI 接口、文件选择器和 Key 重启解密检查。更早的 GPU 子进程失败保留在 [旧打包验证记录](superpowers/packaging-verification.md)。
 
 ## 手工检查清单
 

@@ -5,6 +5,7 @@ import { RulesViewContainer } from "./RulesViewContainer";
 import { StatsViewContainer } from "./StatsViewContainer";
 import { TagManagerContainer } from "./TagManagerContainer";
 import { TradeDeskView } from "./TradeDeskView";
+import { ResearchViewContainer } from "./ResearchViewContainer";
 
 type AppWorkspaceViewProps = {
   currentView: AppView;
@@ -16,6 +17,7 @@ type AppWorkspaceViewProps = {
     "view"
   >;
   tradeDesk: ComponentProps<typeof TradeDeskView>;
+  research?: ComponentProps<typeof ResearchViewContainer>;
 };
 
 export function AppWorkspaceView({
@@ -25,6 +27,7 @@ export function AppWorkspaceView({
   tags,
   backupSettings,
   tradeDesk,
+  research,
 }: AppWorkspaceViewProps) {
   if (currentView === "rules") {
     return <RulesViewContainer {...rules} />;
@@ -32,6 +35,10 @@ export function AppWorkspaceView({
 
   if (currentView === "stats") {
     return <StatsViewContainer {...stats} />;
+  }
+
+  if (currentView === "research" && research) {
+    return <ResearchViewContainer {...research} />;
   }
 
   if (currentView === "tags") {

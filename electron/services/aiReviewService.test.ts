@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { initializeAppDatabase } from "../data/database";
 import { createEntryRule } from "./ruleService";
 import { createClosedTrade } from "./tradeService";
+import { saveTradeResearch } from "./researchService";
 import {
   generateAIReviewDraft,
   type AIReviewAdapter,
@@ -49,8 +50,10 @@ describe("generateAIReviewDraft", () => {
       entryRuleVersionId: rule.latestVersion.id,
       entryReason: "Breakout pulled back into VWAP.",
     });
+    saveTradeResearch(db, { tradeId: trade.id, fields: { setup: "Absorption", recordTiming: "post_trade", confidence: 4 } });
     const adapter: AIReviewAdapter = {
       generate: async (input) => {
+        expect(input.researchRecord?.fields).toEqual({ setup: "Absorption", recordTiming: "post_trade", confidence: 4 });
         expect(input.trade).toEqual(
           expect.objectContaining({
             id: trade.id,

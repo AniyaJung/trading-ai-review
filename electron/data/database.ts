@@ -4,7 +4,7 @@ import path from "node:path";
 import type { InstrumentConfig } from "../../shared/contracts/desktopApi.js";
 import { deriveTradeDateSemantics } from "../../shared/trading/tradeDates.js";
 
-const supportedDatabaseVersion = 5;
+const supportedDatabaseVersion = 6;
 
 export type InstrumentPreset = InstrumentConfig;
 
@@ -96,6 +96,9 @@ export function runMigrations(db: DatabaseSync) {
 
   if (currentVersion < 5) {
     migrateToVersionFive(db);
+  }
+  if (currentVersion < 6) {
+    migrateToVersionSix(db);
   }
 }
 
@@ -212,6 +215,13 @@ function createVersionOneSchema(db: DatabaseSync) {
       content text not null default '',
       created_at text not null default (datetime('now')),
       updated_at text not null default (datetime('now'))
+    );
+
+    create table trade_research (
+      trade_id integer primary key references trade(id) on delete cascade,
+      fields_json text not null default '{}',
+      created_at text not null,
+      updated_at text not null
     );
 
     create table trade_attachment (
@@ -409,6 +419,29 @@ function migrateToVersionFive(db: DatabaseSync) {
       );
       pragma user_version = 5;
     `);
+    db.exec("commit");
+  } catch (error) {
+    db.exec("rollback");
+    throw error;
+  }
+}
+
+function migrateToVersionSix(db: DatabaseSync) {
+  db.exec("begin immediate");
+  try {
+    db.exec(`
+      create table if not exists trade_research (
+        trade_id integer primary key references trade(id) on delete cascade,
+        fields_json text not null default '{}',
+        created_at text not null,
+        updated_at text not null
+      );
+      pragma user_version = 6;
+    `);
+    if (getTableColumns(db, "app_setting").size > 0) {
+      db.prepare(`update app_setting set value = 'single-trade-ai-v3', updated_at = datetime('now')
+        where key = 'openai.prompt_version' and value = 'single-trade-ai-v2'`).run();
+    }
     db.exec("commit");
   } catch (error) {
     db.exec("rollback");
